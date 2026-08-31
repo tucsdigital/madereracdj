@@ -23,14 +23,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
 import { repairObraPedidosByCreationDate } from "@/lib/obra-numbering";
 import {
   Building,
-  Building2,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -45,8 +43,6 @@ import {
   Eye,
   Pencil,
   ArrowRightCircle,
-  FileText,
-  MousePointerClick,
   Plus,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
@@ -99,23 +95,6 @@ const PERIODOS_LISTA = [
   { value: "90dias", label: "Fecha: Ultimos 90 dias" },
   { value: "todos", label: "Fecha: Todo el periodo" },
 ];
-
-const OPCIONES_CREACION = {
-  obra: {
-    value: "obra",
-    title: "Nueva obra",
-    detail: "Para cargar una obra en ejecucion.",
-    href: (lang) => `/${lang}/obras/create`,
-    icon: Building2,
-  },
-  presupuesto: {
-    value: "presupuesto",
-    title: "Nuevo presupuesto",
-    detail: "Para preparar un presupuesto previo.",
-    href: (lang) => `/${lang}/obras/presupuesto/create`,
-    icon: FileText,
-  },
-};
 
 const formatCurrency = (value) =>
   `$${Number(value || 0).toLocaleString("es-AR", {
@@ -377,8 +356,6 @@ const ObrasPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [createMode, setCreateMode] = useState("obra");
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   
@@ -1510,20 +1487,6 @@ const ObrasPage = () => {
     });
   };
 
-  const handleOpenCreateDialog = useCallback(() => {
-    setCreateMode(listaActiva === "presupuestos" ? "presupuesto" : "obra");
-    setShowCreateDialog(true);
-  }, [listaActiva]);
-
-  const handleCreateSelect = useCallback(
-    (mode) => {
-      const option = OPCIONES_CREACION[mode] || OPCIONES_CREACION.obra;
-      setShowCreateDialog(false);
-      router.push(option.href(lang));
-    },
-    [lang, router]
-  );
-
   const tabsTabla = [
     {
       value: "presupuestos",
@@ -1625,10 +1588,10 @@ const ObrasPage = () => {
       <Button
         type="button"
         onClick={() => router.push(`/${lang}/obras/presupuesto/create`)}
-        className="h-10 w-10 rounded-xl px-0"
-        title="Nuevo presupuesto"
+        className="h-10 rounded-xl px-4"
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="mr-2 h-4 w-4" />
+        Nuevo Presupuesto
       </Button>
 
       <Popover>
@@ -1755,10 +1718,10 @@ const ObrasPage = () => {
       <Button
         type="button"
         onClick={() => router.push(`/${lang}/obras/create`)}
-        className="h-10 w-10 rounded-xl px-0"
-        title="Nueva obra"
+        className="h-10 rounded-xl px-4"
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="mr-2 h-4 w-4" />
+        Nueva Obra
       </Button>
 
       <Popover>
@@ -2010,92 +1973,6 @@ const ObrasPage = () => {
           onRowClick={(item) => router.push(`/${lang}/obras/${item.id}`)}
         />
       </div>
-
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="w-[95vw] max-w-2xl rounded-[28px] border border-border/60 bg-white p-0 shadow-xl">
-          <div className="overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.05),_transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(250,250,252,0.94))] p-6 md:p-7">
-            <DialogHeader className="mb-5 gap-1 text-left">
-              <DialogTitle className="text-2xl font-semibold text-foreground">
-                Nuevo registro
-              </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Elegi un modo y entra al formulario.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Tabs value={createMode} onValueChange={setCreateMode} className="space-y-5">
-              <TabsList className="h-auto rounded-2xl border border-border/60 bg-muted/40 p-1">
-                {Object.values(OPCIONES_CREACION).map((option) => (
-                  <TabsTrigger
-                    key={option.value}
-                    value={option.value}
-                    className="h-11 cursor-pointer select-none rounded-xl px-5 text-sm font-semibold transition-all duration-200 data-[state=active]:scale-[1.01]"
-                  >
-                    {option.value === "obra" ? "Obra" : "Presupuesto"}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              {Object.values(OPCIONES_CREACION).map((option) => {
-                const Icono = option.icon;
-                const isActive = createMode === option.value;
-
-                return (
-                  <TabsContent key={option.value} value={option.value} className="mt-0">
-                    <button
-                      type="button"
-                      onClick={() => handleCreateSelect(option.value)}
-                      className={`group flex w-full cursor-pointer select-none flex-col rounded-[26px] border p-5 text-left transition-all duration-200 ${
-                        isActive
-                          ? "border-primary/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,245,255,0.92))]"
-                          : "border-border/60 bg-muted/20 hover:border-primary/20 hover:bg-background"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-200 ${
-                            isActive
-                              ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                              : "bg-background text-foreground group-hover:bg-primary/5 group-hover:text-primary"
-                          }`}
-                        >
-                          <Icono className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <div className="text-xl font-semibold text-foreground">{option.title}</div>
-                          <div className="mt-1 text-sm text-muted-foreground">{option.detail}</div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex items-center justify-end">
-                        <div
-                          className={`relative flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200 ${
-                            isActive
-                              ? "border-primary/20 bg-primary/5 text-primary"
-                              : "border-border/60 bg-background/70 text-muted-foreground"
-                          }`}
-                        >
-                          <span
-                            className={`absolute h-7 w-7 rounded-full border ${
-                              isActive ? "animate-ping border-primary/30" : "border-border/40"
-                            }`}
-                          />
-                          <span
-                            className={`absolute h-11 w-11 rounded-full ${
-                              isActive ? "animate-pulse bg-primary/5" : ""
-                            }`}
-                          />
-                          <MousePointerClick className="relative z-10 h-4 w-4" />
-                        </div>
-                      </div>
-                    </button>
-                  </TabsContent>
-                );
-              })}
-            </Tabs>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Diálogo de confirmación de eliminación mejorado */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
