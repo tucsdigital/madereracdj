@@ -75,30 +75,30 @@ export function buildRemitoHtml(
         .map(
           (item) => `
           <tr>
-            <td style="padding: 4px 6px; font-weight: 700; color: #000000; font-size: 11.5px;">
+            <td style="padding: 3px 5px; font-weight: 700; color: #000000; font-size: 10px;">
               ${safe(item.nombre)}
-              ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
+              ${item.detalle ? `<div style="font-size: 9px; font-weight: 500; margin-top: 1px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
-            <td style="padding: 4px 6px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">
-              <div style="font-size: 12px; font-weight: 900; color: #000000;">
+            <td style="padding: 3px 5px; text-align: center; font-weight: 800; color: #000000; font-size: 10.5px;">
+              <div style="font-size: 10.5px; font-weight: 900; color: #000000;">
                 ${Math.max(1, Math.ceil(Number(item.cantidad) || 1))}
               </div>
               ${
                 item.medidaUnidad === "m²" && item.medidaValor !== undefined
-                  ? `<div style="margin-top: 1px; font-size: 10.5px; font-weight: 800; color: #000000;">
+                  ? `<div style="margin-top: 1px; font-size: 9px; font-weight: 800; color: #000000;">
                       ${formatNumber(item.medidaValor)} ${escapeHtml(String(item.medidaUnidad))}
                     </div>`
                   : ``
               }
             </td>
-            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
-            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
+            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: 9.5px; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
+            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: 9.5px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
             ${!paraEmpleado ? `
-            <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
-            <td style="padding: 4px 6px; text-align: right; font-weight: 800; color: #000000; font-size: 12px;">${formatCurrency(item.subtotal || 0)}</td>
+            <td style="padding: 3px 5px; text-align: right; color: #000000; font-size: 10px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 3px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10.5px;">${formatCurrency(item.subtotal || 0)}</td>
             ` : `
-            <td style="padding: 4px 6px; text-align: right;" class="precio-empleado"></td>
-            <td style="padding: 4px 6px; text-align: right; font-weight: 600;" class="total-empleado"></td>
+            <td style="padding: 3px 5px; text-align: right;" class="precio-empleado"></td>
+            <td style="padding: 3px 5px; text-align: right; font-weight: 600;" class="total-empleado"></td>
             `}
           </tr>
         `
@@ -112,23 +112,22 @@ export function buildRemitoHtml(
       </tr>
     `;
 
-  // Agregar solo 2-3 filas vacías si hay pocos items (solo para llenar un poco el espacio)
-  // No agregar si hay muchos items (Puppeteer manejará el overflow automáticamente)
+  // Agregar solo 1-2 filas vacías si hay pocos items, para no desperdiciar espacio en boletas largas
     let filasVacias = "";
     if (items.length > 0 && items.length < 8) {
-      const numFilasVacias = Math.min(3, 8 - items.length);
+      const numFilasVacias = Math.min(2, 8 - items.length);
       filasVacias = Array.from({ length: numFilasVacias }, () => `
       <tr>
-        <td style="padding: 4px 6px; height: 20px;"></td>
-        <td style="padding: 4px 6px;"></td>
-        <td style="padding: 4px 6px;"></td>
-        <td style="padding: 4px 6px;"></td>
+        <td style="padding: 3px 5px; height: 14px;"></td>
+        <td style="padding: 3px 5px;"></td>
+        <td style="padding: 3px 5px;"></td>
+        <td style="padding: 3px 5px;"></td>
         ${!paraEmpleado ? `
-        <td style="padding: 4px 6px;"></td>
-        <td style="padding: 4px 6px;"></td>
+        <td style="padding: 3px 5px;"></td>
+        <td style="padding: 3px 5px;"></td>
         ` : `
-        <td style="padding: 4px 6px;" class="precio-empleado"></td>
-        <td style="padding: 4px 6px;" class="total-empleado"></td>
+        <td style="padding: 3px 5px;" class="precio-empleado"></td>
+        <td style="padding: 3px 5px;" class="total-empleado"></td>
         `}
       </tr>
     `).join("");
@@ -141,35 +140,35 @@ export function buildRemitoHtml(
   const totalesRowsHtml = !paraEmpleado
     ? `
       <tr>
-        <td colspan="4" style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">SUBTOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.subtotal)}</td>
+        <td colspan="4" style="padding: 4px 5px;"></td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">SUBTOTAL</td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(totales.subtotal)}</td>
       </tr>
       ${descuentoUnificado > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(descuentoUnificado)}</td>
+        <td colspan="4" style="padding: 4px 5px;"></td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">DESCUENTO</td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(descuentoUnificado)}</td>
       </tr>
       ` : ""}
       ${totales.costoEnvio > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">ENVÍO</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.costoEnvio)}</td>
+        <td colspan="4" style="padding: 4px 5px;"></td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">ENVÍO</td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
       ${Number(totales.ivaMonto || 0) > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
+        <td colspan="4" style="padding: 4px 5px;"></td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
       </tr>
       ` : ""}
       <tr>
-        <td colspan="4" style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">TOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">${formatCurrency(totales.total)}</td>
+        <td colspan="4" style="padding: 4px 5px;"></td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 900; font-size: 12.5px; color: #000000;">TOTAL</td>
+        <td style="padding: 4px 5px; text-align: right; font-weight: 900; font-size: 12.5px; color: #000000;">${formatCurrency(totales.total)}</td>
       </tr>
     `
     : "";
@@ -445,12 +444,12 @@ export function buildRemitoHtml(
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif;
-      font-size: 12px;
-      line-height: 1.4;
+      font-size: 10.5px;
+      line-height: 1.25;
       color: #000000;
       background: #fff;
       width: 210mm;
-      padding: 8mm 10mm;
+      padding: 6mm 8mm;
       box-sizing: border-box;
     }
     .page {
@@ -464,15 +463,15 @@ export function buildRemitoHtml(
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
       border-bottom: 1px solid #000000;
     }
     .header-envio {
       justify-content: center;
       align-items: center;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
       position: relative;
     }
     .header-envio-qr {
@@ -496,16 +495,16 @@ export function buildRemitoHtml(
       margin: 0;
     }
     .remito-title-envio {
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 950;
       letter-spacing: 0.8px;
       margin: 0;
     }
     .envio-meta {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 800;
       color: #000000;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       text-align: right;
       letter-spacing: 0.2px;
     }
@@ -516,8 +515,8 @@ export function buildRemitoHtml(
       gap: 10px;
     }
     .header-logo-container {
-      width: 90px;
-      height: 90px;
+      width: 64px;
+      height: 64px;
       flex-shrink: 0;
       background: transparent;
       border: none;
@@ -535,24 +534,24 @@ export function buildRemitoHtml(
       flex: 1;
     }
     .header-empresa h1 {
-      font-size: 18px;
+      font-size: 14.5px;
       font-weight: 900;
-      margin-bottom: 3px;
+      margin-bottom: 1px;
       letter-spacing: 0.2px;
-      line-height: 1.3;
+      line-height: 1.2;
       color: #000000;
     }
     .header-empresa .direccion {
-      font-size: 11px;
+      font-size: 9px;
       color: #000000;
-      margin-bottom: 2px;
-      line-height: 1.3;
+      margin-bottom: 1px;
+      line-height: 1.2;
       font-weight: 600;
     }
     .header-empresa .telefono {
-      font-size: 11px;
+      font-size: 9px;
       color: #000000;
-      line-height: 1.3;
+      line-height: 1.2;
       font-weight: 600;
     }
     .header-center {
@@ -564,23 +563,23 @@ export function buildRemitoHtml(
       padding: 0 6px;
     }
     .x-box {
-      width: 70px;
-      height: 70px;
-      border: 3px solid #000000;
+      width: 50px;
+      height: 50px;
+      border: 2px solid #000000;
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 50px;
+      font-size: 36px;
       font-weight: 900;
-      margin-bottom: 6px;
+      margin-bottom: 3px;
       color: #000000;
       background: #fff;
     }
     .documento-invalido {
-      font-size: 10px;
+      font-size: 8px;
       text-align: center;
-      line-height: 1.2;
+      line-height: 1.15;
       font-weight: 800;
       color: #000000;
     }
@@ -588,71 +587,71 @@ export function buildRemitoHtml(
       flex: 0 0 34%;
       border: 1px solid #000000;
       border-radius: 8px;
-      padding: 10px;
+      padding: 6px 8px;
       text-align: center;
       background: #fff;
     }
     .header-right .doc-icon {
       display: flex;
       justify-content: center;
-      margin-bottom: 6px;
+      margin-bottom: 3px;
     }
     .header-right .remito-title {
-      font-size: 16px;
+      font-size: 13px;
       font-weight: 900;
-      margin-bottom: 6px;
+      margin-bottom: 3px;
       letter-spacing: 0.5px;
       color: #000000;
     }
     .header-right .remito-numero {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 800;
-      margin-bottom: 3px;
+      margin-bottom: 1px;
       color: #000000;
     }
     .header-right .remito-fecha {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 700;
       color: #000000;
     }
     .client-section {
-      margin-bottom: 14px;
+      margin-bottom: 8px;
       border: 1px solid #000000;
       border-radius: 10px;
-      padding: 14px;
+      padding: 8px 10px;
       background: #fff;
     }
     .client-grid {
       display: flex;
-      gap: 20px;
+      gap: 14px;
     }
     .client-col {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 3px;
     }
     .client-row {
       display: flex;
       align-items: baseline;
-      gap: 8px;
-      line-height: 1.5;
+      gap: 6px;
+      line-height: 1.3;
     }
     .client-label {
       font-weight: 800;
-      font-size: 11px;
+      font-size: 10px;
       color: #000000;
-      min-width: 80px;
+      min-width: 68px;
     }
     .client-value {
-      font-size: 11px;
+      font-size: 10px;
       color: #000000;
       font-weight: 700;
       flex: 1;
     }
     .products-section {
       flex: 0 0 auto;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
     }
     .products-table {
       width: 100%;
@@ -660,7 +659,7 @@ export function buildRemitoHtml(
       border-spacing: 0;
       border: 1px solid #000000;
       border-radius: 10px;
-      font-size: 11px;
+      font-size: 10px;
       background: #fff;
       overflow: visible;
     }
@@ -668,11 +667,11 @@ export function buildRemitoHtml(
       background: #fff;
     }
     .products-table th {
-      padding: 4px 6px;
+      padding: 3px 5px;
       text-align: left;
       font-weight: 900;
       border-bottom: 1px solid #000000;
-      font-size: 12px;
+      font-size: 10.5px;
       color: #000000;
       letter-spacing: 0.3px;
       text-transform: uppercase;
@@ -687,8 +686,8 @@ export function buildRemitoHtml(
       text-align: right;
     }
     .products-table td {
-      padding: 4px 6px;
-      line-height: 1.2;
+      padding: 3px 5px;
+      line-height: 1.15;
       color: #000000;
       vertical-align: middle;
     }
@@ -705,7 +704,7 @@ export function buildRemitoHtml(
       background: #fff;
     }
     .products-table tfoot td {
-      padding: 4px 6px;
+      padding: 3px 5px;
       background: #fff;
     }
     .products-table tfoot td:not(:last-child) {
@@ -720,19 +719,19 @@ export function buildRemitoHtml(
       font-weight: 900;
     }
     .bottom {
-      margin-top: 16px;
-      padding-top: 12px;
-      padding-bottom: 8mm;
+      margin-top: 8px;
+      padding-top: 6px;
+      padding-bottom: 3mm;
       page-break-inside: avoid;
       break-inside: avoid;
     }
     .disclaimer {
-      font-size: 10px;
+      font-size: 8.5px;
       color: #000000;
-      line-height: 1.4;
-      margin-bottom: 10px;
+      line-height: 1.25;
+      margin-bottom: 6px;
       text-align: justify;
-      padding: 10px 12px;
+      padding: 6px 10px;
       background: #fff;
       border-radius: 6px;
       border: 1px solid #000000;
@@ -741,37 +740,37 @@ export function buildRemitoHtml(
     .firmas {
       display: flex;
       justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 6px;
+      margin-bottom: 6px;
     }
     .firma-col {
       flex: 1;
       text-align: left;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       color: #000000;
-      padding: 10px 6px;
+      padding: 6px 6px;
       background: #fff;
       border-radius: 6px;
       border: 1px solid #000000;
-      min-height: 45px;
+      min-height: 30px;
       display: flex;
       align-items: flex-start;
       justify-content: flex-start;
     }
     .envio-info {
-      font-size: 12px;
+      font-size: 10.5px;
       color: #000000;
-      margin-bottom: 8px;
-      line-height: 1.6;
-      padding: 12px 14px;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      padding: 8px 10px;
       background: #fff;
       border-radius: 6px;
       border: 1px solid #000000;
       font-weight: 700;
       display: flex;
       justify-content: space-between;
-      gap: 16px;
+      gap: 10px;
     }
     .envio-info strong {
       font-weight: 900;
@@ -779,11 +778,11 @@ export function buildRemitoHtml(
       margin-right: 6px;
     }
     .envio-info-item {
-      margin-bottom: 5px;
+      margin-bottom: 3px;
     }
     .envio-strong-value {
       font-weight: 900;
-      font-size: 12.5px;
+      font-size: 11px;
     }
     .envio-info-item:last-child {
       margin-bottom: 0;
@@ -799,27 +798,27 @@ export function buildRemitoHtml(
       padding-left: 12px;
     }
     .payment-inline {
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 10.5px;
+      line-height: 1.4;
     }
     .payment-row {
-      margin-bottom: 5px;
+      margin-bottom: 3px;
     }
     .payment-row .payment-value {
       font-weight: 900;
     }
     .payment-history {
-      margin-top: 4px;
+      margin-top: 3px;
     }
     .payment-history-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 900;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .payment-history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10px;
+      font-size: 9px;
     }
     .payment-history-table th,
     .payment-history-table td {
@@ -834,12 +833,12 @@ export function buildRemitoHtml(
       font-weight: 800;
     }
     .saldo-envio {
-      margin-top: 10px;
+      margin-top: 6px;
       border: 2px solid #000000;
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 6px 10px;
       font-weight: 900;
-      font-size: 14px;
+      font-size: 12.5px;
       text-align: center;
       text-transform: uppercase;
       letter-spacing: 0.4px;
@@ -852,7 +851,7 @@ export function buildRemitoHtml(
       gap: 8px;
       font-size: 7px;
       color: #000000;
-      margin-top: 4px;
+      margin-top: 3px;
       font-weight: 600;
       page-break-before: avoid;
     }
@@ -866,25 +865,25 @@ export function buildRemitoHtml(
       font-weight: 700;
     }
     .observaciones-section {
-      margin-top: 14px;
-      margin-bottom: 14px;
+      margin-top: 8px;
+      margin-bottom: 8px;
       border: 1px solid #000000;
       border-radius: 10px;
-      padding: 14px;
+      padding: 8px 10px;
       background: #fff;
     }
     .observaciones-title {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 900;
       color: #000000;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
     .observaciones-content {
-      font-size: 11px;
+      font-size: 10px;
       color: #000000;
-      line-height: 1.5;
+      line-height: 1.3;
       font-weight: 600;
       white-space: pre-wrap;
     }
