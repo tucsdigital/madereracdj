@@ -72,32 +72,40 @@ export function buildRemitoHtml(
     val && val.trim() ? escapeHtml(val.trim().toUpperCase()) : fallback;
 
   // Generar HTML de items de productos
+  // Tamaños de fuente de las filas: más grandes en boletas de Envío/Empleado, iguales que antes en Presupuesto/Venta.
+  const itemFontNombre = agrandarTexto ? "12px" : "10px";
+  const itemFontDetalle = agrandarTexto ? "10.5px" : "9px";
+  const itemFontCantidad = agrandarTexto ? "12.5px" : "10.5px";
+  const itemFontMedida = agrandarTexto ? "10.5px" : "9px";
+  const itemFontCepilladoCanteado = agrandarTexto ? "11.5px" : "9.5px";
+  const itemFontPrecio = agrandarTexto ? "12px" : "10px";
+  const itemFontSubtotal = agrandarTexto ? "12.5px" : "10.5px";
   const itemsHtml = items.length > 0
     ? items
         .map(
           (item) => `
           <tr>
-            <td style="padding: 3px 5px; font-weight: 700; color: #000000; font-size: 10px;">
+            <td style="padding: 3px 5px; font-weight: 700; color: #000000; font-size: ${itemFontNombre};">
               ${safe(item.nombre)}
-              ${item.detalle ? `<div style="font-size: 9px; font-weight: 500; margin-top: 1px;">${safe(item.detalle, "")}</div>` : ""}
+              ${item.detalle ? `<div style="font-size: ${itemFontDetalle}; font-weight: 500; margin-top: 1px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
-            <td style="padding: 3px 5px; text-align: center; font-weight: 800; color: #000000; font-size: 10.5px;">
-              <div style="font-size: 10.5px; font-weight: 900; color: #000000;">
+            <td style="padding: 3px 5px; text-align: center; font-weight: 800; color: #000000; font-size: ${itemFontCantidad};">
+              <div style="font-size: ${itemFontCantidad}; font-weight: 900; color: #000000;">
                 ${Math.max(1, Math.ceil(Number(item.cantidad) || 1))}
               </div>
               ${
                 item.medidaUnidad === "m²" && item.medidaValor !== undefined
-                  ? `<div style="margin-top: 1px; font-size: 9px; font-weight: 800; color: #000000;">
+                  ? `<div style="margin-top: 1px; font-size: ${itemFontMedida}; font-weight: 800; color: #000000;">
                       ${formatNumber(item.medidaValor)} ${escapeHtml(String(item.medidaUnidad))}
                     </div>`
                   : ``
               }
             </td>
-            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: 9.5px; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
-            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: 9.5px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
+            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: ${itemFontCepilladoCanteado}; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
+            <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: ${itemFontCepilladoCanteado}; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
             ${!paraEmpleado ? `
-            <td style="padding: 3px 5px; text-align: right; color: #000000; font-size: 10px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
-            <td style="padding: 3px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10.5px;">${formatCurrency(item.subtotal || 0)}</td>
+            <td style="padding: 3px 5px; text-align: right; color: #000000; font-size: ${itemFontPrecio}; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 3px 5px; text-align: right; font-weight: 800; color: #000000; font-size: ${itemFontSubtotal};">${formatCurrency(item.subtotal || 0)}</td>
             ` : `
             <td style="padding: 3px 5px; text-align: right;" class="precio-empleado"></td>
             <td style="padding: 3px 5px; text-align: right; font-weight: 600;" class="total-empleado"></td>
