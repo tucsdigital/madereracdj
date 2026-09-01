@@ -3966,7 +3966,14 @@ const PresupuestoDetalle = () => {
                 ? Number(presupuesto.costoEnvio)
                 : 0;
               const descuentoEfectivo = presupuesto?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-              const totalFinal = total + envio - descuentoEfectivo;
+              const baseImponible = Math.max(0, total - descuentoEfectivo);
+              const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
+              const ivaMonto = presupuesto?.aplicaIva === false ? 0 : (Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
+              const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
+              const transferenciaMonto = presupuesto?.aplicaTransferencia ? (Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
+              const totalFinal = typeof presupuesto.total === "number" && !isNaN(presupuesto.total)
+                ? presupuesto.total
+                : baseImponible + ivaMonto + transferenciaMonto + envio;
               return (
                 <div className="mt-6 flex justify-end">
                   <div className="bg-card rounded-lg p-4 min-w-[300px]">
@@ -3989,6 +3996,18 @@ const PresupuestoDetalle = () => {
                         <div className="flex justify-between">
                           <span>Cotización de envío:</span>
                           <span>$ {formatearNumeroArgentino(envio)}</span>
+                        </div>
+                      )}
+                      {ivaMonto > 0 && (
+                        <div className="flex justify-between">
+                          <span>IVA ({ivaPorcentaje}%):</span>
+                          <span>$ {formatearNumeroArgentino(ivaMonto)}</span>
+                        </div>
+                      )}
+                      {transferenciaMonto > 0 && (
+                        <div className="flex justify-between">
+                          <span>Transferencia ({transferenciaPorcentaje}%):</span>
+                          <span>$ {formatearNumeroArgentino(transferenciaMonto)}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-bold text-lg">

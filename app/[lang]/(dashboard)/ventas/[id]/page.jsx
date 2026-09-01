@@ -2711,7 +2711,14 @@ const VentaDetalle = () => {
               const { subtotal, descuentoTotal, total } = computeTotals(items);
               const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;
               const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-              const totalFinal = total + envio - descuentoEfectivo;
+              const baseImponible = Math.max(0, total - descuentoEfectivo);
+              const ivaPorcentaje = Math.max(0, Number(venta?.ivaPorcentaje) || 21);
+              const ivaMonto = venta?.aplicaIva === false ? 0 : (Number(venta?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
+              const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 0);
+              const transferenciaMonto = venta?.aplicaTransferencia ? (Number(venta?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
+              const totalFinal = typeof venta.total === "number" && !isNaN(venta.total)
+                ? venta.total
+                : baseImponible + ivaMonto + transferenciaMonto + envio;
               return (
                 <div className="mt-6 flex justify-end">
                   <div className="bg-card rounded-lg p-4 min-w-[300px]">
@@ -2734,6 +2741,18 @@ const VentaDetalle = () => {
                         <div className="flex justify-between costo-envio-empleado">
                           <span>Cotización de envío:</span>
                           <span>$ {envio.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {ivaMonto > 0 && (
+                        <div className="flex justify-between">
+                          <span>IVA ({ivaPorcentaje}%):</span>
+                          <span>$ {ivaMonto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {transferenciaMonto > 0 && (
+                        <div className="flex justify-between">
+                          <span>Transferencia ({transferenciaPorcentaje}%):</span>
+                          <span>$ {transferenciaMonto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
