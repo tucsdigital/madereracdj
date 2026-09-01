@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import CajaDelDia from "./caja-del-dia";
 
 const SalesStats = () => {
   const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
@@ -731,6 +732,8 @@ const SalesStats = () => {
         )}
       </CardHeader>
       <CardContent className="relative pt-2 px-6 pb-6 space-y-4">
+        {/* Caja del día: ingresos de hoy (ventas, pagos de ventas viejas, pagos de obras), independiente del rango de fechas */}
+        <CajaDelDia />
         {loading ? (
           <Skeleton />
         ) : (
