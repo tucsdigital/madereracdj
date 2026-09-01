@@ -41,6 +41,8 @@ export function buildRemitoHtml(
   const esVenta = tipo === "venta";
   const esPresupuesto = tipo === "presupuesto";
   const esEnvioDoc = purpose === "envio";
+  // Boletas de Envío y de Empleados usan textos más grandes; Presupuesto/Venta normales no cambian.
+  const agrandarTexto = paraEmpleado || esEnvioDoc;
 
   // Información de pagos para ventas
   const estadoPago = pagos?.estadoPago;
@@ -953,9 +955,87 @@ export function buildRemitoHtml(
       display: none !important;
     }
     ` : ""}
+    ${agrandarTexto ? `
+    body.big-text {
+      font-size: 13.5px;
+      line-height: 1.35;
+    }
+    body.big-text .header-empresa h1 {
+      font-size: 20px;
+    }
+    body.big-text .header-empresa .direccion,
+    body.big-text .header-empresa .telefono {
+      font-size: 12.5px;
+    }
+    body.big-text .documento-invalido {
+      font-size: 11px;
+    }
+    body.big-text .header-right .remito-title,
+    body.big-text .remito-title-envio {
+      font-size: 18px;
+    }
+    body.big-text .header-right .remito-numero,
+    body.big-text .header-right .remito-fecha {
+      font-size: 13px;
+    }
+    body.big-text .envio-meta {
+      font-size: 11px;
+    }
+    body.big-text .client-label,
+    body.big-text .client-value {
+      font-size: 12.5px;
+    }
+    body.big-text .products-table {
+      font-size: 12.5px;
+    }
+    body.big-text .products-table th {
+      font-size: 13px;
+      padding: 5px 7px;
+    }
+    body.big-text .products-table td {
+      padding: 5px 7px;
+      line-height: 1.3;
+    }
+    body.big-text .products-table tfoot td {
+      padding: 5px 7px;
+    }
+    body.big-text .envio-info {
+      font-size: 12px;
+    }
+    body.big-text .envio-strong-value {
+      font-size: 13px;
+    }
+    body.big-text .disclaimer {
+      font-size: 10px;
+    }
+    body.big-text .observaciones-title {
+      font-size: 12px;
+    }
+    body.big-text .observaciones-content {
+      font-size: 12px;
+    }
+    body.big-text .payment-inline {
+      font-size: 12px;
+    }
+    body.big-text .payment-history-title {
+      font-size: 11px;
+    }
+    body.big-text .payment-history-table {
+      font-size: 10.5px;
+    }
+    body.big-text .firma-col {
+      font-size: 11.5px;
+    }
+    body.big-text .saldo-envio {
+      font-size: 14px;
+    }
+    body.big-text .footer-bottom {
+      font-size: 8px;
+    }
+    ` : ""}
   </style>
 </head>
-<body class="${esEnvioDoc ? "envio-doc" : ""}">
+<body class="${esEnvioDoc ? "envio-doc" : ""}${agrandarTexto ? " big-text" : ""}">
   <div class="page">
     <div class="main">
       <!-- Header con 3 zonas -->

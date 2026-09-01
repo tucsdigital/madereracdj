@@ -229,7 +229,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [aplicarIva, setAplicarIva] = useState(false);
   const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
   const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
-  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("0");
+  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
   const [productosLoading, setProductosLoading] = useState(true);
   // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 

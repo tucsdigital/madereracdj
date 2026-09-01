@@ -157,7 +157,7 @@ export function mapVentaToRemito(venta: any): RemitoModel {
   const ivaMonto = venta?.aplicaIva !== true
     ? 0
     : Number(venta?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
-  const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 0);
+  const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 10);
   const transferenciaMonto = venta?.aplicaTransferencia !== true
     ? 0
     : Number(venta?.transferenciaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (transferenciaPorcentaje / 100);
@@ -298,7 +298,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
   const ivaMonto = presupuesto?.aplicaIva !== true
     ? 0
     : Number(presupuesto?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
-  const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
+  const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
   const transferenciaMonto = presupuesto?.aplicaTransferencia !== true
     ? 0
     : Number(presupuesto?.transferenciaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (transferenciaPorcentaje / 100);

@@ -3835,7 +3835,7 @@ const PresupuestoDetalle = () => {
                   const baseImponible = Math.max(0, total - descuentoEfectivo);
                   const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
                   const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-                  const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 0);
+                  const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 10);
                   const transferenciaMonto = presupuestoEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
                   const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                   return (
@@ -3847,7 +3847,7 @@ const PresupuestoDetalle = () => {
                         </div>
                         <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
                           <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(presupuestoEdit?.aplicaTransferencia)} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Pago con Transferencia</label>
-                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.transferenciaPorcentaje ?? 0} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !presupuestoEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
+                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.transferenciaPorcentaje ?? 10} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !presupuestoEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
                         </div>
                         <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
@@ -3969,7 +3969,7 @@ const PresupuestoDetalle = () => {
               const baseImponible = Math.max(0, total - descuentoEfectivo);
               const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
               const ivaMonto = presupuesto?.aplicaIva === false ? 0 : (Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
-              const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
+              const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
               const transferenciaMonto = presupuesto?.aplicaTransferencia ? (Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
               const totalFinal = typeof presupuesto.total === "number" && !isNaN(presupuesto.total)
                 ? presupuesto.total

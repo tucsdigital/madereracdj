@@ -1641,7 +1641,7 @@ const VentaDetalle = () => {
     const baseImponible = Math.max(0, totalSinEnvio - descuentoEfectivo);
     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
     const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 0);
+    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
     const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
     const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
     // Asegurar que la información del cliente se preserve
@@ -2714,7 +2714,7 @@ const VentaDetalle = () => {
               const baseImponible = Math.max(0, total - descuentoEfectivo);
               const ivaPorcentaje = Math.max(0, Number(venta?.ivaPorcentaje) || 21);
               const ivaMonto = venta?.aplicaIva === false ? 0 : (Number(venta?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
-              const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 0);
+              const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 10);
               const transferenciaMonto = venta?.aplicaTransferencia ? (Number(venta?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
               const totalFinal = typeof venta.total === "number" && !isNaN(venta.total)
                 ? venta.total
@@ -3929,7 +3929,7 @@ const VentaDetalle = () => {
                     const baseImponible = Math.max(0, total - descuentoEfectivo);
                     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
                     const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-                    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 0);
+                    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
                     const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
                     const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                     return (
@@ -3952,7 +3952,7 @@ const VentaDetalle = () => {
                           </label>
                           <label className="flex items-center gap-2 text-sm">
                             <span className="text-muted-foreground">Porcentaje:</span>
-                            <input type="number" min="0" step="0.01" value={ventaEdit?.transferenciaPorcentaje ?? 0} onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
+                            <input type="number" min="0" step="0.01" value={ventaEdit?.transferenciaPorcentaje ?? 10} onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
                             <span className="text-xs text-muted-foreground">%</span>
                           </label>
                         </div>
