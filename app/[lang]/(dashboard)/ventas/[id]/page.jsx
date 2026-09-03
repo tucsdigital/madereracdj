@@ -533,10 +533,10 @@ const VentaDetalle = () => {
       ventaClonada.comprobantesPago = Array.isArray(ventaClonada.comprobantesPago) ? ventaClonada.comprobantesPago : [];
       ventaClonada.pagoEnDolares = ventaClonada.pagoEnDolares ?? false;
       ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
-      ventaClonada.aplicaIva = ventaClonada.aplicaIva ?? false;
+      ventaClonada.aplicaIva = Boolean(ventaClonada.aplicaIva);
       ventaClonada.ivaPorcentaje = Number(ventaClonada.ivaPorcentaje) || 21;
-      ventaClonada.aplicaTransferencia = ventaClonada.aplicaTransferencia ?? false;
-      ventaClonada.transferenciaPorcentaje = Number(ventaClonada.transferenciaPorcentaje) || 0;
+      ventaClonada.aplicaTransferencia = Boolean(ventaClonada.aplicaTransferencia);
+      ventaClonada.transferenciaPorcentaje = Number(ventaClonada.transferenciaPorcentaje) || 10;
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
           ? (() => {
@@ -1640,9 +1640,9 @@ const VentaDetalle = () => {
     const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
     const baseImponible = Math.max(0, totalSinEnvio - descuentoEfectivo);
     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
-    const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+    const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
     const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
-    const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+    const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
     const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
@@ -1682,7 +1682,7 @@ const VentaDetalle = () => {
       ...ventaEdit,
       subtotal,
       descuentoTotal,
-      aplicaIva: ventaEdit?.aplicaIva !== false,
+      aplicaIva: Boolean(ventaEdit?.aplicaIva),
       ivaPorcentaje,
       ivaMonto,
       aplicaTransferencia: Boolean(ventaEdit?.aplicaTransferencia),
@@ -2713,9 +2713,9 @@ const VentaDetalle = () => {
               const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
               const baseImponible = Math.max(0, total - descuentoEfectivo);
               const ivaPorcentaje = Math.max(0, Number(venta?.ivaPorcentaje) || 21);
-              const ivaMonto = venta?.aplicaIva === false ? 0 : (Number(venta?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
+              const ivaMonto = Boolean(venta?.aplicaIva) ? (Number(venta?.ivaMonto) || baseImponible * (ivaPorcentaje / 100)) : 0;
               const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 10);
-              const transferenciaMonto = venta?.aplicaTransferencia ? (Number(venta?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
+              const transferenciaMonto = Boolean(venta?.aplicaTransferencia) ? (Number(venta?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
               const totalFinal = typeof venta.total === "number" && !isNaN(venta.total)
                 ? venta.total
                 : baseImponible + ivaMonto + transferenciaMonto + envio;
@@ -3921,71 +3921,105 @@ const VentaDetalle = () => {
 
               {/* Totales y botones por debajo de la tabla */}
               {(ventaEdit.productos || []).length > 0 && (
-                <div className="flex flex-col items-end gap-2 mt-4">
+                <div className="flex flex-col items-end gap-3 mt-4">
                   {(() => {
                     const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
                     const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
                     const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
                     const baseImponible = Math.max(0, total - descuentoEfectivo);
                     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
-                    const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+                    const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
                     const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
-                    const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+                    const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
                     const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                     return (
-                      <div className="flex w-fit max-w-full self-end flex-col gap-3">
-                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="inline-flex items-center gap-2 text-sm font-semibold">
-                            <input type="checkbox" checked={ventaEdit?.aplicaIva !== false} onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />
-                            Aplicar IVA
-                          </label>
-                          <label className="flex items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">Porcentaje:</span>
-                            <input type="number" min="0" step="0.01" value={ventaEdit?.ivaPorcentaje ?? 21} onChange={(e) => setVentaEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || ventaEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
-                            <span className="text-xs text-muted-foreground">%</span>
-                          </label>
+                      <div className="flex w-full flex-col items-end gap-3">
+                        {/* Controles de IVA y Transferencia alineados a la derecha */}
+                        <div className="flex flex-wrap items-center justify-end gap-3">
+                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(ventaEdit?.aplicaIva)}
+                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))}
+                                disabled={loadingPrecios}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                              />
+                              Aplicar IVA
+                            </label>
+                            <label className="flex items-center gap-1.5 text-sm">
+                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={ventaEdit?.ivaPorcentaje ?? 21}
+                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))}
+                                disabled={loadingPrecios || !ventaEdit?.aplicaIva}
+                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </label>
+                          </div>
+
+                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(ventaEdit?.aplicaTransferencia)}
+                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))}
+                                disabled={loadingPrecios}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                              />
+                              Pago con Transferencia
+                            </label>
+                            <label className="flex items-center gap-1.5 text-sm">
+                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={ventaEdit?.transferenciaPorcentaje ?? 10}
+                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))}
+                                disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia}
+                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </label>
+                          </div>
                         </div>
-                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="inline-flex items-center gap-2 text-sm font-semibold">
-                            <input type="checkbox" checked={Boolean(ventaEdit?.aplicaTransferencia)} onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />
-                            Pago con Transferencia
-                          </label>
-                          <label className="flex items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">Porcentaje:</span>
-                            <input type="number" min="0" step="0.01" value={ventaEdit?.transferenciaPorcentaje ?? 10} onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
-                            <span className="text-xs text-muted-foreground">%</span>
-                          </label>
-                        </div>
+
+                        {/* Banner resumen de totales */}
                         <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                        <div>
-                          Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
-                        </div>
-                        <div>
-                          Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
-                        </div>
-                        {descuentoEfectivo > 0 && (
                           <div>
-                            Descuento (Efectivo 10%): <span className="font-bold text-green-600">${formatearNumeroArgentino(descuentoEfectivo)}</span>
+                            Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
                           </div>
-                        )}
-                        {envio > 0 && (
                           <div>
-                            Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
+                            Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
                           </div>
-                        )}
-                        {ivaMonto > 0 && (
+                          {descuentoEfectivo > 0 && (
+                            <div>
+                              Descuento (Efectivo 10%): <span className="font-bold text-green-600">${formatearNumeroArgentino(descuentoEfectivo)}</span>
+                            </div>
+                          )}
+                          {envio > 0 && (
+                            <div>
+                              Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
+                            </div>
+                          )}
+                          {ivaMonto > 0 && (
+                            <div>
+                              IVA ({ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(ivaMonto)}</span>
+                            </div>
+                          )}
+                          {transferenciaMonto > 0 && (
+                            <div>
+                              Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(transferenciaMonto)}</span>
+                            </div>
+                          )}
                           <div>
-                            IVA ({ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(ivaMonto)}</span>
+                            Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
                           </div>
-                        )}
-                        {transferenciaMonto > 0 && (
-                          <div>
-                            Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(transferenciaMonto)}</span>
-                          </div>
-                        )}
-                        <div>
-                          Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
-                        </div>
                         </div>
                       </div>
                     );
@@ -4006,11 +4040,16 @@ const VentaDetalle = () => {
                     : 0;
 
                 const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                const total = subtotal - descuento - descuentoEfectivo + envio;
+                const baseImponible = Math.max(0, subtotal - descuento - descuentoEfectivo);
+                const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
+                const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
+                const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
+                const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+                const total = baseImponible + ivaMonto + transferenciaMonto + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
                   ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                   : Number(ventaEdit.montoAbonado || 0);
-                const saldo = total - abonado;
+                const saldo = Math.max(0, total - abonado);
 
                 if (saldo > 0) {
                   // Validar que los campos estén inicializados

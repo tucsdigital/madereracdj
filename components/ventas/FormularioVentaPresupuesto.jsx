@@ -3377,71 +3377,70 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </div>
           )}
-          <div className="flex w-full justify-end">
-            <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
-              <input
-                type="checkbox"
-                checked={aplicarIva}
-                onChange={(e) => setAplicarIva(e.target.checked)}
-                disabled={isSubmitting}
-                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-              />
-              Aplicar IVA
-              </label>
-              <div className="flex items-center gap-2 text-sm">
-              <label htmlFor="ivaPorcentaje" className="text-muted-foreground">
-                Porcentaje:
-              </label>
-              <div className="relative w-24">
+          <div className="flex flex-wrap items-center justify-end gap-3 w-full">
+            <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
                 <input
-                  id="ivaPorcentaje"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={ivaPorcentaje}
-                  onChange={(e) => setIvaPorcentaje(e.target.value)}
-                  disabled={isSubmitting || !aplicarIva}
-                  className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-6 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  type="checkbox"
+                  checked={aplicarIva}
+                  onChange={(e) => setAplicarIva(e.target.checked)}
+                  disabled={isSubmitting}
+                  className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
                 />
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  %
-                </span>
-              </div>
+                Aplicar IVA
+              </label>
+              <div className="flex items-center gap-1.5 text-sm">
+                <label htmlFor="ivaPorcentaje" className="text-xs text-muted-foreground">
+                  Porcentaje:
+                </label>
+                <div className="relative w-20">
+                  <input
+                    id="ivaPorcentaje"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={ivaPorcentaje}
+                    onChange={(e) => setIvaPorcentaje(e.target.value)}
+                    disabled={isSubmitting || !aplicarIva}
+                    className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    %
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex w-full justify-end">
-            <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
-              <input
-                type="checkbox"
-                checked={aplicarTransferencia}
-                onChange={(e) => setAplicarTransferencia(e.target.checked)}
-                disabled={isSubmitting}
-                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-              />
-              Pago con Transferencia
-              </label>
-              <div className="flex items-center gap-2 text-sm">
-              <label htmlFor="transferenciaPorcentaje" className="text-muted-foreground">
-                Porcentaje:
-              </label>
-              <div className="relative w-24">
+
+            <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
                 <input
-                  id="transferenciaPorcentaje"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={transferenciaPorcentaje}
-                  onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
-                  disabled={isSubmitting || !aplicarTransferencia}
-                  className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-6 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  type="checkbox"
+                  checked={aplicarTransferencia}
+                  onChange={(e) => setAplicarTransferencia(e.target.checked)}
+                  disabled={isSubmitting}
+                  className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
                 />
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  %
-                </span>
-              </div>
+                Pago con Transferencia
+              </label>
+              <div className="flex items-center gap-1.5 text-sm">
+                <label htmlFor="transferenciaPorcentaje" className="text-xs text-muted-foreground">
+                  Porcentaje:
+                </label>
+                <div className="relative w-20">
+                  <input
+                    id="transferenciaPorcentaje"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={transferenciaPorcentaje}
+                    onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                    disabled={isSubmitting || !aplicarTransferencia}
+                    className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    %
+                  </span>
+                </div>
               </div>
             </div>
           </div>

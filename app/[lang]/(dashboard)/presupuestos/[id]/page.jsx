@@ -353,10 +353,10 @@ const PresupuestoDetalle = () => {
     if (editando && presupuesto) {
       console.log("Clonando presupuesto para edición");
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
-      presupuestoClonado.aplicaIva = presupuestoClonado.aplicaIva ?? false;
+      presupuestoClonado.aplicaIva = Boolean(presupuestoClonado.aplicaIva);
       presupuestoClonado.ivaPorcentaje = Number(presupuestoClonado.ivaPorcentaje) || 21;
-      presupuestoClonado.aplicaTransferencia = presupuestoClonado.aplicaTransferencia ?? false;
-      presupuestoClonado.transferenciaPorcentaje = Number(presupuestoClonado.transferenciaPorcentaje) || 0;
+      presupuestoClonado.aplicaTransferencia = Boolean(presupuestoClonado.aplicaTransferencia);
+      presupuestoClonado.transferenciaPorcentaje = Number(presupuestoClonado.transferenciaPorcentaje) || 10;
       // Asegurar que clienteId y cliente estén presentes
       if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
         presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
@@ -1594,9 +1594,9 @@ const PresupuestoDetalle = () => {
       const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
       const baseImponible = Math.max(0, totalCalc - descuentoEfectivo);
       const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
-      const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-      const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 0);
-      const transferenciaMonto = presupuestoEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+      const ivaMonto = Boolean(presupuestoEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
+      const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 10);
+      const transferenciaMonto = Boolean(presupuestoEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
       const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
@@ -1610,7 +1610,7 @@ const PresupuestoDetalle = () => {
         descuentoTotal,
         descuentoEfectivo,
         pagoEnEfectivo,
-        aplicaIva: presupuestoEdit?.aplicaIva !== false,
+        aplicaIva: Boolean(presupuestoEdit?.aplicaIva),
         ivaPorcentaje,
         ivaMonto,
         aplicaTransferencia: Boolean(presupuestoEdit?.aplicaTransferencia),
@@ -3834,43 +3834,91 @@ const PresupuestoDetalle = () => {
                   const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
                   const baseImponible = Math.max(0, total - descuentoEfectivo);
                   const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
-                  const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+                  const ivaMonto = Boolean(presupuestoEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
                   const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 10);
-                  const transferenciaMonto = presupuestoEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+                  const transferenciaMonto = Boolean(presupuestoEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
                   const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                   return (
-                    <div className="flex flex-col items-end gap-2 mt-4">
-                      <div className="flex w-fit max-w-full self-end flex-col gap-3">
-                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={presupuestoEdit?.aplicaIva !== false} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Aplicar IVA</label>
-                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.ivaPorcentaje ?? 21} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || presupuestoEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
+                    <div className="flex flex-col items-end gap-3 mt-4">
+                      <div className="flex w-full flex-col items-end gap-3">
+                        {/* Controles de IVA y Transferencia alineados a la derecha */}
+                        <div className="flex flex-wrap items-center justify-end gap-3">
+                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(presupuestoEdit?.aplicaIva)}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))}
+                                disabled={loadingPrecios}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                              />
+                              Aplicar IVA
+                            </label>
+                            <label className="flex items-center gap-1.5 text-sm">
+                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={presupuestoEdit?.ivaPorcentaje ?? 21}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))}
+                                disabled={loadingPrecios || !presupuestoEdit?.aplicaIva}
+                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </label>
+                          </div>
+
+                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(presupuestoEdit?.aplicaTransferencia)}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))}
+                                disabled={loadingPrecios}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                              />
+                              Pago con Transferencia
+                            </label>
+                            <label className="flex items-center gap-1.5 text-sm">
+                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={presupuestoEdit?.transferenciaPorcentaje ?? 10}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))}
+                                disabled={loadingPrecios || !presupuestoEdit?.aplicaTransferencia}
+                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </label>
+                          </div>
                         </div>
-                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(presupuestoEdit?.aplicaTransferencia)} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Pago con Transferencia</label>
-                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.transferenciaPorcentaje ?? 10} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !presupuestoEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
-                        </div>
+
+                        {/* Banner resumen de totales */}
                         <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                        <div>
-                          Subtotal: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span>
-                        </div>
-                        <div>
-                          Descuento: <span className="font-bold">$ {formatearNumeroArgentino(descuentoTotal)}</span>
-                        </div>
-                        {descuentoEfectivo > 0 && (
                           <div>
-                            Descuento (Efectivo 10%): <span className="font-bold text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                            Subtotal: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span>
                           </div>
-                        )}
-                        {envio > 0 && (
                           <div>
-                            Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
+                            Descuento: <span className="font-bold">$ {formatearNumeroArgentino(descuentoTotal)}</span>
                           </div>
-                        )}
-                        {ivaMonto > 0 && <div>IVA ({ivaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaMonto)}</span></div>}
-                        {transferenciaMonto > 0 && <div>Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(transferenciaMonto)}</span></div>}
-                        <div>
-                          Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
-                        </div>
+                          {descuentoEfectivo > 0 && (
+                            <div>
+                              Descuento (Efectivo 10%): <span className="font-bold text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                            </div>
+                          )}
+                          {envio > 0 && (
+                            <div>
+                              Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
+                            </div>
+                          )}
+                          {ivaMonto > 0 && <div>IVA ({ivaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaMonto)}</span></div>}
+                          {transferenciaMonto > 0 && <div>Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(transferenciaMonto)}</span></div>}
+                          <div>
+                            Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3968,9 +4016,9 @@ const PresupuestoDetalle = () => {
               const descuentoEfectivo = presupuesto?.pagoEnEfectivo ? subtotal * 0.1 : 0;
               const baseImponible = Math.max(0, total - descuentoEfectivo);
               const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
-              const ivaMonto = presupuesto?.aplicaIva === false ? 0 : (Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
+              const ivaMonto = Boolean(presupuesto?.aplicaIva) ? (Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100)) : 0;
               const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
-              const transferenciaMonto = presupuesto?.aplicaTransferencia ? (Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
+              const transferenciaMonto = Boolean(presupuesto?.aplicaTransferencia) ? (Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
               const totalFinal = typeof presupuesto.total === "number" && !isNaN(presupuesto.total)
                 ? presupuesto.total
                 : baseImponible + ivaMonto + transferenciaMonto + envio;
@@ -4047,43 +4095,50 @@ const PresupuestoDetalle = () => {
               onCancel={() => setConvirtiendoVenta(false)}
               onSubmit={async (ventaCampos) => {
                 try {
+                  const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                  const { subtotal, descuentoTotal, total: totalBase } = computeTotals(items);
+                  const descuentoEfectivo = presupuesto.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                  const baseImponible = Math.max(0, totalBase - descuentoEfectivo);
+                  const aplicaIva = Boolean(presupuesto.aplicaIva);
+                  const ivaPorcentaje = Math.max(0, Number(presupuesto.ivaPorcentaje) || 21);
+                  const ivaMonto = aplicaIva ? (Number(presupuesto.ivaMonto) || baseImponible * (ivaPorcentaje / 100)) : 0;
+                  const aplicaTransferencia = Boolean(presupuesto.aplicaTransferencia);
+                  const transferenciaPorcentaje = Math.max(0, Number(presupuesto.transferenciaPorcentaje) || 10);
+                  const transferenciaMonto = aplicaTransferencia ? (Number(presupuesto.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
+                  const envio = ventaCampos.costoEnvio
+                    ? Number(ventaCampos.costoEnvio)
+                    : safeNumber(presupuesto.costoEnvio || 0);
+                  const totalVenta = baseImponible + ivaMonto + transferenciaMonto + envio;
+
+                  const paymentIntentMonto =
+                    ventaCampos.estadoPagoConversion === "pagado"
+                      ? totalVenta
+                      : ventaCampos.estadoPagoConversion === "parcial"
+                        ? Number(ventaCampos.montoAbonado || 0)
+                        : 0;
+
+                  const formaPagoFinal =
+                    ventaCampos.formaPago ||
+                    (presupuesto.pagoEnEfectivo ? "efectivo" : (aplicaTransferencia ? "transferencia" : ""));
+
                   // Crear estructura de venta siguiendo exactamente el formato de ventas/page.jsx
                   const ventaData = {
                     // Datos del presupuesto
                     fecha: presupuesto.fecha,
                     clienteId: presupuesto.clienteId,
                     cliente: presupuesto.cliente,
-                    productos: presupuesto.productos || presupuesto.items,
-                    items: presupuesto.productos || presupuesto.items,
-                    subtotal: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { subtotal } = computeTotals(items);
-                      return subtotal;
-                    })(),
-                    descuentoTotal: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { descuentoTotal } = computeTotals(items);
-                      return descuentoTotal;
-                    })(),
-                    descuentoEfectivo: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { subtotal } = computeTotals(items);
-                      return presupuesto.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                    })(),
-                    // Calcular el total correcto incluyendo envío y descuento por pago en efectivo
-                    total: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { total } = computeTotals(items);
-                      const envio = ventaCampos.costoEnvio
-                        ? Number(ventaCampos.costoEnvio)
-                        : safeNumber(presupuesto.costoEnvio || 0);
-                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
-                        const { subtotal } = computeTotals(items);
-                        return subtotal * 0.1;
-                      })() : 0;
-                      const totalCorrecto = total + envio - descuentoEfectivo;
-                      return totalCorrecto;
-                    })(),
+                    productos: items,
+                    items: items,
+                    subtotal,
+                    descuentoTotal,
+                    descuentoEfectivo,
+                    aplicaIva,
+                    ivaPorcentaje,
+                    ivaMonto,
+                    aplicaTransferencia,
+                    transferenciaPorcentaje,
+                    transferenciaMonto,
+                    total: totalVenta,
                     observaciones: presupuesto.observaciones,
 
                     // Datos específicos de venta
@@ -4092,70 +4147,29 @@ const PresupuestoDetalle = () => {
 
                     // Campos de pago
                     pagoEnEfectivo: presupuesto.pagoEnEfectivo || false,
-                    formaPago: ventaCampos.formaPago || (presupuesto.pagoEnEfectivo ? "efectivo" : ""),
+                    formaPago: formaPagoFinal,
                     pagoPendiente: ventaCampos.estadoPagoConversion === "pendiente",
                     pagoParcial: ventaCampos.estadoPagoConversion === "parcial",
-                    montoAbonado: (() => {
-                      const totalVenta = (() => {
-                        const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                        const { total } = computeTotals(items);
-                        const envio = ventaCampos.costoEnvio
-                          ? Number(ventaCampos.costoEnvio)
-                          : safeNumber(presupuesto.costoEnvio || 0);
-                        const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
-                          const { subtotal } = computeTotals(items);
-                          return subtotal * 0.1;
-                        })() : 0;
-                        return total + envio - descuentoEfectivo;
-                      })();
-                      if (ventaCampos.estadoPagoConversion === "pagado") return totalVenta;
-                      if (ventaCampos.estadoPagoConversion === "parcial") return Number(ventaCampos.montoAbonado || 0);
-                      return 0;
-                    })(),
-                    pagos: (() => {
-                      const totalVenta = (() => {
-                        const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                        const { total } = computeTotals(items);
-                        const envio = ventaCampos.costoEnvio
-                          ? Number(ventaCampos.costoEnvio)
-                          : safeNumber(presupuesto.costoEnvio || 0);
-                        const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
-                          const { subtotal } = computeTotals(items);
-                          return subtotal * 0.1;
-                        })() : 0;
-                        return total + envio - descuentoEfectivo;
-                      })();
-                      if (ventaCampos.estadoPagoConversion === "pagado") {
-                        return [{
+                    montoAbonado: paymentIntentMonto,
+                    pagos: paymentIntentMonto > 0
+                      ? [{
                           fecha: new Date().toISOString().split("T")[0],
-                          monto: totalVenta,
-                          metodo: ventaCampos.formaPago || (presupuesto.pagoEnEfectivo ? "efectivo" : "manual"),
+                          monto: paymentIntentMonto,
+                          metodo: formaPagoFinal || "manual",
                           usuario: user?.email || "Usuario no identificado",
-                        }];
-                      }
-                      if (ventaCampos.estadoPagoConversion === "parcial") {
-                        return [{
-                          fecha: new Date().toISOString().split("T")[0],
-                          monto: Number(ventaCampos.montoAbonado || 0),
-                          metodo: ventaCampos.formaPago || "manual",
-                          usuario: user?.email || "Usuario no identificado",
-                        }];
-                      }
-                      return [];
-                    })(),
+                        }]
+                      : [],
                     estadoPago: ventaCampos.estadoPagoConversion || "pagado",
 
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
-                    costoEnvio: ventaCampos.costoEnvio
-                      ? Number(ventaCampos.costoEnvio)
-                      : presupuesto.costoEnvio, // Usar el valor del formulario si existe
+                    costoEnvio: envio,
                     direccionEnvio: ventaCampos.direccionEnvio,
                     localidadEnvio: ventaCampos.localidadEnvio,
                     usarDireccionCliente:
-                      ventaCampos.usarDireccionCliente || true,
+                      ventaCampos.usarDireccionCliente ?? true,
 
                     // Campos adicionales
                     vendedor: user?.email || "Usuario no identificado",
@@ -4299,7 +4313,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     const defaults = {
       tipoEnvio: "",
       estadoPagoConversion: "pagado",
-      formaPago: presupuesto.pagoEnEfectivo ? "efectivo" : "",
+      formaPago: presupuesto.pagoEnEfectivo
+        ? "efectivo"
+        : presupuesto.aplicaTransferencia
+        ? "transferencia"
+        : "",
       montoAbonado: "",
       transportista: "",
       costoEnvio: "",
