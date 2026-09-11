@@ -2758,6 +2758,19 @@ const GastosPage = () => {
                           </div>
                         {saldoAFavor > 0 && (
                           <div className="mt-2 space-y-2">
+                            {saldoPendienteNeto > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-emerald-600 border-emerald-500/20 hover:text-emerald-700 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAplicarSaldoAFavor(grupo);
+                                }}
+                              >
+                                Aplicar saldo a favor
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
