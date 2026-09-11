@@ -774,7 +774,7 @@ export function buildRemitoHtml(
       background: #fff;
       border-radius: 6px;
       border: 1px solid #000000;
-      font-weight: 700;
+      font-weight: bold;
     }
     .firmas {
       display: flex;
