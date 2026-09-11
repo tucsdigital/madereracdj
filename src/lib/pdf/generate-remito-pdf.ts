@@ -766,7 +766,7 @@ export function buildRemitoHtml(
       font-weight: 600;
     }
     .info-section {
-      font-size: 8.5px;
+      font-size: 10px;
       color: #000000;
       line-height: 1.25;
       margin-bottom: 6px;
