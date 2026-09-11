@@ -54,12 +54,12 @@ export function buildRemitoHtml(
     if (empresa.logoUrl) {
       const logoFileName = empresa.logoUrl.replace(/^\//, "");
       const logoPath = join(process.cwd(), "public", logoFileName);
-      
+
       if (existsSync(logoPath)) {
         const logoBuffer = readFileSync(logoPath);
-        const logoMimeType = logoPath.endsWith(".png") ? "image/png" : 
-                            logoPath.endsWith(".jpg") || logoPath.endsWith(".jpeg") ? "image/jpeg" : 
-                            "image/png";
+        const logoMimeType = logoPath.endsWith(".png") ? "image/png" :
+          logoPath.endsWith(".jpg") || logoPath.endsWith(".jpeg") ? "image/jpeg" :
+            "image/png";
         logoBase64 = `data:${logoMimeType};base64,${logoBuffer.toString("base64")}`;
       }
     }
@@ -82,8 +82,8 @@ export function buildRemitoHtml(
   const itemFontSubtotal = agrandarTexto ? "12.5px" : "10.5px";
   const itemsHtml = items.length > 0
     ? items
-        .map(
-          (item) => `
+      .map(
+        (item) => `
           <tr>
             <td style="padding: 3px 5px; font-weight: 700; color: #000000; font-size: ${itemFontNombre};">
               ${safe(item.nombre)}
@@ -93,13 +93,12 @@ export function buildRemitoHtml(
               <div style="font-size: ${itemFontCantidad}; font-weight: 900; color: #000000;">
                 ${Math.max(1, Math.ceil(Number(item.cantidad) || 1))}
               </div>
-              ${
-                item.medidaUnidad === "m²" && item.medidaValor !== undefined
-                  ? `<div style="margin-top: 1px; font-size: ${itemFontMedida}; font-weight: 800; color: #000000;">
+              ${item.medidaUnidad === "m²" && item.medidaValor !== undefined
+            ? `<div style="margin-top: 1px; font-size: ${itemFontMedida}; font-weight: 800; color: #000000;">
                       ${formatNumber(item.medidaValor)} ${escapeHtml(String(item.medidaUnidad))}
                     </div>`
-                  : ``
-              }
+            : ``
+          }
             </td>
             <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: ${itemFontCepilladoCanteado}; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
             <td style="padding: 3px 5px; text-align: center; color: #000000; font-size: ${itemFontCepilladoCanteado}; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
@@ -112,8 +111,8 @@ export function buildRemitoHtml(
             `}
           </tr>
         `
-        )
-        .join("")
+      )
+      .join("")
     : `
       <tr>
         <td colspan="6" style="padding: 6px 8px; text-align: center; color: #000000; font-weight: 700;">
@@ -124,12 +123,12 @@ export function buildRemitoHtml(
 
   // Agregar solo 2-3 filas vacías si hay pocos items (solo para llenar un poco el espacio)
   // No agregar si hay muchos items (Puppeteer manejará el overflow automáticamente)
-    let filasVacias = "";
-    if (items.length > 0 && items.length < 8) {
-      const numFilasVacias = Math.min(esEnvioDoc ? 2 : 3, 8 - items.length);
-      const fillerPad = esEnvioDoc ? "3px 5px" : "4px 6px";
-      const fillerHeight = esEnvioDoc ? "14px" : "20px";
-      filasVacias = Array.from({ length: numFilasVacias }, () => `
+  let filasVacias = "";
+  if (items.length > 0 && items.length < 8) {
+    const numFilasVacias = Math.min(esEnvioDoc ? 2 : 3, 8 - items.length);
+    const fillerPad = esEnvioDoc ? "3px 5px" : "4px 6px";
+    const fillerHeight = esEnvioDoc ? "14px" : "20px";
+    filasVacias = Array.from({ length: numFilasVacias }, () => `
       <tr>
         <td style="padding: ${fillerPad}; height: ${fillerHeight};"></td>
         <td style="padding: ${fillerPad};"></td>
@@ -144,7 +143,7 @@ export function buildRemitoHtml(
         `}
       </tr>
     `).join("");
-    }
+  }
 
   // Calcular descuento unificado
   const descuentoUnificado = (totales.descuentoTotal || 0) + (totales.descuentoEfectivo || 0);
@@ -230,11 +229,11 @@ export function buildRemitoHtml(
   const provinciaCompleta = cliente.localidad && cliente.partido
     ? `${safe(cliente.localidad)} - ${safe(cliente.partido)}`
     : cliente.localidad
-    ? safe(cliente.localidad)
-    : cliente.partido
-    ? safe(cliente.partido)
-    : "-";
-  
+      ? safe(cliente.localidad)
+      : cliente.partido
+        ? safe(cliente.partido)
+        : "-";
+
   // Combinar dirección con provincia
   // Nota: la dirección de envío se imprime únicamente en el pie (envio-info) para evitar duplicados.
 
@@ -242,50 +241,49 @@ export function buildRemitoHtml(
   const paymentStatusHtml =
     esVenta
       ? (() => {
-          const estadoPagoSafe = String(estadoPago || "pendiente").toLowerCase();
-          const estadoLabel =
-            estadoPagoSafe === "pagado"
-              ? "PAGADO"
-              : estadoPagoSafe === "parcial"
+        const estadoPagoSafe = String(estadoPago || "pendiente").toLowerCase();
+        const estadoLabel =
+          estadoPagoSafe === "pagado"
+            ? "PAGADO"
+            : estadoPagoSafe === "parcial"
               ? "PAGO PARCIAL"
               : "PENDIENTE";
 
-          if (paraEmpleado) {
-            return `
+        if (paraEmpleado) {
+          return `
         <div class="payment-inline">
           <div class="payment-row"><strong>Estado de pago:</strong> <span class="payment-value">${estadoLabel}</span></div>
         </div>
       `;
-          }
+        }
 
-          const total = pagos?.total ?? totales.total;
-          const abonado = pagos?.montoAbonado ?? 0;
-          const saldo = pagos?.saldoPendiente ?? Math.max(total - abonado, 0);
+        const total = pagos?.total ?? totales.total;
+        const abonado = pagos?.montoAbonado ?? 0;
+        const saldo = pagos?.saldoPendiente ?? Math.max(total - abonado, 0);
 
-          const historyRows =
-            estadoPagoSafe === "parcial" && tieneHistorialPagos
-              ? pagos!.pagos!
-                  .map(
-                    (p) => `
+        const historyRows =
+          estadoPagoSafe === "parcial" && tieneHistorialPagos
+            ? pagos!.pagos!
+              .map(
+                (p) => `
                 <tr>
                   <td>${safe(p.fecha)}</td>
                   <td>${escapeHtml(p.metodo.toUpperCase())}</td>
                   <td style="text-align: right;">${formatCurrency(p.monto)}</td>
                 </tr>
               `
-                  )
-                  .join("")
-              : "";
+              )
+              .join("")
+            : "";
 
-          return `
+        return `
         <div class="payment-inline">
           <div class="payment-row"><strong>Estado de pago:</strong> <span class="payment-value">${estadoLabel}</span></div>
           <div class="payment-row"><strong>Total venta:</strong> ${formatCurrency(total)}</div>
           <div class="payment-row"><strong>Monto abonado:</strong> ${formatCurrency(abonado)}</div>
           <div class="payment-row"><strong>Saldo pendiente:</strong> ${formatCurrency(saldo)}</div>
-          ${
-            historyRows
-              ? `
+          ${historyRows
+            ? `
           <div class="payment-history">
             <div class="payment-history-title">Historial de pagos</div>
             <table class="payment-history-table">
@@ -302,11 +300,11 @@ export function buildRemitoHtml(
             </table>
           </div>
           `
-              : ""
+            : ""
           }
         </div>
       `;
-        })()
+      })()
       : "";
 
   const empleadoEnvioHtml = (() => {
@@ -410,11 +408,11 @@ export function buildRemitoHtml(
       : "CONDICIONES DE RETIRO Y DESCARGA:";
   const disclaimerText = esEnvioDoc
     ? [
-        "LA MERCADERÍA DEBE SER REVISADA AL RECIBIR.",
-        "CUALQUIER DIFERENCIA DEBE INFORMARSE AL MOMENTO DE LA ENTREGA.",
-        "UNA VEZ ENTREGADA Y RECEPCIONADA, NO TIENE DEVOLUCIÓN.",
-      ].join(" ")
-    : [
+      "LA MERCADERÍA DEBE SER REVISADA AL RECIBIR.",
+      "CUALQUIER DIFERENCIA DEBE INFORMARSE AL MOMENTO DE LA ENTREGA.",
+      "UNA VEZ ENTREGADA Y RECEPCIONADA, NO TIENE DEVOLUCIÓN.",
+    ].join(" ")
+: [
         "EL PROPIETARIO/CLIENTE DEBE RETIRAR Y DESCARGAR SU MERCADERÍA COMPRADA.",
         "LA MERCADERÍA DEBE SER REVISADA ANTES DE SU DESCARGA.",
         "UNA VEZ DESCARGADA, NO TIENE DEVOLUCIÓN.",
@@ -422,6 +420,11 @@ export function buildRemitoHtml(
         "EL RETIRO DEBE REALIZARSE DENTRO DE LOS 7 (SIETE) DÍAS CORRIDOS DESDE EL PAGO.",
         "VENCIDO ESE PLAZO, NO CORRESPONDE DEVOLUCIÓN.",
       ].join(" ");
+
+  // Texto de la sección INFO (nueva)
+  const infoText = [
+    "LOS PAGOS CON TRANSFERENCIA TENDRÁN UN ADICIONAL DEL 10%.",
+  ].join(" ");
 
   // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
@@ -761,6 +764,17 @@ export function buildRemitoHtml(
       border-radius: 6px;
       border: 1px solid #000000;
       font-weight: 600;
+    }
+    .info-section {
+      font-size: 8.5px;
+      color: #000000;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #000000;
+      font-weight: 700;
     }
     .firmas {
       display: flex;
@@ -1151,20 +1165,22 @@ export function buildRemitoHtml(
 
     <!-- Footer -->
     <div class="bottom">
-      ${
-        paraEmpleado
-          ? empleadoEnvioHtml
-          : `
-      <div class="disclaimer">
-        <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
-      </div>
-      ${tipo === "venta" ? `
-      <div class="firmas">
-        <div class="firma-col">Firma</div>
-        <div class="firma-col">Aclaración</div>
-        <div class="firma-col">Documento N°</div>
-      </div>
-      ` : ""}
+${paraEmpleado
+        ? empleadoEnvioHtml
+        : `
+        <div class="disclaimer">
+          <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
+        </div>
+        <div class="info-section">
+          <strong>INFO:</strong> ${escapeHtml(infoText)}
+        </div>
+        ${tipo === "venta" ? `
+        <div class="firmas">
+          <div class="firma-col">Firma</div>
+          <div class="firma-col">Aclaración</div>
+          <div class="firma-col">Documento N°</div>
+        </div>
+        ` : ""}
       ${(!esRetiroLocal || esEnvioDoc || paymentStatusHtml) ? `
       <div class="envio-info">
         <div class="envio-info-left">
@@ -1176,16 +1192,15 @@ export function buildRemitoHtml(
           ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
           ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
         </div>
-        ${
-          paymentStatusHtml
-            ? `<div class="envio-info-right">${paymentStatusHtml}</div>`
-            : ""
+        ${paymentStatusHtml
+          ? `<div class="envio-info-right">${paymentStatusHtml}</div>`
+          : ""
         }
       </div>
       ` : ""}
       ${saldoPendienteEnvioHtml}
       `
-      }
+    }
       <div class="footer-bottom">
         <div>ORIGINAL BLANCO / DUPLICADO COLOR</div>
         <div>1/1</div>
@@ -1235,10 +1250,10 @@ export async function generateRemitoPDFBuffer(
   // Obtener navegador del pool (reutiliza instancia existente)
   const browser = await getBrowser();
   const page = await browser.newPage();
-  
+
   // Deshabilitar JavaScript completamente - no lo necesitamos para HTML estático
   await page.setJavaScriptEnabled(false);
-  
+
   // Deshabilitar recursos innecesarios para mayor velocidad
   await page.setRequestInterception(true);
   page.on("request", (req) => {
@@ -1253,10 +1268,10 @@ export async function generateRemitoPDFBuffer(
       req.continue();
     }
   });
-  
+
   // Deshabilitar cache para evitar esperas innecesarias
   await page.setCacheEnabled(false);
-  
+
   const html = buildRemitoHtml(remito, paraEmpleado);
   // Usar 'domcontentloaded' - el más rápido, solo espera el DOM sin recursos
   // Timeout reducido a 1 segundo para mayor velocidad
@@ -1287,9 +1302,9 @@ export async function generateRemitoPDFBuffer(
   } catch (e) {
     // Ignorar errores al cerrar página
   }
-  
+
   // NO cerramos el navegador aquí - se mantiene en el pool para reutilización
   // El navegador se cerrará automáticamente después de 30 segundos de inactividad
-  
+
   return pdfBuffer as Buffer;
 }
