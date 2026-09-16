@@ -383,6 +383,57 @@ const PresupuestoPage = () => {
                       </div>
                     </div>
                   ))}
+                  {(() => {
+                    const baseGen = Math.max(
+                      0,
+                      (Number(obra?.subtotal) || 0) -
+                        (Number(obra?.descuentoTotal) || 0) -
+                        (Number(obra?.descuentoEfectivo) || 0)
+                    );
+                    const aplicaIvaGen = obra?.aplicarIva === true || obra?.aplicaIva === true;
+                    const aplicaTransfGen = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+                    const ivaGen = aplicaIvaGen ? Math.max(0, Number(obra?.ivaMonto) || Math.round(baseGen * (Math.max(0, Number(obra?.ivaPorcentaje) || 0) / 100))) : 0;
+                    const transfGen = aplicaTransfGen ? Math.max(0, Number(obra?.transferenciaMonto) || Math.round(baseGen * (Math.max(0, Number(obra?.transferenciaPorcentaje) || 0) / 100))) : 0;
+                    const totalGen = typeof obra?.total === "number" && !Number.isNaN(obra.total) && Number(obra.total) > 0
+                      ? Math.round(Number(obra.total))
+                      : Math.round(baseGen + ivaGen + transfGen);
+                    return (
+                      <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 text-sm">
+                          <div className="text-center">
+                            <div className="text-gray-500">Subtotal Gral.</div>
+                            <div className="font-semibold">${formatearNumeroArgentino(obra?.subtotal || 0)}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-gray-500">Descuento Gral.</div>
+                            <div className="font-semibold text-orange-600">${formatearNumeroArgentino(obra?.descuentoTotal || 0)}</div>
+                          </div>
+                          {(Number(obra?.descuentoEfectivo) || 0) > 0 && (
+                            <div className="text-center">
+                              <div className="text-gray-500">Desc. Efectivo</div>
+                              <div className="font-semibold text-green-600">${formatearNumeroArgentino(obra?.descuentoEfectivo || 0)}</div>
+                            </div>
+                          )}
+                          {aplicaIvaGen && (
+                            <div className="text-center">
+                              <div className="text-gray-500">IVA ({Number(obra?.ivaPorcentaje) || 0}%)</div>
+                              <div className="font-semibold text-blue-700">${formatearNumeroArgentino(ivaGen)}</div>
+                            </div>
+                          )}
+                          {aplicaTransfGen && (
+                            <div className="text-center">
+                              <div className="text-gray-500">Transferencia ({Number(obra?.transferenciaPorcentaje) || 0}%)</div>
+                              <div className="font-semibold text-purple-700">${formatearNumeroArgentino(transfGen)}</div>
+                            </div>
+                          )}
+                          <div className="text-center">
+                            <div className="text-gray-500">Total Final</div>
+                            <div className="font-bold text-green-700">${formatearNumeroArgentino(totalGen)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </CardContent>
             </Card>

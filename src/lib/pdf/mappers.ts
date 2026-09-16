@@ -152,20 +152,23 @@ export function mapVentaToRemito(venta: any): RemitoModel {
     venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio))
       ? Number(venta.costoEnvio)
       : 0;
-  const totalCalculado = totalesCalculados.total + costoEnvio - descuentoEfectivo;
+  const baseImponibleVenta = Math.max(0, totalesCalculados.total - descuentoEfectivo);
+  const aplicaIvaVenta = venta?.aplicaIva === true || venta?.aplicarIva === true;
   const ivaPorcentaje = Math.max(0, Number(venta?.ivaPorcentaje) || 21);
-  const ivaMonto = venta?.aplicaIva !== true
+  const ivaMonto = !aplicaIvaVenta
     ? 0
-    : Number(venta?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
+    : Math.round(Number(venta?.ivaMonto) || baseImponibleVenta * (ivaPorcentaje / 100));
+  const aplicaTransfVenta = venta?.aplicaTransferencia === true || venta?.aplicarTransferencia === true;
   const transferenciaPorcentaje = Math.max(0, Number(venta?.transferenciaPorcentaje) || 10);
-  const transferenciaMonto = venta?.aplicaTransferencia !== true
+  const transferenciaMonto = !aplicaTransfVenta
     ? 0
-    : Number(venta?.transferenciaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (transferenciaPorcentaje / 100);
+    : Math.round(Number(venta?.transferenciaMonto) || baseImponibleVenta * (transferenciaPorcentaje / 100));
+  const totalCalculado = Math.round(baseImponibleVenta + costoEnvio + ivaMonto + transferenciaMonto);
 
   // Total "oficial" de la venta: priorizar el guardado en la colección
   const totalVenta =
-    typeof venta.total === "number" && !isNaN(venta.total)
-      ? Number(venta.total)
+    typeof venta.total === "number" && !isNaN(venta.total) && Number(venta.total) > 0
+      ? Math.round(Number(venta.total))
       : totalCalculado;
 
   // Calcular pagos alineado con la pantalla de "Información de Pagos"
@@ -293,15 +296,20 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
     !isNaN(Number(presupuesto.costoEnvio))
       ? Number(presupuesto.costoEnvio)
       : 0;
-  const totalFinal = totalesCalculados.total + costoEnvio - descuentoEfectivo;
+  const baseImponible = Math.max(0, totalesCalculados.total - descuentoEfectivo);
+  const aplicaIva = presupuesto?.aplicaIva === true || presupuesto?.aplicarIva === true;
   const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
-  const ivaMonto = presupuesto?.aplicaIva !== true
+  const ivaMonto = !aplicaIva
     ? 0
-    : Number(presupuesto?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
+    : Math.round(Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
+  const aplicaTransferencia = presupuesto?.aplicaTransferencia === true || presupuesto?.aplicarTransferencia === true;
   const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
-  const transferenciaMonto = presupuesto?.aplicaTransferencia !== true
+  const transferenciaMonto = !aplicaTransferencia
     ? 0
-    : Number(presupuesto?.transferenciaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (transferenciaPorcentaje / 100);
+    : Math.round(Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100));
+  const totalCalculadoFinal = Math.round(baseImponible + costoEnvio + ivaMonto + transferenciaMonto);
+  const totalGuardado = Number(presupuesto?.total);
+  const totalRemito = Number.isFinite(totalGuardado) && totalGuardado > 0 ? Math.round(totalGuardado) : totalCalculadoFinal;
 
   // Determinar envío
   const tieneTipoEnvio = Boolean(presupuesto.tipoEnvio);
@@ -371,7 +379,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
       ivaMonto: ivaMonto > 0 ? ivaMonto : undefined,
       transferenciaPorcentaje: transferenciaMonto > 0 ? transferenciaPorcentaje : undefined,
       transferenciaMonto: transferenciaMonto > 0 ? transferenciaMonto : undefined,
-      total: presupuesto?.total ?? (totalFinal + ivaMonto + transferenciaMonto),
+      total: totalRemito,
     },
     observaciones: presupuesto.observaciones,
     formaPago: presupuesto.formaPago,

@@ -36,6 +36,10 @@ const PresupuestoDetalle = ({
   const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
   const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
   // const [descripcionGeneral, setDescripcionGeneral] = useState("");
+  const [aplicarIva, setAplicarIva] = useState(false);
+  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
+  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
+  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
 
   // Debug: Log de props recibidas
   console.log("🔍 PresupuestoDetalle props - editando:", editando, "shouldSave:", shouldSave);
@@ -65,6 +69,10 @@ const PresupuestoDetalle = ({
         };
         setBloques([bloqueInicial]);
       }
+      setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
+      setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
+      setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
+      setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
       // setDescripcionGeneral(obra.descripcionGeneral || "");
     }
   }, [obra]);
@@ -331,7 +339,28 @@ const PresupuestoDetalle = ({
     });
   }, [bloques, obra?.pagoEnEfectivo]);
 
-  // Totales generales removidos: solo por bloque
+  // Totales generales del presupuesto incluyendo IVA/Transferencia
+  const totalesGenerales = useMemo(() => {
+    const subtotal = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.subtotal) || 0), 0);
+    const descuentoTotal = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.descuentoTotal) || 0), 0);
+    const descuentoEfectivo = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.descuentoEfectivo) || 0), 0);
+    const base = Math.max(0, subtotal - descuentoTotal - descuentoEfectivo);
+    const ivaPct = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+    const transfPct = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+    const iva = aplicarIva ? base * (ivaPct / 100) : 0;
+    const transf = aplicarTransferencia ? base * (transfPct / 100) : 0;
+    return {
+      subtotal,
+      descuentoTotal,
+      descuentoEfectivo,
+      base,
+      ivaPorcentaje: ivaPct,
+      ivaMonto: Math.round(iva),
+      transferenciaPorcentaje: transfPct,
+      transferenciaMonto: Math.round(transf),
+      total: Math.round(base + iva + transf),
+    };
+  }, [bloques, totalesPorBloque, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje]);
 
   // Bloque actual
   const bloqueActual = bloques[bloqueActivo];
@@ -359,7 +388,13 @@ const PresupuestoDetalle = ({
       const presupuestoSubtotal = bloquesActualizados.reduce((acc, b) => acc + (Number(b.subtotal) || 0), 0);
       const presupuestoDescuento = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoTotal) || 0), 0);
       const presupuestoDescuentoEfectivo = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoEfectivo) || 0), 0);
-      const presupuestoTotal = presupuestoSubtotal - presupuestoDescuento - presupuestoDescuentoEfectivo;
+      const presupuestoBase = Math.max(0, presupuestoSubtotal - presupuestoDescuento - presupuestoDescuentoEfectivo);
+
+      const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+      const ivaMonto = aplicarIva ? presupuestoBase * (ivaPorcentajeNumerico / 100) : 0;
+      const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+      const transferenciaMonto = aplicarTransferencia ? presupuestoBase * (transferenciaPorcentajeNumerico / 100) : 0;
+      const presupuestoTotal = Math.round(presupuestoBase + ivaMonto + transferenciaMonto);
 
       const updateData = {
         bloques: bloquesActualizados,
@@ -367,6 +402,12 @@ const PresupuestoDetalle = ({
         descuentoTotal: presupuestoDescuento,
         descuentoEfectivo: presupuestoDescuentoEfectivo,
         total: presupuestoTotal,
+        aplicarIva: aplicarIva,
+        ivaPorcentaje: ivaPorcentajeNumerico,
+        ivaMonto: Math.round(ivaMonto),
+        aplicarTransferencia: aplicarTransferencia,
+        transferenciaPorcentaje: transferenciaPorcentajeNumerico,
+        transferenciaMonto: Math.round(transferenciaMonto),
         fechaModificacion: new Date().toISOString(),
       };
 
@@ -586,7 +627,7 @@ const PresupuestoDetalle = ({
       console.error("Error guardando cambios:", error);
       alert("Error al guardar los cambios");
     }
-  }, [obra, bloques, totalesPorBloque, onObraUpdate]);
+  }, [obra, bloques, totalesPorBloque, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje, onObraUpdate]);
 
   // Ejecutar guardado solo cuando shouldSave sea true
   useEffect(() => {
@@ -615,6 +656,31 @@ const PresupuestoDetalle = ({
 
   // Si no está en modo edición, mostrar solo la visualización
   if (!editando) {
+    const aplicaIvaGuardado = obra?.aplicarIva === true || obra?.aplicaIva === true;
+    const aplicaTransfGuardado = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+    const baseGuardada = Math.max(
+      0,
+      (Number(obra?.subtotal) || 0) -
+        (Number(obra?.descuentoTotal) || 0) -
+        (Number(obra?.descuentoEfectivo) || 0)
+    );
+    const ivaGuardado = aplicaIvaGuardado
+      ? Math.max(0, Number(obra?.ivaMonto) || Math.round(baseGuardada * (Math.max(0, Number(obra?.ivaPorcentaje) || 0) / 100)))
+      : 0;
+    const transfGuardado = aplicaTransfGuardado
+      ? Math.max(0, Number(obra?.transferenciaMonto) || Math.round(baseGuardada * (Math.max(0, Number(obra?.transferenciaPorcentaje) || 0) / 100)))
+      : 0;
+    const calculadoGuardado = Math.round(baseGuardada + ivaGuardado + transfGuardado);
+    const totalObraGuardado = Number(obra?.total);
+    // Los registros viejos pueden tener total = base (sin impuestos): en ese
+    // caso se le suman los montos guardados para no mostrar precio sin IVA.
+    const totalGeneralGuardado = Number.isFinite(totalObraGuardado) && totalObraGuardado > 0
+      ? (Math.abs(totalObraGuardado - calculadoGuardado) < 1
+          ? Math.round(totalObraGuardado)
+          : ((ivaGuardado > 0 || transfGuardado > 0) && Math.abs(totalObraGuardado - baseGuardada) < Math.max(1, calculadoGuardado * 0.001)
+              ? Math.round(totalObraGuardado + ivaGuardado + transfGuardado)
+              : Math.round(totalObraGuardado)))
+      : calculadoGuardado;
     return (
       <div className="space-y-6">
         {bloques.map((bloque, index) => (
@@ -744,6 +810,49 @@ const PresupuestoDetalle = ({
             </CardContent>
           </Card>
         ))}
+        {/* Resumen general con IVA/Transferencia */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon icon="heroicons:calculator" className="w-5 h-5" />
+              Resumen General del Presupuesto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 text-sm">
+              <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="text-gray-500">Subtotal</div>
+                <div className="font-semibold">${formatearNumeroArgentino((Number(obra?.subtotal) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.subtotal) || 0), 0))}</div>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="text-orange-700">Descuento</div>
+                <div className="font-semibold text-orange-800">${formatearNumeroArgentino((Number(obra?.descuentoTotal) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.descuentoTotal) || 0), 0))}</div>
+              </div>
+              {((Number(obra?.descuentoEfectivo) || 0) > 0 || bloques.some((_, i) => (Number(totalesPorBloque[i]?.descuentoEfectivo) || 0) > 0)) && (
+                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-green-700">Desc. Efectivo 10%</div>
+                  <div className="font-semibold text-green-800">${formatearNumeroArgentino((Number(obra?.descuentoEfectivo) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.descuentoEfectivo) || 0), 0))}</div>
+                </div>
+              )}
+              {aplicaIvaGuardado && (
+                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-blue-700">IVA ({Number(obra?.ivaPorcentaje) || 0}%)</div>
+                  <div className="font-semibold text-blue-800">${formatearNumeroArgentino(ivaGuardado)}</div>
+                </div>
+              )}
+              {aplicaTransfGuardado && (
+                <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-purple-700">Transferencia ({Number(obra?.transferenciaPorcentaje) || 0}%)</div>
+                  <div className="font-semibold text-purple-800">${formatearNumeroArgentino(transfGuardado)}</div>
+                </div>
+              )}
+              <div className="text-center p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="text-emerald-700">Total Final</div>
+                <div className="font-bold text-emerald-800">${formatearNumeroArgentino(totalGeneralGuardado)}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -880,8 +989,78 @@ const PresupuestoDetalle = ({
                   <div className="font-bold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.total || 0)}</div>
                 </div>
               </div>
+          </div>
+          )}
+
+          {/* IVA y Transferencia - solo en modo edición */}
+          {editando && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-3">
+              <h4 className="font-semibold text-sm">Cargos adicionales</h4>
+              <div className="flex flex-wrap gap-4 items-end">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={aplicarIva}
+                    onChange={(e) => setAplicarIva(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-sm font-medium">IVA</label>
+                </div>
+                {aplicarIva && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">%</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={ivaPorcentaje}
+                      onChange={(e) => setIvaPorcentaje(e.target.value)}
+                      className="w-20 px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={aplicarTransferencia}
+                    onChange={(e) => setAplicarTransferencia(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-sm font-medium">Transferencia</label>
+                </div>
+                {aplicarTransferencia && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">%</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={transferenciaPorcentaje}
+                      onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                      className="w-20 px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3 flex flex-col md:flex-row gap-3 md:gap-6 text-sm shadow-sm font-semibold">
+                <div>Subtotal: <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.subtotal)}</span></div>
+                <div>Descuento: <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.descuentoTotal)}</span></div>
+                {totalesGenerales.descuentoEfectivo > 0 && (
+                  <div>Desc. Efectivo 10%: <span className="font-bold text-green-600">${formatearNumeroArgentino(totalesGenerales.descuentoEfectivo)}</span></div>
+                )}
+                {aplicarIva && totalesGenerales.ivaMonto > 0 && (
+                  <div>IVA ({totalesGenerales.ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.ivaMonto)}</span></div>
+                )}
+                {aplicarTransferencia && totalesGenerales.transferenciaMonto > 0 && (
+                  <div>Transferencia ({totalesGenerales.transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.transferenciaMonto)}</span></div>
+                )}
+                <div>Total Final: <span className="font-bold text-green-600">${formatearNumeroArgentino(totalesGenerales.total)}</span></div>
+              </div>
             </div>
           )}
+
         </CardContent>
       </Card>
 

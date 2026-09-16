@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
-import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
+import { generarContenidoImpresion, descargarPDFDesdeIframe, calcularTotalFinalObra } from "@/lib/obra-utils";
 import { repairObraPedidosByCreationDate } from "@/lib/obra-numbering";
 import {
   Building,
@@ -254,7 +254,7 @@ const matchesPeriodoLista = (referenceValue, periodo) => {
 };
 
 // Componente para la celda de total con desplegable (maneja su propio estado)
-const TotalCellWithDropdown = ({ bloques }) => {
+const TotalCellWithDropdown = ({ obra, bloques }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -271,83 +271,88 @@ const TotalCellWithDropdown = ({ bloques }) => {
     }
   }, [isExpanded]);
 
-  // Si solo hay un bloque, mostrar el total directamente
-  if (bloques.length === 1) {
-    const total = Number(bloques[0]?.total) || 0;
+  // Total final del presupuesto: SIEMPRE con IVA/Transferencia aplicados
+  const totalFinal = calcularTotalFinalObra(obra);
+  const aplicaIva = obra?.aplicarIva === true || obra?.aplicaIva === true;
+  const aplicaTransferencia = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+  const formatTotal = (value) =>
+    Number(value || 0).toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+    });
+
+  // Si solo hay un bloque, mostrar el total final directamente
+  if (!bloques || bloques.length <= 1) {
     return (
       <div>
         <div className="font-medium">
-          $
-          {total.toLocaleString("es-AR", {
-            minimumFractionDigits: 2,
-          })}
+          ${formatTotal(totalFinal)}
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">1 bloque</div>
+        <div className="text-xs text-gray-500 mt-0.5">
+          {(aplicaIva || aplicaTransferencia) ? "Total final c/ impuestos" : `${bloques?.length || 0} bloque${bloques?.length === 1 ? "" : "s"}`}
+        </div>
       </div>
     );
   }
 
-  // Si hay múltiples bloques, mostrar desplegable
-  if (bloques.length > 1) {
-    return (
-      <div className="relative" ref={dropdownRef}>
-        <div
-          className="flex items-center gap-2 cursor-pointer hover:bg-purple-50 rounded p-1 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-        >
-          <div className="flex-1">
-            <div className="font-medium text-purple-700">
-              1: $
-              {(Number(bloques[0]?.total) || 0).toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-              })}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              {bloques.length} bloques
-            </div>
+  // Si hay múltiples bloques, mostrar desplegable con el total final arriba
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        className="flex items-center gap-2 cursor-pointer hover:bg-purple-50 rounded p-1 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
+      >
+        <div className="flex-1">
+          <div className="font-medium text-purple-700">
+            Total: ${formatTotal(totalFinal)}
           </div>
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-purple-600" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-purple-600" />
-          )}
+          <div className="text-xs text-gray-500 mt-0.5">
+            {bloques.length} bloques{(aplicaIva || aplicaTransferencia) ? " · c/ impuestos" : ""}
+          </div>
         </div>
-
-        {isExpanded && (
-          <div
-            className="absolute top-full left-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg z-50 min-w-[200px] p-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-1">
-              {bloques.map((bloque, index) => (
-                <div
-                  key={bloque.id || index}
-                  className="flex items-center justify-between p-2 hover:bg-purple-50 rounded transition-colors cursor-default"
-                >
-                  <div className="flex-1">
-                    <div className="text-xs font-semibold text-gray-700">
-                      {bloque.nombre || `Bloque ${index + 1}`}
-                    </div>
-                    <div className="text-xs text-purple-700 font-medium mt-0.5">
-                      ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {isExpanded ? (
+          <ChevronUp className="w-4 h-4 text-purple-600" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-purple-600" />
         )}
       </div>
-    );
-  }
 
-  // Fallback si no hay bloques
-  return <div className="font-medium text-gray-400">$0.00</div>;
+      {isExpanded && (
+        <div
+          className="absolute top-full left-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg z-50 min-w-[200px] p-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-1">
+            {bloques.map((bloque, index) => (
+              <div
+                key={bloque.id || index}
+                className="flex items-center justify-between p-2 hover:bg-purple-50 rounded transition-colors cursor-default"
+              >
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-gray-700">
+                    {bloque.nombre || `Bloque ${index + 1}`}
+                  </div>
+                  <div className="text-xs text-purple-700 font-medium mt-0.5">
+                    ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {(aplicaIva || aplicaTransferencia) && (
+              <div className="flex items-center justify-between p-2 border-t border-purple-100 mt-1 pt-2">
+                <div className="text-xs font-bold text-gray-800">Total final</div>
+                <div className="text-xs font-bold text-emerald-700">${formatTotal(totalFinal)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const ObrasPage = () => {
@@ -793,8 +798,7 @@ const ObrasPage = () => {
       accessorKey: "presupuestoTotal",
       header: "Total",
       cell: ({ row }) => {
-        const bloques = row.original.bloques || [];
-        return <TotalCellWithDropdown bloques={bloques} />;
+        return <TotalCellWithDropdown obra={row.original} bloques={row.original.bloques || []} />;
       },
     },
     {
@@ -1205,13 +1209,11 @@ const ObrasPage = () => {
         const enriched = await Promise.all(
           base.map(async (o) => {
             let presupuestoTotal = 0;
-            // Totales según tipo
+            // Totales según tipo (SIEMPRE con IVA/Transferencia incluidos)
             if (o.tipo === "presupuesto") {
-              // Para presupuestos con bloques, usar el total del primer bloque como referencia
-              if (o.bloques && Array.isArray(o.bloques) && o.bloques.length > 0) {
-                presupuestoTotal = Number(o.bloques[0]?.total) || 0;
-              } else {
-                // Fallback a campos antiguos si no hay bloques
+              presupuestoTotal = calcularTotalFinalObra(o);
+              // Fallback para registros muy viejos sin bloques ni campos de totales
+              if ((!presupuestoTotal || Number.isNaN(presupuestoTotal)) && !(o.bloques && o.bloques.length > 0)) {
                 presupuestoTotal =
                   Number(o.total) || Number(o.productosTotal) || 0;
               }

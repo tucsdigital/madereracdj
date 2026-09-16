@@ -461,6 +461,18 @@ export default function CrearObraPage() {
     return acc + (base - desc);
   }, 0), [itemsCatalogo]);
 
+  // IVA y Transferencia
+  const [aplicarIva, setAplicarIva] = useState(false);
+  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
+  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
+  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
+
+  const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+  const ivaMonto = aplicarIva ? subtotalCatalogo * (ivaPorcentajeNumerico / 100) : 0;
+  const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+  const transferenciaMonto = aplicarTransferencia ? subtotalCatalogo * (transferenciaPorcentajeNumerico / 100) : 0;
+  const totalConIvaTransf = subtotalCatalogo + ivaMonto + transferenciaMonto;
+
   // Totales sólo de productos seleccionados (sin externos)
   const productosSubtotal = useMemo(() => itemsCatalogo.reduce((acc, p) => {
     const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
@@ -590,6 +602,13 @@ export default function CrearObraPage() {
         productosSubtotal: Math.round(productosSubtotal),
         productosDescuentoTotal: Math.round(productosDescuentoTotal),
         productosTotal: Math.round(productosTotal),
+        aplicarIva: aplicarIva,
+        ivaPorcentaje: ivaPorcentajeNumerico,
+        ivaMonto: Math.round(ivaMonto),
+        aplicarTransferencia: aplicarTransferencia,
+        transferenciaPorcentaje: transferenciaPorcentajeNumerico,
+        transferenciaMonto: Math.round(transferenciaMonto),
+        total: Math.round(totalConIvaTransf),
         fechaCreacion: new Date().toISOString(),
       });
       router.push(`/${lang}/obras`);
@@ -1257,6 +1276,83 @@ export default function CrearObraPage() {
         <Button onClick={handleGuardarObra} disabled={guardando}>
           {guardando ? "Guardando..." : "Crear Obra"}
         </Button>
+      </div>
+
+      {/* IVA y Transferencia */}
+      <div className="flex flex-wrap items-center justify-end gap-3 w-full">
+        <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={aplicarIva}
+              onChange={(e) => setAplicarIva(e.target.checked)}
+              disabled={guardando}
+              className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+            />
+            Aplicar IVA
+          </label>
+          <div className="flex items-center gap-1.5 text-sm">
+            <label htmlFor="ivaPorcentajeObra" className="text-xs text-muted-foreground">
+              Porcentaje:
+            </label>
+            <div className="relative w-20">
+              <input
+                id="ivaPorcentajeObra"
+                type="number"
+                min="0"
+                step="0.01"
+                value={ivaPorcentaje}
+                onChange={(e) => setIvaPorcentaje(e.target.value)}
+                disabled={guardando || !aplicarIva}
+                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={aplicarTransferencia}
+              onChange={(e) => setAplicarTransferencia(e.target.checked)}
+              disabled={guardando}
+              className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+            />
+            Pago con Transferencia
+          </label>
+          <div className="flex items-center gap-1.5 text-sm">
+            <label htmlFor="transferenciaPorcentajeObra" className="text-xs text-muted-foreground">
+              Porcentaje:
+            </label>
+            <div className="relative w-20">
+              <input
+                id="transferenciaPorcentajeObra"
+                type="number"
+                min="0"
+                step="0.01"
+                value={transferenciaPorcentaje}
+                onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                disabled={guardando || !aplicarTransferencia}
+                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-2">
+        <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+          <div>Subtotal: <span className="font-bold">${formatARNumber(subtotalCatalogo)}</span></div>
+          {aplicarIva && ivaMonto > 0 && (
+            <div>IVA ({ivaPorcentajeNumerico}%): <span className="font-bold">${formatARNumber(ivaMonto)}</span></div>
+          )}
+          {aplicarTransferencia && transferenciaMonto > 0 && (
+            <div>Transferencia ({transferenciaPorcentajeNumerico}%): <span className="font-bold">${formatARNumber(transferenciaMonto)}</span></div>
+          )}
+          <div>Total: <span className="font-bold text-green-600">${formatARNumber(totalConIvaTransf)}</span></div>
+        </div>
       </div>
 
       {/* Formulario de Cliente */}

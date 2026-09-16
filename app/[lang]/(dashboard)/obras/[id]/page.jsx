@@ -53,6 +53,10 @@ const ObraDetallePage = () => {
   const [notaTitulo, setNotaTitulo] = useState("");
   const [notaContenido, setNotaContenido] = useState("");
   const [notaEditIdx, setNotaEditIdx] = useState(null);
+  const [aplicarIva, setAplicarIva] = useState(false);
+  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
+  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
+  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
 
   const {
     obra,
@@ -89,6 +93,10 @@ const ObraDetallePage = () => {
     setValorOficialDolar(obra.valorOficialDolar ?? null);
     setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
     setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
+    setAplicarIva(!!obra.aplicarIva);
+    setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
+    setAplicarTransferencia(!!obra.aplicarTransferencia);
+    setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
   }, [obra]);
 
   useEffect(() => {
@@ -240,11 +248,26 @@ const ObraDetallePage = () => {
   const handleGuardarDocPago = async () => {
     if (!obra?.id) return alert("Obra no disponible");
     try {
+      const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+      const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+      const baseObra = Math.max(0, Number(obra.total) || 0) > 0 && (Number(obra.ivaMonto) || 0) > 0
+        ? Math.max(0, Number(obra.total) - Number(obra.ivaMonto) - Number(obra.transferenciaMonto || 0))
+        : Math.max(0, Number(obra.total) || 0);
+      const ivaMonto = aplicarIva ? Math.round(baseObra * (ivaPorcentajeNumerico / 100)) : 0;
+      const transferenciaMonto = aplicarTransferencia ? Math.round(baseObra * (transferenciaPorcentajeNumerico / 100)) : 0;
+      const totalFinal = Math.round(baseObra + ivaMonto + transferenciaMonto);
       await updateDoc(doc(db, "obras", obra.id), {
         pagoEnDolares: !!pagoEnDolares,
         valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
         comprobantesPago: comprobantesPago || [],
         notasObra: notasObra || [],
+        aplicarIva: aplicarIva,
+        ivaPorcentaje: ivaPorcentajeNumerico,
+        ivaMonto: ivaMonto,
+        aplicarTransferencia: aplicarTransferencia,
+        transferenciaPorcentaje: transferenciaPorcentajeNumerico,
+        transferenciaMonto: transferenciaMonto,
+        total: totalFinal,
         fechaModificacion: new Date().toISOString(),
       });
       alert("Documentación guardada correctamente");
@@ -1217,6 +1240,95 @@ const ObraDetallePage = () => {
                         maxFiles={8}
                       />
 
+                      <div className="space-y-3 pt-2">
+                        {(() => {
+                          const ivaPct = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+                          const transfPct = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+                          const basePrev = Math.max(0, Number(obra?.total) || 0) > 0 && (Number(obra?.ivaMonto) || 0) > 0
+                            ? Math.max(0, Number(obra.total) - Number(obra.ivaMonto) - Number(obra.transferenciaMonto || 0))
+                            : Math.max(0, Number(obra?.total) || 0);
+                          const ivaPrev = aplicarIva ? Math.round(basePrev * (ivaPct / 100)) : 0;
+                          const transfPrev = aplicarTransferencia ? Math.round(basePrev * (transfPct / 100)) : 0;
+                          const totalPrev = Math.round(basePrev + ivaPrev + transfPrev);
+                          return (
+                            <>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={aplicarIva}
+                            onChange={(e) => setAplicarIva(e.target.checked)}
+                            disabled={editando}
+                            className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm font-medium">Aplicar IVA</span>
+                        </label>
+                        {aplicarIva && (
+                          <div className="flex items-center gap-1.5 text-sm ml-7">
+                            <label htmlFor="ivaPorcentajeObra" className="text-xs text-muted-foreground">
+                              Porcentaje:
+                            </label>
+                            <div className="relative w-20">
+                              <input
+                                id="ivaPorcentajeObra"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={ivaPorcentaje}
+                                onChange={(e) => setIvaPorcentaje(e.target.value)}
+                                disabled={!aplicarIva}
+                                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                        )}
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={aplicarTransferencia}
+                            onChange={(e) => setAplicarTransferencia(e.target.checked)}
+                            disabled={editando}
+                            className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm font-medium">Pago con Transferencia</span>
+                        </label>
+                        {aplicarTransferencia && (
+                          <div className="flex items-center gap-1.5 text-sm ml-7">
+                            <label htmlFor="transferenciaPorcentajeObra" className="text-xs text-muted-foreground">
+                              Porcentaje:
+                            </label>
+                            <div className="relative w-20">
+                              <input
+                                id="transferenciaPorcentajeObra"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={transferenciaPorcentaje}
+                                onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                                disabled={!aplicarTransferencia}
+                                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                        )}
+                              {(aplicarIva || aplicarTransferencia) && (
+                                <div className="ml-7 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold space-y-1">
+                                  <div>Base: <span className="font-bold">$ {formatearNumeroArgentino(basePrev)}</span></div>
+                                  {aplicarIva && (
+                                    <div>IVA ({ivaPct}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaPrev)}</span></div>
+                                  )}
+                                  {aplicarTransferencia && (
+                                    <div>Transferencia ({transfPct}%): <span className="font-bold">$ {formatearNumeroArgentino(transfPrev)}</span></div>
+                                  )}
+                                  <div>Total Final: <span className="font-bold text-green-600">$ {formatearNumeroArgentino(totalPrev)}</span></div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -1224,6 +1336,8 @@ const ObraDetallePage = () => {
                             setPagoEnDolares(false);
                             setComprobantesPago([]);
                             setValorOficialDolar(null);
+                            setAplicarIva(false);
+                            setAplicarTransferencia(false);
                           }}
                         >
                           Limpiar
@@ -1245,6 +1359,42 @@ const ObraDetallePage = () => {
                             {obra?.valorOficialDolar != null
                               ? String(obra.valorOficialDolar)
                               : "-"}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between gap-3">
+                        <span>IVA</span>
+                        <span className="font-medium">
+                          {obra?.aplicarIva ? `Sí (${obra?.ivaPorcentaje}%)` : "No"}
+                        </span>
+                      </div>
+                      {obra?.aplicarIva && (
+                        <div className="flex justify-between gap-3">
+                          <span>Monto IVA</span>
+                          <span className="font-medium">
+                            ${formatearNumeroArgentino(obra?.ivaMonto || 0)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between gap-3">
+                        <span>Transferencia</span>
+                        <span className="font-medium">
+                          {obra?.aplicarTransferencia ? `Sí (${obra?.transferenciaPorcentaje}%)` : "No"}
+                        </span>
+                      </div>
+                      {obra?.aplicarTransferencia && (
+                        <div className="flex justify-between gap-3">
+                          <span>Monto Transferencia</span>
+                          <span className="font-medium">
+                            ${formatearNumeroArgentino(obra?.transferenciaMonto || 0)}
+                          </span>
+                        </div>
+                      )}
+                      {(obra?.aplicarIva || obra?.aplicarTransferencia) && (
+                        <div className="flex justify-between gap-3 border-t pt-2 font-bold">
+                          <span>Total Final</span>
+                          <span className="text-green-600">
+                            ${formatearNumeroArgentino(obra?.total || 0)}
                           </span>
                         </div>
                       )}

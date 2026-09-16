@@ -49,6 +49,12 @@ const ObraResumenFinanciero = ({
   const total = calcularTotal();
   const totalAbonado = calcularTotalAbonado();
   const saldoPendiente = calcularSaldoPendiente();
+  const aplicaIva = obra?.aplicarIva === true || obra?.aplicaIva === true;
+  const ivaPorcentaje = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
+  const ivaMonto = aplicaIva ? Math.max(0, Number(obra?.ivaMonto) || 0) : 0;
+  const aplicaTransf = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+  const transfPorcentaje = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
+  const transfMonto = aplicaTransf ? Math.max(0, Number(obra?.transferenciaMonto) || 0) : 0;
 
   return (
     <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-50 to-white">
@@ -89,6 +95,34 @@ const ObraResumenFinanciero = ({
                   </p>
                 </div>
               </div>
+              {(aplicaIva || aplicaTransf) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {aplicaIva && (
+                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-blue-700 mb-1 font-medium uppercase tracking-wide">IVA ({ivaPorcentaje}%)</p>
+                      <p className="text-sm font-semibold text-blue-800">
+                        {formatearNumeroArgentino(ivaMonto)}
+                      </p>
+                    </div>
+                  )}
+                  {aplicaTransf && (
+                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <p className="text-xs text-purple-700 mb-1 font-medium uppercase tracking-wide">Transferencia ({transfPorcentaje}%)</p>
+                      <p className="text-sm font-semibold text-purple-800">
+                        {formatearNumeroArgentino(transfMonto)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(aplicaIva || aplicaTransf) && (
+                <div className="text-center p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <p className="text-xs text-emerald-700 mb-1 font-medium uppercase tracking-wide">Total Final</p>
+                  <p className="text-lg font-bold text-emerald-800">
+                    {formatearNumeroArgentino(total)}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
