@@ -1370,7 +1370,7 @@ const ObraDetallePage = () => {
                         <div className="flex justify-between gap-3">
                           <span>Monto IVA</span>
                           <span className="font-medium">
-                            ${formatearNumeroArgentino(obra?.ivaMonto || 0)}
+                            {formatearNumeroArgentino(obra?.ivaMonto || 0)}
                           </span>
                         </div>
                       )}
