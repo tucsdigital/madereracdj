@@ -1384,7 +1384,7 @@ const ObraDetallePage = () => {
                         <div className="flex justify-between gap-3">
                           <span>Monto Transferencia</span>
                           <span className="font-medium">
-                            ${formatearNumeroArgentino(obra?.transferenciaMonto || 0)}
+                            {formatearNumeroArgentino(obra?.transferenciaMonto || 0)}
                           </span>
                         </div>
                       )}
@@ -1392,7 +1392,7 @@ const ObraDetallePage = () => {
                         <div className="flex justify-between gap-3 border-t pt-2 font-bold">
                           <span>Total Final</span>
                           <span className="text-green-600">
-                            ${formatearNumeroArgentino(obra?.total || 0)}
+                            {formatearNumeroArgentino(obra?.total || 0)}
                           </span>
                         </div>
                       )}
