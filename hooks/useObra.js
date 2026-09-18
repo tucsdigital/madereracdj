@@ -673,9 +673,29 @@ export const useObra = (id) => {
       updateData.productos = productosObraSanitizados;
       const subtotalCombinado = productosObraSubtotal + productosSubtotalEdit;
       const descuentoCombinado = productosObraDescuento + productosDescuentoEdit;
+      const descuentoEfectivoObra = Math.max(0, Number(obra?.descuentoEfectivo) || 0);
+      const baseCombinada = Math.max(0, subtotalCombinado - descuentoCombinado - descuentoEfectivoObra);
+      // Mantener IVA/Transferencia heredados del presupuesto al editar la obra
+      const aplicaIvaObra = obra?.aplicarIva === true || obra?.aplicaIva === true;
+      const ivaPctObra = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
+      const ivaMontoObra = aplicaIvaObra
+        ? Math.max(0, Math.round(Number(obra?.ivaMonto) || baseCombinada * (ivaPctObra / 100)))
+        : 0;
+      const aplicaTransfObra = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+      const transfPctObra = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
+      const transfMontoObra = aplicaTransfObra
+        ? Math.max(0, Math.round(Number(obra?.transferenciaMonto) || baseCombinada * (transfPctObra / 100)))
+        : 0;
       updateData.subtotal = subtotalCombinado;
       updateData.descuentoTotal = descuentoCombinado;
-      updateData.total = subtotalCombinado - descuentoCombinado;
+      updateData.descuentoEfectivo = descuentoEfectivoObra;
+      updateData.aplicarIva = aplicaIvaObra;
+      updateData.ivaPorcentaje = ivaPctObra;
+      updateData.ivaMonto = ivaMontoObra;
+      updateData.aplicarTransferencia = aplicaTransfObra;
+      updateData.transferenciaPorcentaje = transfPctObra;
+      updateData.transferenciaMonto = transfMontoObra;
+      updateData.total = Math.round(baseCombinada + ivaMontoObra + transfMontoObra);
       
       if (estadoObra) updateData.estado = estadoObra;
       if (fechasEdit.inicio || fechasEdit.fin) updateData.fechas = fechasEdit;
@@ -754,13 +774,30 @@ export const useObra = (id) => {
               // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
               const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
               const descuentoEfectivo = pagoEnEfectivo ? presupuestoSubtotal * 0.1 : 0;
-              const presupuestoTotal = presupuestoSubtotal - presupuestoDescuento - descuentoEfectivo;
+              const basePresupuesto = Math.max(0, presupuestoSubtotal - presupuestoDescuento - descuentoEfectivo);
+              const aplicaIvaSync = presupuestoData?.aplicarIva === true || presupuestoData?.aplicaIva === true;
+              const ivaPctSync = Math.max(0, Number(presupuestoData?.ivaPorcentaje) || 0);
+              const ivaMontoSync = aplicaIvaSync
+                ? Math.max(0, Math.round(Number(presupuestoData?.ivaMonto) || basePresupuesto * (ivaPctSync / 100)))
+                : 0;
+              const aplicaTransfSync = presupuestoData?.aplicarTransferencia === true || presupuestoData?.aplicaTransferencia === true;
+              const transfPctSync = Math.max(0, Number(presupuestoData?.transferenciaPorcentaje) || 0);
+              const transfMontoSync = aplicaTransfSync
+                ? Math.max(0, Math.round(Number(presupuestoData?.transferenciaMonto) || basePresupuesto * (transfPctSync / 100)))
+                : 0;
+              const presupuestoTotal = Math.round(basePresupuesto + ivaMontoSync + transfMontoSync);
               
               await updateDoc(presupuestoRef, {
                 bloques: bloquesActualizados,
                 subtotal: presupuestoSubtotal,
                 descuentoTotal: presupuestoDescuento,
                 descuentoEfectivo: descuentoEfectivo,
+                aplicarIva: aplicaIvaSync,
+                ivaPorcentaje: ivaPctSync,
+                ivaMonto: ivaMontoSync,
+                aplicarTransferencia: aplicaTransfSync,
+                transferenciaPorcentaje: transfPctSync,
+                transferenciaMonto: transfMontoSync,
                 total: presupuestoTotal,
                 fechaModificacion: new Date().toISOString(),
               });
@@ -783,13 +820,30 @@ export const useObra = (id) => {
               // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
               const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
               const descuentoEfectivo = pagoEnEfectivo ? productosSubtotal * 0.1 : 0;
-              const presupuestoTotal = productosSubtotal - productosDescuento - descuentoEfectivo;
+              const basePresupuestoSinBloques = Math.max(0, productosSubtotal - productosDescuento - descuentoEfectivo);
+              const aplicaIvaSyncNB = presupuestoData?.aplicarIva === true || presupuestoData?.aplicaIva === true;
+              const ivaPctSyncNB = Math.max(0, Number(presupuestoData?.ivaPorcentaje) || 0);
+              const ivaMontoSyncNB = aplicaIvaSyncNB
+                ? Math.max(0, Math.round(Number(presupuestoData?.ivaMonto) || basePresupuestoSinBloques * (ivaPctSyncNB / 100)))
+                : 0;
+              const aplicaTransfSyncNB = presupuestoData?.aplicarTransferencia === true || presupuestoData?.aplicaTransferencia === true;
+              const transfPctSyncNB = Math.max(0, Number(presupuestoData?.transferenciaPorcentaje) || 0);
+              const transfMontoSyncNB = aplicaTransfSyncNB
+                ? Math.max(0, Math.round(Number(presupuestoData?.transferenciaMonto) || basePresupuestoSinBloques * (transfPctSyncNB / 100)))
+                : 0;
+              const presupuestoTotal = Math.round(basePresupuestoSinBloques + ivaMontoSyncNB + transfMontoSyncNB);
               
               await updateDoc(presupuestoRef, {
                 productos: productosObraSanitizados,
                 subtotal: productosSubtotal,
                 descuentoTotal: productosDescuento,
                 descuentoEfectivo: descuentoEfectivo,
+                aplicarIva: aplicaIvaSyncNB,
+                ivaPorcentaje: ivaPctSyncNB,
+                ivaMonto: ivaMontoSyncNB,
+                aplicarTransferencia: aplicaTransfSyncNB,
+                transferenciaPorcentaje: transfPctSyncNB,
+                transferenciaMonto: transfMontoSyncNB,
                 total: presupuestoTotal,
                 fechaModificacion: new Date().toISOString(),
               });
@@ -917,7 +971,19 @@ export const useObra = (id) => {
 
       const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
       const descuentoCombinado = productosObraDescuento + materialesDescuento;
-      const totalCombinado = subtotalCombinado - descuentoCombinado;
+      const descuentoEfectivoCambio = Math.max(0, Number(obra?.descuentoEfectivo) || 0);
+      const baseCombinadaCambio = Math.max(0, subtotalCombinado - descuentoCombinado - descuentoEfectivoCambio);
+      const aplicaIvaCambio = obra?.aplicarIva === true || obra?.aplicaIva === true;
+      const ivaPctCambio = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
+      const ivaMontoCambio = aplicaIvaCambio
+        ? Math.max(0, Math.round(Number(obra?.ivaMonto) || baseCombinadaCambio * (ivaPctCambio / 100)))
+        : 0;
+      const aplicaTransfCambio = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
+      const transfPctCambio = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
+      const transfMontoCambio = aplicaTransfCambio
+        ? Math.max(0, Math.round(Number(obra?.transferenciaMonto) || baseCombinadaCambio * (transfPctCambio / 100)))
+        : 0;
+      const totalCombinado = Math.round(baseCombinadaCambio + ivaMontoCambio + transfMontoCambio);
 
       // Persistir cambios (incluyendo nuevos totales de materiales)
       await updateDoc(doc(db, "obras", obra.id), {
@@ -926,6 +992,13 @@ export const useObra = (id) => {
         presupuestoInicialBloqueNombre: bloque.nombre || null,
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoCombinado,
+        descuentoEfectivo: descuentoEfectivoCambio,
+        aplicarIva: aplicaIvaCambio,
+        ivaPorcentaje: ivaPctCambio,
+        ivaMonto: ivaMontoCambio,
+        aplicarTransferencia: aplicaTransfCambio,
+        transferenciaPorcentaje: transfPctCambio,
+        transferenciaMonto: transfMontoCambio,
         total: totalCombinado,
         materialesSubtotal: materialesSubtotal,
         materialesDescuento: materialesDescuento,

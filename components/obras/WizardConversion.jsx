@@ -297,7 +297,20 @@ const WizardConversion = ({
       const materialesDescuento = 0;
       const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
       const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
-      const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
+      const descuentoEfectivoCombinado = Number(presupuesto?.descuentoEfectivo) || 0;
+      const baseCombinada = Math.max(0, subtotalCombinado - descuentoTotalCombinado - descuentoEfectivoCombinado);
+      // Respetar IVA/Transferencia del presupuesto original (compat ambos nombres)
+      const aplicaIvaPres = presupuesto?.aplicarIva === true || presupuesto?.aplicaIva === true;
+      const ivaPorcentajePres = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 0);
+      const ivaMontoPres = aplicaIvaPres
+        ? Math.max(0, Math.round(Number(presupuesto?.ivaMonto) || baseCombinada * (ivaPorcentajePres / 100)))
+        : 0;
+      const aplicaTransfPres = presupuesto?.aplicarTransferencia === true || presupuesto?.aplicaTransferencia === true;
+      const transfPorcentajePres = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
+      const transfMontoPres = aplicaTransfPres
+        ? Math.max(0, Math.round(Number(presupuesto?.transferenciaMonto) || baseCombinada * (transfPorcentajePres / 100)))
+        : 0;
+      const totalCombinado = Math.round(baseCombinada + ivaMontoPres + transfMontoPres);
 
       // Usar cliente confirmado explícitamente o el del presupuesto como fallback
       const clienteFinal = clienteConfirmadoExplicitamente 
@@ -335,7 +348,16 @@ const WizardConversion = ({
         materialesCatalogo: materialesSanitizados,
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
+        descuentoEfectivo: descuentoEfectivoCombinado,
         total: totalCombinado,
+        aplicarIva: aplicaIvaPres,
+        aplicaIva: aplicaIvaPres,
+        ivaPorcentaje: ivaPorcentajePres,
+        ivaMonto: ivaMontoPres,
+        aplicarTransferencia: aplicaTransfPres,
+        aplicaTransferencia: aplicaTransfPres,
+        transferenciaPorcentaje: transfPorcentajePres,
+        transferenciaMonto: transfMontoPres,
         descripcionGeneral: datos.descripcionGeneral || presupuesto.descripcionGeneral || "",
         fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
@@ -399,6 +421,12 @@ const WizardConversion = ({
 
   const tieneBloques = presupuesto.bloques && presupuesto.bloques.length > 0;
   const totalBloques = presupuesto.bloques?.length || 0;
+  const aplicaIvaPresupuesto = presupuesto?.aplicarIva === true || presupuesto?.aplicaIva === true;
+  const aplicaTransfPresupuesto = presupuesto?.aplicarTransferencia === true || presupuesto?.aplicaTransferencia === true;
+  const ivaPctPresupuesto = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 0);
+  const transfPctPresupuesto = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
+  const ivaMontoPresupuesto = aplicaIvaPresupuesto ? Math.max(0, Math.round(Number(presupuesto?.ivaMonto) || 0)) : 0;
+  const transfMontoPresupuesto = aplicaTransfPresupuesto ? Math.max(0, Math.round(Number(presupuesto?.transferenciaMonto) || 0)) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -655,6 +683,23 @@ const WizardConversion = ({
                   <p className="text-sm text-gray-700 font-medium">
                     Este presupuesto no tiene bloques. Se convertirán todos los productos.
                   </p>
+                </div>
+              )}
+
+              {(aplicaIvaPresupuesto || aplicaTransfPresupuesto) && (
+                <div className="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200 shadow-sm">
+                  <p className="text-sm font-semibold text-emerald-900 mb-2">
+                    Impuestos del presupuesto (se trasladan a la obra)
+                  </p>
+                  <div className="space-y-1 text-sm text-emerald-800">
+                    {aplicaIvaPresupuesto && (
+                      <p>IVA ({ivaPctPresupuesto}%): <span className="font-bold">${ivaMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
+                    )}
+                    {aplicaTransfPresupuesto && (
+                      <p>Transferencia ({transfPctPresupuesto}%): <span className="font-bold">${transfMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
+                    )}
+                    <p>Total final presupuesto: <span className="font-bold">${Number(presupuesto?.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
+                  </div>
                 </div>
               )}
 

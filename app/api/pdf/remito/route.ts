@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import {
   mapVentaToRemito,
   mapPresupuestoToRemito,
+  mapObraToRemito,
 } from "@/src/lib/pdf/mappers";
 import { generateRemitoPDFBuffer } from "@/src/lib/pdf/generate-remito-pdf";
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { type, id, empleado } = body as {
-      type: "venta" | "presupuesto";
+      type: "venta" | "presupuesto" | "obra";
       id: string;
       empleado?: boolean;
     };
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const collectionName = type === "venta" ? "ventas" : "presupuestos";
+    const collectionName =
+      type === "venta" ? "ventas" : type === "presupuesto" ? "presupuestos" : "obras";
     const docRef = doc(db, collectionName, id);
     const snap = await getDoc(docRef);
 
@@ -44,10 +46,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = { id: snap.id, ...snap.data() };
+    const docTipo = (data as any)?.tipo;
     const remito =
       type === "venta"
         ? mapVentaToRemito(data)
-        : mapPresupuestoToRemito(data);
+        : type === "obra" || docTipo === "obra" || docTipo === "presupuesto"
+          ? mapObraToRemito(data, null)
+          : mapPresupuestoToRemito(data);
 
     // Generar PDF
     const buffer = await generateRemitoPDFBuffer(remito, empleado || false);

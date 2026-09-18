@@ -49,12 +49,13 @@ const ObraResumenFinanciero = ({
   const total = calcularTotal();
   const totalAbonado = calcularTotalAbonado();
   const saldoPendiente = calcularSaldoPendiente();
-  const aplicaIva = obra?.aplicarIva === true || obra?.aplicaIva === true;
-  const ivaPorcentaje = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
-  const ivaMonto = aplicaIva ? Math.max(0, Number(obra?.ivaMonto) || 0) : 0;
-  const aplicaTransf = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-  const transfPorcentaje = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
-  const transfMonto = aplicaTransf ? Math.max(0, Number(obra?.transferenciaMonto) || 0) : 0;
+  const fuenteImpuestos = obra?.tipo === "obra" && modoCosto === "presupuesto" && presupuesto ? presupuesto : obra;
+  const aplicaIva = fuenteImpuestos?.aplicarIva === true || fuenteImpuestos?.aplicaIva === true;
+  const ivaPorcentaje = Math.max(0, Number(fuenteImpuestos?.ivaPorcentaje) || 0);
+  const ivaMonto = aplicaIva ? Math.max(0, Number(fuenteImpuestos?.ivaMonto) || 0) : 0;
+  const aplicaTransf = fuenteImpuestos?.aplicarTransferencia === true || fuenteImpuestos?.aplicaTransferencia === true;
+  const transfPorcentaje = Math.max(0, Number(fuenteImpuestos?.transferenciaPorcentaje) || 0);
+  const transfMonto = aplicaTransf ? Math.max(0, Number(fuenteImpuestos?.transferenciaMonto) || 0) : 0;
 
   return (
     <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-50 to-white">
@@ -148,6 +149,28 @@ const ObraResumenFinanciero = ({
                 </p>
               </div>
 
+              {/* Impuestos heredados del presupuesto / aplicados a la obra */}
+              {(aplicaIva || aplicaTransf) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {aplicaIva && (
+                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-blue-700 mb-1 font-medium uppercase tracking-wide">IVA ({ivaPorcentaje}%)</p>
+                      <p className="text-sm font-semibold text-blue-800">
+                        {formatearNumeroArgentino(ivaMonto)}
+                      </p>
+                    </div>
+                  )}
+                  {aplicaTransf && (
+                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <p className="text-xs text-purple-700 mb-1 font-medium uppercase tracking-wide">Transferencia ({transfPorcentaje}%)</p>
+                      <p className="text-sm font-semibold text-purple-800">
+                        {formatearNumeroArgentino(transfMonto)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Estado de Cobranzas */}
               {obra.cobranzas?.historialPagos && (
                 <div className="space-y-3">
@@ -187,6 +210,14 @@ const ObraResumenFinanciero = ({
               <span className="font-semibold">Presupuesto Inicial:</span> {presupuesto.numeroPedido} - 
               {formatearNumeroArgentino(presupuesto.total || 0)}
             </p>
+            {(aplicaIva || aplicaTransf) && (
+              <p className="text-[11px] text-indigo-700 text-center mt-1">
+                Incluye
+                {aplicaIva ? ` IVA (${ivaPorcentaje}%): ${formatearNumeroArgentino(ivaMonto)}` : ""}
+                {aplicaIva && aplicaTransf ? " ·" : ""}
+                {aplicaTransf ? ` Transferencia (${transfPorcentaje}%): ${formatearNumeroArgentino(transfMonto)}` : ""}
+              </p>
+            )}
           </div>
         )}
       </CardContent>

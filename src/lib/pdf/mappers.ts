@@ -280,33 +280,193 @@ export function mapVentaToRemito(venta: any): RemitoModel {
 }
 
 /**
+ * Resumen de impuestos para el remito/boleta: usa montos guardados cuando
+ * existen, y si no los recalcula sobre la base. Devuelve también los flags
+ * efectivos para que la impresión nunca oculte impuestos activos.
+ */
+export function calcularImpuestosRemito(doc: any, baseImponible: number) {
+  const base = Math.max(0, Math.round(Number(baseImponible) || 0));
+  const aplicaIva = doc?.aplicaIva === true || doc?.aplicarIva === true;
+  const ivaPorcentaje = Math.max(0, Number(doc?.ivaPorcentaje) || 0);
+  const ivaGuardado = Math.max(0, Math.round(Number(doc?.ivaMonto) || 0));
+  const ivaMonto = !aplicaIva
+    ? 0
+    : ivaGuardado > 0
+      ? ivaGuardado
+      : Math.round(base * (ivaPorcentaje / 100));
+  const aplicaTransferencia = doc?.aplicaTransferencia === true || doc?.aplicarTransferencia === true;
+  const transferenciaPorcentaje = Math.max(0, Number(doc?.transferenciaPorcentaje) || 0);
+  const transfGuardado = Math.max(0, Math.round(Number(doc?.transferenciaMonto) || 0));
+  const transferenciaMonto = !aplicaTransferencia
+    ? 0
+    : transfGuardado > 0
+      ? transfGuardado
+      : Math.round(base * (transferenciaPorcentaje / 100));
+  return {
+    aplicaIva,
+    ivaPorcentaje,
+    ivaMonto,
+    aplicaTransferencia,
+    transferenciaPorcentaje,
+    transferenciaMonto,
+    mostrarIva: aplicaIva && (ivaMonto > 0 || ivaPorcentaje > 0),
+    mostrarTransferencia: aplicaTransferencia && (transferenciaMonto > 0 || transferenciaPorcentaje > 0),
+  };
+}
+
+/**
+ * Mapea una obra (tipo "obra" o "presupuesto" de la colección obras) a RemitoModel.
+ * Se usa para la boleta/remito de impresión de obras.
+ */
+export function mapObraToRemito(obra: any, presupuestoInicial?: any): RemitoModel {
+  const fuente = obra || {};
+  const presupuesto = presupuestoInicial || null;
+  const cliente = fuente.cliente || presupuesto?.cliente || {};
+
+  const bloques = Array.isArray((fuente as any)?.bloques) ? (fuente as any).bloques : [];
+  const bloquesConItems = bloques.filter((b: any) => Array.isArray(b?.productos) && b.productos.length > 0);
+  const materiales = Array.isArray((fuente as any)?.materialesCatalogo) ? (fuente as any).materialesCatalogo : [];
+  const productosSueltos = Array.isArray((fuente as any)?.productos) ? (fuente as any).productos : [];
+  const productosPresupuesto = Array.isArray(presupuesto?.productos) ? presupuesto.productos : [];
+
+  const items =
+    bloquesConItems.length > 0
+      ? bloquesConItems.flatMap((b: any) => (Array.isArray(b?.productos) ? b.productos : []))
+      : productosSueltos.length > 0
+        ? productosSueltos
+        : materiales.length > 0
+          ? materiales
+          : productosPresupuesto;
+
+  const impuestosDePresupuesto =
+    fuente?.tipo === "obra" &&
+    !(fuente?.aplicarIva === true || fuente?.aplicaIva === true) &&
+    !(fuente?.aplicarTransferencia === true || fuente?.aplicaTransferencia === true) &&
+    (presupuesto?.aplicarIva === true || presupuesto?.aplicaIva === true ||
+      presupuesto?.aplicarTransferencia === true || presupuesto?.aplicaTransferencia === true);
+  const fuenteImpuestos = impuestosDePresupuesto ? { ...presupuesto } : fuente;
+
+  const totalesCalculados = computeTotals(items);
+  const subtotalBase = Number.isFinite(Number(fuente?.subtotal)) && Number(fuente.subtotal) > 0
+    ? Math.round(Number(fuente.subtotal))
+    : totalesCalculados.subtotal;
+  const descuentoBase = Number.isFinite(Number(fuente?.descuentoTotal)) && Number(fuente.descuentoTotal) >= 0
+    ? Math.round(Number(fuente.descuentoTotal))
+    : totalesCalculados.descuentoTotal;
+  const descuentoEfectivo = fuente?.pagoEnEfectivo
+    ? Math.round(subtotalBase * 0.1)
+    : Math.max(0, Math.round(Number(fuente?.descuentoEfectivo) || 0));
+  const baseImponible = Math.max(0, Math.round(subtotalBase - descuentoBase - descuentoEfectivo));
+  const impuestosObra = calcularImpuestosRemito(fuenteImpuestos, baseImponible);
+  const aplicaIva = impuestosObra.aplicaIva;
+  const ivaPorcentaje = impuestosObra.ivaPorcentaje;
+  const ivaMonto = impuestosObra.ivaMonto;
+  const aplicaTransferencia = impuestosObra.aplicaTransferencia;
+  const transferenciaPorcentaje = impuestosObra.transferenciaPorcentaje;
+  const transferenciaMonto = impuestosObra.transferenciaMonto;
+  const mostrarIvaObra = impuestosObra.mostrarIva;
+  const mostrarTransfObra = impuestosObra.mostrarTransferencia;
+  const totalCalculadoFinal = Math.round(baseImponible + ivaMonto + transferenciaMonto);
+  const totalGuardado = Number(fuente?.total);
+  const totalRemito = Number.isFinite(totalGuardado) && totalGuardado > 0
+    ? (Math.abs(totalGuardado - baseImponible) < Math.max(1, totalCalculadoFinal * 0.001) && (ivaMonto > 0 || transferenciaMonto > 0)
+        ? Math.round(totalGuardado + ivaMonto + transferenciaMonto)
+        : Math.round(totalGuardado))
+    : totalCalculadoFinal;
+
+  const numeroPedido = fuente?.numeroPedido || presupuesto?.numeroPedido || fuente?.id || "OBRA";
+
+  return {
+    numero: buildNumeroComprobante(numeroPedido, fuente?.id),
+    fecha: formatFechaLocal(fuente?.fecha),
+    tipo: "presupuesto",
+    empresa: {
+      nombre: "Maderas Caballero",
+      direccion: "Av. Dr. Honorio Pueyrredón 4625, Villa Rosa, Buenos Aires",
+      telefono: "1178971517",
+      web: "www.caballeromaderas.com",
+      logoUrl: "/logo-maderera.png",
+    },
+    cliente: {
+      nombre: safeText(cliente.nombre, "Consumidor Final"),
+      cuit: cliente.cuit,
+      direccion: cliente.direccion,
+      telefono: cliente.telefono,
+      email: cliente.email,
+      partido: cliente.partido,
+      barrio: cliente.barrio,
+      localidad: cliente.localidad,
+    },
+    envio: undefined,
+    items: mapItems(items),
+    totales: {
+      subtotal: Math.round(subtotalBase),
+      descuentoTotal: Math.round(descuentoBase),
+      descuentoEfectivo: descuentoEfectivo > 0 ? Math.round(descuentoEfectivo) : undefined,
+      costoEnvio: 0,
+      ivaPorcentaje: mostrarIvaObra ? ivaPorcentaje : undefined,
+      ivaMonto: mostrarIvaObra ? ivaMonto : undefined,
+      transferenciaPorcentaje: mostrarTransfObra ? transferenciaPorcentaje : undefined,
+      transferenciaMonto: mostrarTransfObra ? transferenciaMonto : undefined,
+      total: totalRemito,
+    },
+    observaciones: fuente?.observaciones || presupuesto?.observaciones,
+    formaPago: fuente?.formaPago || presupuesto?.formaPago,
+    vendedor: fuente?.vendedor || presupuesto?.vendedor,
+  };
+}
+
+/**
  * Mapea un presupuesto a RemitoModel
  */
 export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
   const cliente = presupuesto.cliente || {};
-  const items = Array.isArray(presupuesto.productos) ? presupuesto.productos : [];
+  const bloques = Array.isArray((presupuesto as any)?.bloques) ? (presupuesto as any).bloques : [];
+  const bloquesConItems = bloques.filter((b: any) => Array.isArray(b?.productos) && b.productos.length > 0);
+  // Las obras/presupuestos pueden venir con bloques (cada línea trae precio y
+  // descuento). Los items del remito se arman desde los bloques cuando existen.
+  const items = bloquesConItems.length > 0
+    ? bloquesConItems.flatMap((b: any) => (Array.isArray(b?.productos) ? b.productos : []))
+    : (Array.isArray(presupuesto.productos) ? presupuesto.productos : []);
 
-  // Calcular totales
+  // Los bloques guardan precio y descuento por línea:
+  // subtotal = suma de precios, descuentoTotal = suma de precio*descuento%.
+  const sumarBloques = (listaBloques: any[]) => {
+    let subtotal = 0;
+    let descuentoTotal = 0;
+    for (const b of listaBloques) {
+      if (!Array.isArray((b as any)?.productos) || (b as any).productos.length === 0) continue;
+      for (const p of (b as any).productos) {
+        const precio = Number((p as any)?.precio) || 0;
+        const desc = Number((p as any)?.descuento) || 0;
+        subtotal += precio;
+        descuentoTotal += Math.round((precio * desc) / 100);
+      }
+    }
+    return { subtotal: Math.round(subtotal), descuentoTotal: Math.round(descuentoTotal) };
+  };
+  const totalesPorBloques = bloquesConItems.length > 0 ? sumarBloques(bloquesConItems) : null;
   const totalesCalculados = computeTotals(items);
+  const subtotalBase = totalesPorBloques ? totalesPorBloques.subtotal : totalesCalculados.subtotal;
+  const descuentoBase = totalesPorBloques ? totalesPorBloques.descuentoTotal : totalesCalculados.descuentoTotal;
   const descuentoEfectivo =
-    presupuesto?.pagoEnEfectivo ? totalesCalculados.subtotal * 0.1 : 0;
+    presupuesto?.pagoEnEfectivo ? Math.round(subtotalBase * 0.1) : Math.max(0, Math.round(Number(presupuesto?.descuentoEfectivo) || 0));
   const costoEnvio =
     presupuesto.costoEnvio !== undefined &&
     presupuesto.costoEnvio !== "" &&
     !isNaN(Number(presupuesto.costoEnvio))
       ? Number(presupuesto.costoEnvio)
       : 0;
-  const baseImponible = Math.max(0, totalesCalculados.total - descuentoEfectivo);
-  const aplicaIva = presupuesto?.aplicaIva === true || presupuesto?.aplicarIva === true;
-  const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
-  const ivaMonto = !aplicaIva
-    ? 0
-    : Math.round(Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100));
-  const aplicaTransferencia = presupuesto?.aplicaTransferencia === true || presupuesto?.aplicarTransferencia === true;
-  const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
-  const transferenciaMonto = !aplicaTransferencia
-    ? 0
-    : Math.round(Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100));
+  const baseImponible = Math.max(0, Math.round(subtotalBase - descuentoBase - descuentoEfectivo));
+  const impuestos = calcularImpuestosRemito(presupuesto, baseImponible);
+  const aplicaIva = impuestos.aplicaIva;
+  const ivaPorcentaje = impuestos.ivaPorcentaje;
+  const ivaMonto = impuestos.ivaMonto;
+  const aplicaTransferencia = impuestos.aplicaTransferencia;
+  const transferenciaPorcentaje = impuestos.transferenciaPorcentaje;
+  const transferenciaMonto = impuestos.transferenciaMonto;
+  const mostrarIva = impuestos.mostrarIva;
+  const mostrarTransferencia = impuestos.mostrarTransferencia;
   const totalCalculadoFinal = Math.round(baseImponible + costoEnvio + ivaMonto + transferenciaMonto);
   const totalGuardado = Number(presupuesto?.total);
   const totalRemito = Number.isFinite(totalGuardado) && totalGuardado > 0 ? Math.round(totalGuardado) : totalCalculadoFinal;
@@ -371,14 +531,14 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
       : undefined,
     items: mapItems(items),
     totales: {
-      subtotal: totalesCalculados.subtotal,
-      descuentoTotal: totalesCalculados.descuentoTotal,
-      descuentoEfectivo: descuentoEfectivo > 0 ? descuentoEfectivo : undefined,
+      subtotal: Math.round(subtotalBase),
+      descuentoTotal: Math.round(descuentoBase),
+      descuentoEfectivo: descuentoEfectivo > 0 ? Math.round(descuentoEfectivo) : undefined,
       costoEnvio: costoEnvio > 0 ? costoEnvio : 0,
-      ivaPorcentaje: ivaMonto > 0 ? ivaPorcentaje : undefined,
-      ivaMonto: ivaMonto > 0 ? ivaMonto : undefined,
-      transferenciaPorcentaje: transferenciaMonto > 0 ? transferenciaPorcentaje : undefined,
-      transferenciaMonto: transferenciaMonto > 0 ? transferenciaMonto : undefined,
+      ivaPorcentaje: mostrarIva ? ivaPorcentaje : undefined,
+      ivaMonto: mostrarIva ? ivaMonto : undefined,
+      transferenciaPorcentaje: mostrarTransferencia ? transferenciaPorcentaje : undefined,
+      transferenciaMonto: mostrarTransferencia ? transferenciaMonto : undefined,
       total: totalRemito,
     },
     observaciones: presupuesto.observaciones,

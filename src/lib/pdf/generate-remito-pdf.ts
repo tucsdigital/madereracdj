@@ -152,6 +152,12 @@ export function buildRemitoHtml(
   const totalesPad = esEnvioDoc ? "4px 5px" : "6px";
   const totalesFontSize = esEnvioDoc ? "10px" : "11px";
   const totalesFontSizeGrande = esEnvioDoc ? "12.5px" : "14px";
+  const ivaMontoRow = Number(totales.ivaMonto || 0);
+  const ivaPctRow = Number(totales.ivaPorcentaje || 0);
+  const mostrarIvaRow = ivaMontoRow > 0 || ivaPctRow > 0;
+  const transfMontoRow = Number(totales.transferenciaMonto || 0);
+  const transfPctRow = Number(totales.transferenciaPorcentaje || 0);
+  const mostrarTransfRow = transfMontoRow > 0 || transfPctRow > 0;
   const totalesRowsHtml = !paraEmpleado
     ? `
       <tr>
@@ -173,18 +179,18 @@ export function buildRemitoHtml(
         <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
-      ${Number(totales.ivaMonto || 0) > 0 ? `
+      ${mostrarIvaRow ? `
       <tr>
         <td colspan="4" style="padding: ${totalesPad};"></td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">IVA (${ivaPctRow}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(ivaMontoRow)}</td>
       </tr>
       ` : ""}
-      ${Number(totales.transferenciaMonto || 0) > 0 ? `
+      ${mostrarTransfRow ? `
       <tr>
         <td colspan="4" style="padding: ${totalesPad};"></td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">TRANSFERENCIA (${Number(totales.transferenciaPorcentaje || 0)}%)</td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(Number(totales.transferenciaMonto || 0))}</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">TRANSFERENCIA (${transfPctRow}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(transfMontoRow)}</td>
       </tr>
       ` : ""}
       <tr>

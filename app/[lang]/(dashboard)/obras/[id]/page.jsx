@@ -93,9 +93,9 @@ const ObraDetallePage = () => {
     setValorOficialDolar(obra.valorOficialDolar ?? null);
     setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
     setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
-    setAplicarIva(!!obra.aplicarIva);
+    setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
     setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
-    setAplicarTransferencia(!!obra.aplicarTransferencia);
+    setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
     setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
   }, [obra]);
 
@@ -905,13 +905,11 @@ const ObraDetallePage = () => {
             onMovimientosChange={setMovimientos}
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
-            totalObra={
-              typeof obra?.total === "number" && !Number.isNaN(obra.total)
-                ? obra.total
-                : (modoCosto === "presupuesto" && presupuesto
-                ? presupuesto.total
-                  : obra.gastoObraManual)
-            }
+            totalObra={(() => {
+              const fuente = modoCosto === "presupuesto" && presupuesto ? presupuesto : obra;
+              const totalNum = Number(fuente?.total);
+              return Number.isFinite(totalNum) && totalNum > 0 ? Math.round(totalNum) : 0;
+            })()}
             totalAbonado={movimientos.reduce(
               (acc, m) =>
                 m.tipo === "pago" ? acc + Number(m.monto || 0) : acc,

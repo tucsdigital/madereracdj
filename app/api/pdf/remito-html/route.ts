@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import {
   mapVentaToRemito,
   mapPresupuestoToRemito,
+  mapObraToRemito,
 } from "@/src/lib/pdf/mappers";
 import { buildRemitoHtml } from "@/src/lib/pdf/generate-remito-pdf";
 import { generarContenidoImpresion } from "@/lib/obra-utils";
@@ -108,10 +109,18 @@ export async function POST(req: NextRequest) {
             return generarContenidoImpresion(obra, presupuesto, modoCosto, inicial);
           })()
         : (() => {
+            // Las obras (tipo "obra" o "presupuesto" de obra) usan el mapper de
+            // obras para que el remito/PDF incluya IVA/Transferencia con el
+            // presupuesto inicial como respaldo. Los presupuestos de venta
+            // siguen por el mapper de presupuestos.
+            const docTipo = (data as any)?.tipo;
+            const esObra = docTipo === "obra" || docTipo === "presupuesto";
             const remito =
               type === "venta"
                 ? mapVentaToRemito(data)
-                : mapPresupuestoToRemito(data);
+                : esObra
+                  ? mapObraToRemito(data, null)
+                  : mapPresupuestoToRemito(data);
 
             return buildRemitoHtml(remito, empleado || false, false, purpose || "documento");
           })();
