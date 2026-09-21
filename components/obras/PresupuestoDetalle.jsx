@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { detalleMedidaProducto } from "@/lib/obra-utils";
 
 const PresupuestoDetalle = ({
   obra,
@@ -290,6 +291,15 @@ const PresupuestoDetalle = ({
                 actualizado[campo] = valor === "" ? "" : Number(valor);
               } else if (campo === "descripcion") {
                 actualizado[campo] = valor;
+              } else if (campo === "largo") {
+                // Compat: los registros viejos guardan largoNum/ml
+                const num = valor === "" ? "" : Number(valor);
+                actualizado.largo = num;
+                actualizado.largoNum = num;
+                if (String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
+                  const cant = Number(actualizado.cantidad) || 1;
+                  actualizado.ml = num === "" ? 0 : (Number(num) || 0) * cant;
+                }
               } else {
                 actualizado[campo] = valor === "" ? "" : Number(valor);
               }
@@ -737,6 +747,7 @@ const PresupuestoDetalle = ({
                         <th className="p-2 text-center">Unidad</th>
                         <th className="p-2 text-center">Alto</th>
                         <th className="p-2 text-center">Largo</th>
+                        <th className="p-2 text-center">Medida</th>
                         <th className="p-2 text-right">Valor Unit.</th>
                         <th className="p-2 text-center">Desc. %</th>
                         <th className="p-2 text-right">Subtotal</th>
@@ -744,6 +755,7 @@ const PresupuestoDetalle = ({
                     </thead>
                     <tbody>
                       {bloque.productos.map((producto) => {
+                        const medida = detalleMedidaProducto(producto);
                         let subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
                         // Si es pago en efectivo, aplicar descuento adicional del 10%
                         if (obra?.pagoEnEfectivo) {
@@ -755,16 +767,22 @@ const PresupuestoDetalle = ({
                               <td className="p-2">
                                 <div className="font-medium">{producto.nombre}</div>
                                 <div className="text-xs text-gray-500">{producto.categoria}</div>
+                                {medida.sub && (
+                                  <div className="text-[11px] text-gray-500">{medida.sub}</div>
+                                )}
                               </td>
                               <td className="p-2 text-center">{producto.cantidad}</td>
                               <td className="p-2 text-center">
-                                <Badge variant="outline">{producto.unidadMedida}</Badge>
+                                <Badge variant="outline">{medida.unidad}</Badge>
                               </td>
                               <td className="p-2 text-center">
-                                {producto.unidadMedida === "M2" ? producto.alto : "-"}
+                                {medida.altoTxt}
                               </td>
                               <td className="p-2 text-center">
-                                {(producto.unidadMedida === "M2" || producto.unidadMedida === "ML") ? producto.largo : "-"}
+                                {medida.largoTxt}
+                              </td>
+                              <td className="p-2 text-center">
+                                {medida.medidaTxt}
                               </td>
                               <td className="p-2 text-right">
                                 ${formatearNumeroArgentino(
@@ -778,7 +796,7 @@ const PresupuestoDetalle = ({
                             </tr>
                             {producto.descripcion && (
                               <tr className="border-b bg-gray-50">
-                                <td colSpan={8} className="p-2">
+                                <td colSpan={9} className="p-2">
                                   <div className="flex items-center gap-2">
                                     <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
                                     <span className="text-xs text-gray-700">{producto.descripcion}</span>
@@ -1173,6 +1191,7 @@ const PresupuestoDetalle = ({
                     <th className="p-2 text-center">Unidad</th>
                     <th className="p-2 text-center">Alto</th>
                     <th className="p-2 text-center">Largo</th>
+                    <th className="p-2 text-center">Medida</th>
                     <th className="p-2 text-right">Valor Unit.</th>
                     <th className="p-2 text-center">Desc. %</th>
                     <th className="p-2 text-right">Subtotal</th>
@@ -1181,7 +1200,8 @@ const PresupuestoDetalle = ({
                 </thead>
                 <tbody>
                   {itemsSeleccionados.map((p) => {
-                    const u = String(p.unidadMedida || "UN").toUpperCase();
+                    const medida = detalleMedidaProducto(p);
+                    const u = medida.unidad;
                     const sub = Number(p.precio || 0) * (1 - Number(p.descuento || 0) / 100);
                     const requiereAlto = u === "M2";
                     const requiereLargo = u === "M2" || u === "ML";
@@ -1262,12 +1282,19 @@ const PresupuestoDetalle = ({
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  value={p.largo}
+                                  value={p.largo ?? p.largoNum ?? ""}
                                 onChange={(e) => actualizarCampo(p.id, "largo", e.target.value)}
                                   className="w-24 mx-auto"
                                 />
                             ) : (
                               <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+
+                          <td className="p-2 text-center">
+                            <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
+                            {medida.sub && (
+                              <div className="text-[11px] text-gray-400">{medida.sub}</div>
                             )}
                           </td>
                           
@@ -1328,7 +1355,7 @@ const PresupuestoDetalle = ({
                         </tr>
                         {/* Fila adicional para descripción del producto */}
                         <tr className="border-b bg-gray-50">
-                          <td colSpan={9} className="p-2">
+                          <td colSpan={10} className="p-2">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
                                 <Textarea

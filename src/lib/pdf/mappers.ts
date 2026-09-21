@@ -111,16 +111,29 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
     const measure = computeQuantityDisplay({ ...p, cantidad });
     const medidaUnidad = String(measure?.unit || "");
     const medidaValor = Number(measure?.value);
+    const largoGuardado = Number((p as any)?.largo ?? (p as any)?.largoNum);
+    const mlGuardado = Number((p as any)?.ml);
+    const medidaValorFinal =
+      Number.isFinite(medidaValor) && medidaValor > 0
+        ? medidaValor
+        : Number.isFinite(mlGuardado) && mlGuardado > 0
+          ? mlGuardado
+          : Number.isFinite(largoGuardado) && largoGuardado > 0
+            ? largoGuardado * cantidad
+            : medidaValor;
     const shouldShowMeasure =
-      Number.isFinite(medidaValor) &&
-      (medidaUnidad === "m²" || medidaUnidad === "m³" || medidaUnidad === "ml");
+      Number.isFinite(medidaValorFinal) &&
+      medidaValorFinal > 0 &&
+      (medidaUnidad === "m²" || medidaUnidad === "m³" || medidaUnidad === "ml" ||
+        String((p as any)?.unidadMedida || (p as any)?.unidad || "").toUpperCase() === "ML" ||
+        String((p as any)?.unidadMedida || (p as any)?.unidad || "").toUpperCase() === "M2");
 
     return {
       nombre,
       detalle: detalle || undefined,
       cantidad,
-      medidaValor: shouldShowMeasure ? medidaValor : undefined,
-      medidaUnidad: shouldShowMeasure ? medidaUnidad : undefined,
+      medidaValor: shouldShowMeasure ? medidaValorFinal : undefined,
+      medidaUnidad: shouldShowMeasure ? (medidaUnidad || String((p as any)?.unidadMedida || (p as any)?.unidad || "").toLowerCase()) : undefined,
       cepillado: p.cepilladoAplicado || false,
       cepilladoPorcentaje: p.cepilladoAplicado
         ? Math.max(0, Number(p.cepilladoPorcentaje ?? 6) || 6)

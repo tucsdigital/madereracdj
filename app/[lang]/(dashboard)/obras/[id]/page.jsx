@@ -25,6 +25,7 @@ import {
   parseNumericValue,
   calcularPrecioMachimbre,
   calcularPrecioCorteMadera,
+  detalleMedidaProducto,
 } from "@/lib/obra-utils";
 import ObraHeader from "@/components/obras/ObraHeader";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
@@ -984,6 +985,7 @@ const ObraDetallePage = () => {
                             <th className="p-2 text-center">Unidad</th>
                             <th className="p-2 text-center">Alto</th>
                             <th className="p-2 text-center">Largo</th>
+                            <th className="p-2 text-center">Medida</th>
                             <th className="p-2 text-right">Valor Unit.</th>
                             <th className="p-2 text-center">Desc. %</th>
                             <th className="p-2 text-right">Subtotal</th>
@@ -991,11 +993,8 @@ const ObraDetallePage = () => {
                         </thead>
                         <tbody>
                           {productosPreview.map((producto, idx) => {
-                            const unidad = String(
-                              producto?.unidadMedida || producto?.unidad || "UN"
-                            ).toUpperCase();
-                            const requiereAlto = unidad === "M2";
-                            const requiereLargo = unidad === "M2" || unidad === "ML";
+                            const medida = detalleMedidaProducto(producto);
+                            const unidad = medida.unidad;
                             const origen =
                               producto?.categoria ||
                               (producto?._esManual ? "Manual" : "Obras");
@@ -1009,14 +1008,20 @@ const ObraDetallePage = () => {
                                     {producto?.nombre || "Producto sin nombre"}
                                   </div>
                                   <div className="text-xs text-gray-500">{origen}</div>
+                                  {medida.sub && (
+                                    <div className="text-[11px] text-gray-500">{medida.sub}</div>
+                                  )}
                                 </td>
                                 <td className="p-2 text-center">{normalizarNumero(producto?.cantidad) || 1}</td>
                                 <td className="p-2 text-center">{unidad}</td>
                                 <td className="p-2 text-center">
-                                  {requiereAlto ? normalizarNumero(producto?.alto) || "-" : "-"}
+                                  {medida.altoTxt}
                                 </td>
                                 <td className="p-2 text-center">
-                                  {requiereLargo ? normalizarNumero(producto?.largo) || "-" : "-"}
+                                  {medida.largoTxt}
+                                </td>
+                                <td className="p-2 text-center">
+                                  <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
                                 </td>
                                 <td className="p-2 text-right">
                                   {formatearNumeroArgentino(obtenerValorUnitarioPreview(producto))}
