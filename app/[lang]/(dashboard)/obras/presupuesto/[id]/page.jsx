@@ -169,20 +169,22 @@ const PresupuestoPage = () => {
   };
 
   const handleToggleEdit = async () => {
-    console.log("🔘 handleToggleEdit llamado, editando:", editando);
-    console.log("🔘 obra?.bloques:", obra?.bloques);
-    console.log("🔘 shouldSave actual:", shouldSave);
-    
     if (editando) {
-      // FORZAR ACTUALIZACIÓN - SIEMPRE USAR PRESUPUESTODETALLE
-      console.log("🔥🔥🔥 NUEVA VERSIÓN - ACTIVANDO GUARDADO 🔥🔥🔥");
+      // Botón "Guardar": persistir cambios pendientes en PresupuestoDetalle
       setShouldSave(true);
-      console.log("🔥🔥🔥 shouldSave = true 🔥🔥🔥");
       setEditando(false);
     } else {
-      console.log("🔄 Activando modo edición...");
       setEditando(true);
     }
+  };
+
+  const handleCancelEdit = () => {
+    // Botón "Cancelar": descartar edición sin guardar nada en Firestore.
+    // Se fuerza una nueva referencia para que PresupuestoDetalle restaure
+    // bloques e impuestos desde los datos originales.
+    handleResetShouldSave();
+    setObra((prev) => (prev ? { ...prev } : prev));
+    setEditando(false);
   };
 
   // Función para actualizar el estado local de la obra
@@ -275,6 +277,7 @@ const PresupuestoPage = () => {
         obra={obra}
         editando={editando}
         onToggleEdit={handleToggleEdit}
+        onCancel={handleCancelEdit}
         onPrint={handlePrint}
         onConvertToObra={
           obra?.tipo === "presupuesto" ? () => setShowWizardConversion(true) : undefined

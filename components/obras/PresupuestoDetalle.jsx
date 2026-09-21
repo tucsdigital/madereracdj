@@ -55,11 +55,13 @@ const PresupuestoDetalle = ({
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12);
 
-  // Inicializar datos cuando se carga la obra
+  // Inicializar datos cuando se carga la obra (o cuando se cancela edición:
+  // obra.id cambia de referencia al descartar, así se restauran los valores)
+  const obraId = obra?.id;
   useEffect(() => {
     if (obra) {
       if (obra.bloques && obra.bloques.length > 0) {
-        setBloques(obra.bloques);
+        setBloques(JSON.parse(JSON.stringify(obra.bloques)));
       } else {
         // Crear un bloque inicial si no hay bloques
         const bloqueInicial = {
@@ -70,13 +72,15 @@ const PresupuestoDetalle = ({
         };
         setBloques([bloqueInicial]);
       }
+      setBloqueActivo(0);
       setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
       setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
       setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
       setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
       // setDescripcionGeneral(obra.descripcionGeneral || "");
     }
-  }, [obra]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obraId]);
 
 
 
