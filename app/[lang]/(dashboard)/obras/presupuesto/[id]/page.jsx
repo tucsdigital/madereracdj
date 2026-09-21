@@ -168,10 +168,16 @@ const PresupuestoPage = () => {
     }
   };
 
+  const detalleRef = useRef(null);
+
   const handleToggleEdit = async () => {
     if (editando) {
       // Botón "Guardar": persistir cambios pendientes en PresupuestoDetalle
-      setShouldSave(true);
+      if (detalleRef.current?.guardar) {
+        detalleRef.current.guardar();
+      } else {
+        setShouldSave(true);
+      }
       setEditando(false);
     } else {
       setEditando(true);
@@ -179,11 +185,12 @@ const PresupuestoPage = () => {
   };
 
   const handleCancelEdit = () => {
-    // Botón "Cancelar": descartar edición sin guardar nada en Firestore.
-    // Se fuerza una nueva referencia para que PresupuestoDetalle restaure
-    // bloques e impuestos desde los datos originales.
+    // Botón "Cancelar": descartar edición SIN guardar nada en Firestore.
+    // Restaura el snapshot local (bloques, medidas, impuestos) sin mutar obra.
     handleResetShouldSave();
-    setObra((prev) => (prev ? { ...prev } : prev));
+    if (detalleRef.current?.cancelar) {
+      detalleRef.current.cancelar();
+    }
     setEditando(false);
   };
 
@@ -342,7 +349,7 @@ const PresupuestoPage = () => {
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
             onObraUpdate={handleObraUpdate}
-            onRequestSave={handleToggleEdit}
+            onGuardarRef={detalleRef}
             shouldSave={shouldSave}
             onResetShouldSave={handleResetShouldSave}
           />

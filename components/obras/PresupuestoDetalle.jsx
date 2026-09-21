@@ -55,32 +55,86 @@ const PresupuestoDetalle = ({
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12);
 
-  // Inicializar datos cuando se carga la obra (o cuando se cancela edición:
-  // obra.id cambia de referencia al descartar, así se restauran los valores)
-  const obraId = obra?.id;
+  // Snapshot original para edición: al entrar en edición se congela una copia
+  // profunda; al cancelar se restaura sin tocar Firestore ni perder medidas.
+  const snapshotRef = useRef(null);
+  const snapshotKeyRef = useRef(null);
+
+  // Inicializar datos cuando cambia el documento (id o fechaModificacion).
+  // NO reinicia mientras se está editando: evita que un re-render pise lo
+  // que el usuario está modificando.
+  const obraDocKey = obra ? `${obra?.id || ""}|${obra?.fechaModificacion || ""}` : "";
   useEffect(() => {
-    if (obra) {
-      if (obra.bloques && obra.bloques.length > 0) {
-        setBloques(JSON.parse(JSON.stringify(obra.bloques)));
-      } else {
-        // Crear un bloque inicial si no hay bloques
-        const bloqueInicial = {
-          id: `presupuesto-${Date.now()}`,
-          nombre: "Bloque 1",
-          productos: [],
-          descripcion: ""
+    if (!obra || editando) return;
+    snapshotKeyRef.current = obraDocKey;
+    snapshotRef.current = null;
+    if (obra.bloques && obra.bloques.length > 0) {
+      setBloques(JSON.parse(JSON.stringify(obra.bloques)));
+    } else {
+      // Crear un bloque inicial si no hay bloques
+      const bloqueInicial = {
+        id: `presupuesto-${Date.now()}`,
+        nombre: "Bloque 1",
+        productos: [],
+        descripcion: ""
+      };
+      setBloques([bloqueInicial]);
+    }
+    setBloqueActivo(0);
+    setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
+    setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
+    setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
+    setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
+    // setDescripcionGeneral(obra.descripcionGeneral || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obraDocKey, editando]);
+
+  // Al activar edición se congela el snapshot; al salir (guardar/cancelar)
+  // se libera. Cancelar restaura desde el snapshot.
+  useEffect(() => {
+    if (editando && obraDocKey) {
+      if (snapshotKeyRef.current !== obraDocKey || !snapshotRef.current) {
+        snapshotKeyRef.current = obraDocKey;
+        snapshotRef.current = {
+          bloques: JSON.parse(JSON.stringify(bloques.length > 0 ? bloques : (obra?.bloques || []))),
+          aplicarIva,
+          ivaPorcentaje,
+          aplicarTransferencia,
+          transferenciaPorcentaje,
         };
-        setBloques([bloqueInicial]);
       }
-      setBloqueActivo(0);
-      setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
-      setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
-      setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
-      setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
-      // setDescripcionGeneral(obra.descripcionGeneral || "");
+    }
+    if (!editando) {
+      snapshotRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [obraId]);
+  }, [editando]);
+
+  // Exponer restauración para el botón Cancelar del padre
+  useEffect(() => {
+    if (onGuardarRef) {
+      onGuardarRef.current = {
+        guardar: () => {
+          setShouldSaveLocal(true);
+        },
+        cancelar: () => {
+          if (snapshotRef.current) {
+            const snap = snapshotRef.current;
+            setBloques(JSON.parse(JSON.stringify(snap.bloques)));
+            setBloqueActivo(0);
+            setAplicarIva(snap.aplicarIva);
+            setIvaPorcentaje(snap.ivaPorcentaje);
+            setAplicarTransferencia(snap.aplicarTransferencia);
+            setTransferenciaPorcentaje(snap.transferenciaPorcentaje);
+            snapshotRef.current = null;
+          }
+        },
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onGuardarRef, bloques, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje]);
+
+  const [shouldSaveLocal, setShouldSaveLocal] = useState(false);
 
 
 
@@ -296,16 +350,39 @@ const PresupuestoDetalle = ({
               } else if (campo === "descripcion") {
                 actualizado[campo] = valor;
               } else if (campo === "largo") {
-                // Compat: los registros viejos guardan largoNum/ml
-                const num = valor === "" ? "" : Number(valor);
-                actualizado.largo = num;
-                actualizado.largoNum = num;
-                if (String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
-                  const cant = Number(actualizado.cantidad) || 1;
-                  actualizado.ml = num === "" ? 0 : (Number(num) || 0) * cant;
+                // Compat: los registros viejos guardan largoNum/ml.
+                // NUNCA pisar con 0: "" conserva el valor previo hasta guardar.
+                if (valor === "" || valor === null || valor === undefined) {
+                  actualizado.largo = p.largo ?? p.largoNum ?? "";
+                } else {
+                  const num = Number(valor);
+                  if (!Number.isFinite(num)) return p;
+                  actualizado.largo = num;
+                  actualizado.largoNum = num;
+                  if (String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
+                    const cant = Number(actualizado.cantidad) || 1;
+                    actualizado.ml = num * cant;
+                  }
+                }
+              } else if (campo === "alto" || campo === "cantidad") {
+                if (valor === "" || valor === null || valor === undefined) {
+                  actualizado[campo] = p[campo] ?? (campo === "cantidad" ? 1 : "");
+                } else {
+                  const num = Number(valor);
+                  if (!Number.isFinite(num)) return p;
+                  actualizado[campo] = num;
+                }
+                if (campo === "cantidad" && String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
+                  const largoNum = Number(actualizado.largo ?? actualizado.largoNum) || 0;
+                  actualizado.ml = largoNum * (Number(actualizado.cantidad) || 1);
                 }
               } else {
-                actualizado[campo] = valor === "" ? "" : Number(valor);
+                if (valor === "" || valor === null || valor === undefined) {
+                  actualizado[campo] = p[campo] ?? "";
+                } else {
+                  const num = Number(valor);
+                  actualizado[campo] = Number.isFinite(num) ? num : (p[campo] ?? "");
+                }
               }
               
               if (campo !== "descripcion") {
@@ -645,18 +722,18 @@ const PresupuestoDetalle = ({
     }
   }, [obra, bloques, totalesPorBloque, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje, onObraUpdate]);
 
-  // Ejecutar guardado solo cuando shouldSave sea true
+  // Ejecutar guardado: por flag del padre (shouldSave) o por ref interna.
+  // Nunca guarda al cancelar: cancelar solo restaura el snapshot local.
   useEffect(() => {
-    console.log("🔍 useEffect shouldSave ejecutado - shouldSave:", shouldSave);
-    if (shouldSave) {
-      console.log("🔄 Guardando desde shouldSave...");
-      guardarCambios();
-      // Resetear el flag después de guardar
+    const debeGuardar = shouldSave || shouldSaveLocal;
+    if (!debeGuardar || !editando) return;
+    guardarCambios().finally(() => {
+      setShouldSaveLocal(false);
       if (onResetShouldSave) {
         setTimeout(() => onResetShouldSave(), 100);
       }
-    }
-  }, [shouldSave, onResetShouldSave, guardarCambios]);
+    });
+  }, [shouldSave, shouldSaveLocal, editando, onResetShouldSave, guardarCambios]);
 
   // Filtros para productos
   const fuenteProductos = busquedaDebounced
