@@ -1466,7 +1466,7 @@ const ObraDetallePage = () => {
                             )}
                             {(aplicarIva || aplicarTransferencia) && (
                               <div className="ml-7 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold space-y-1">
-                                <div>Base: <span className="font-bold">$ {formatearNumeroArgentino(basePrev)}</span></div>
+                                <div>Subtotal: <span className="font-bold">{formatearNumeroArgentino(basePrev)}</span></div>
                                 {aplicarIva && (
                                   <div>IVA ({ivaPct}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaPrev)}</span></div>
                                 )}
