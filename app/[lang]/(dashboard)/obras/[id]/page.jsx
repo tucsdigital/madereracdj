@@ -813,8 +813,181 @@ const ObraDetallePage = () => {
     return Math.round(totalProductosPreview);
   })();
 
+  // Resumen financiero único para toda la pantalla.
+  // Replica la misma estructura que guardarEdicion() del hook:
+  // productos del presupuesto + materiales adicionales - descuentos + IVA/transferencia.
+  const resumenFinancieroObra = (() => {
+    // Productos provenientes del presupuesto/bloque.
+    const productosBase = Array.isArray(itemsPresupuesto) && editando
+      ? itemsPresupuesto
+      : Array.isArray(obra?.productos)
+        ? obra.productos
+        : [];
+
+    const subtotalPresupuesto = productosBase.reduce(
+      (acc, item) => acc + calcularBaseProductoPreview(item),
+      0
+    );
+
+    const totalPresupuestoConDescuento = productosBase.reduce(
+      (acc, item) => acc + calcularSubtotalProductoPreview(item),
+      0
+    );
+
+    const descuentoPresupuesto = Math.max(
+      0,
+      subtotalPresupuesto - totalPresupuestoConDescuento
+    );
+
+    // Materiales adicionales de la obra.
+    const materialesBase = Array.isArray(itemsCatalogo) ? itemsCatalogo : [];
+
+    const subtotalMateriales = materialesBase.reduce((acc, item) => {
+      const esMadera = String(item?.categoria || "").toLowerCase() === "maderas";
+      const esMachDeck =
+        esMadera &&
+        (item?.subcategoria === "machimbre" || item?.subcategoria === "deck");
+      const precio = normalizarNumero(item?.precio);
+      const cantidad = normalizarNumero(item?.cantidad) || 1;
+      return acc + (esMachDeck ? precio : precio * cantidad);
+    }, 0);
+
+    const descuentoMateriales = materialesBase.reduce((acc, item) => {
+      const esMadera = String(item?.categoria || "").toLowerCase() === "maderas";
+      const esMachDeck =
+        esMadera &&
+        (item?.subcategoria === "machimbre" || item?.subcategoria === "deck");
+      const precio = normalizarNumero(item?.precio);
+      const cantidad = normalizarNumero(item?.cantidad) || 1;
+      const base = esMachDeck ? precio : precio * cantidad;
+      const descuento = Math.max(0, normalizarNumero(item?.descuento));
+      return acc + Math.round(base * (descuento / 100));
+    }, 0);
+
+    // Fuera de edición, Firestore es la fuente autoritativa.
+    if (!editando) {
+      const subtotalPersistido = Math.max(0, normalizarNumero(obra?.subtotal));
+      const descuentoPersistido = Math.max(
+        0,
+        normalizarNumero(obra?.descuentoTotal)
+      );
+      const descuentoEfectivoPersistido = Math.max(
+        0,
+        normalizarNumero(obra?.descuentoEfectivo)
+      );
+      const basePersistida = Math.max(
+        0,
+        subtotalPersistido -
+          descuentoPersistido -
+          descuentoEfectivoPersistido
+      );
+
+      const aplicaIvaPersistido =
+        obra?.aplicarIva === true ||
+        obra?.aplicaIva === true ||
+        normalizarNumero(obra?.ivaMonto) > 0;
+      const ivaPctPersistido = Math.max(
+        0,
+        normalizarNumero(obra?.ivaPorcentaje)
+      );
+      const ivaMontoPersistido = aplicaIvaPersistido
+        ? Math.max(
+            0,
+            normalizarNumero(obra?.ivaMonto) ||
+              Math.round(basePersistida * (ivaPctPersistido / 100))
+          )
+        : 0;
+
+      const aplicaTransferenciaPersistido =
+        obra?.aplicarTransferencia === true ||
+        obra?.aplicaTransferencia === true ||
+        normalizarNumero(obra?.transferenciaMonto) > 0;
+      const transferenciaPctPersistido = Math.max(
+        0,
+        normalizarNumero(obra?.transferenciaPorcentaje)
+      );
+      const transferenciaMontoPersistido = aplicaTransferenciaPersistido
+        ? Math.max(
+            0,
+            normalizarNumero(obra?.transferenciaMonto) ||
+              Math.round(
+                basePersistida * (transferenciaPctPersistido / 100)
+              )
+          )
+        : 0;
+
+      const totalPersistido = Math.max(
+        0,
+        normalizarNumero(obra?.total) ||
+          Math.round(
+            basePersistida +
+              ivaMontoPersistido +
+              transferenciaMontoPersistido
+          )
+      );
+
+      return {
+        subtotal: subtotalPersistido,
+        descuentoTotal: descuentoPersistido,
+        descuentoEfectivo: descuentoEfectivoPersistido,
+        baseImponible: basePersistida,
+        aplicarIva: aplicaIvaPersistido,
+        ivaPorcentaje: ivaPctPersistido,
+        ivaMonto: ivaMontoPersistido,
+        aplicarTransferencia: aplicaTransferenciaPersistido,
+        transferenciaPorcentaje: transferenciaPctPersistido,
+        transferenciaMonto: transferenciaMontoPersistido,
+        total: totalPersistido,
+      };
+    }
+
+    // En edición se calcula en vivo con los estados actuales.
+    const subtotal = Math.round(subtotalPresupuesto + subtotalMateriales);
+    const descuentoTotal = Math.round(
+      descuentoPresupuesto + descuentoMateriales
+    );
+    const descuentoEfectivo = Math.max(
+      0,
+      normalizarNumero(obra?.descuentoEfectivo)
+    );
+    const baseImponible = Math.max(
+      0,
+      subtotal - descuentoTotal - descuentoEfectivo
+    );
+
+    const ivaPct = Math.max(
+      0,
+      Number(String(ivaPorcentaje).replace(",", ".")) || 0
+    );
+    const ivaMonto = aplicarIva
+      ? Math.round(baseImponible * (ivaPct / 100))
+      : 0;
+
+    const transferenciaPct = Math.max(
+      0,
+      Number(String(transferenciaPorcentaje).replace(",", ".")) || 0
+    );
+    const transferenciaMonto = aplicarTransferencia
+      ? Math.round(baseImponible * (transferenciaPct / 100))
+      : 0;
+
+    return {
+      subtotal,
+      descuentoTotal,
+      descuentoEfectivo,
+      baseImponible,
+      aplicarIva,
+      ivaPorcentaje: ivaPct,
+      ivaMonto,
+      aplicarTransferencia,
+      transferenciaPorcentaje: transferenciaPct,
+      transferenciaMonto,
+      total: Math.round(baseImponible + ivaMonto + transferenciaMonto),
+    };
+  })();
+
   return (
-    <div className="w-full mx-auto p-4 space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto p-4 space-y-6">
       <ObraHeader
         obra={obra}
         editando={editando}
@@ -985,23 +1158,8 @@ const ObraDetallePage = () => {
             onMovimientosChange={setMovimientos}
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
-            totalObra={(() => {
-              // Si la obra usa presupuesto, cobranza debe seguir el bloque actualmente
-              // aplicado/seleccionado y no el total global del presupuesto.
-              const fuente =
-                modoCosto === "presupuesto" && presupuesto
-                  ? (bloquePreview || presupuesto)
-                  : obra;
-              const totalNum = Number(fuente?.total);
-              return Number.isFinite(totalNum) && totalNum > 0
-                ? Math.round(totalNum)
-                : 0;
-            })()}
-            totalAbonado={movimientos.reduce(
-              (acc, m) =>
-                m.tipo === "pago" ? acc + Number(m.monto || 0) : acc,
-              0
-            )}
+            totalObra={resumenFinancieroObra.total}
+            resumenFinanciero={resumenFinancieroObra}
             onEstadoPagoChange={(estaPagado) => {
               // Aquí podrías actualizar el estado de la obra si es necesario
               console.log(
@@ -1063,6 +1221,9 @@ const ObraDetallePage = () => {
                               ))}
                             </SelectContent>
                           </Select>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Al guardar se aplicarán sus productos, importes e impuestos a la obra.
+                          </p>
                         </div>
                       )}
 
@@ -1095,6 +1256,9 @@ const ObraDetallePage = () => {
                           {bloqueCambioPendiente
                             ? `Se aplicará “${bloquePreview?.nombre || "el bloque seleccionado"}” al guardar.`
                             : "Este es el bloque actualmente aplicado a la obra."}
+                        </p>
+                        <p className="mt-0.5 text-xs opacity-80">
+                          La vista previa, la cobranza y los totales usan esta misma selección.
                         </p>
                       </div>
                     </div>
@@ -1464,18 +1628,7 @@ const ObraDetallePage = () => {
                                 </div>
                               </div>
                             )}
-                            {(aplicarIva || aplicarTransferencia) && (
-                              <div className="ml-7 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold space-y-1">
-                                <div>Subtotal: <span className="font-bold">{formatearNumeroArgentino(basePrev)}</span></div>
-                                {aplicarIva && (
-                                  <div>IVA ({ivaPct}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaPrev)}</span></div>
-                                )}
-                                {aplicarTransferencia && (
-                                  <div>Transferencia ({transfPct}%): <span className="font-bold">$ {formatearNumeroArgentino(transfPrev)}</span></div>
-                                )}
-                                <div>Total Final: <span className="font-bold text-green-600">$ {formatearNumeroArgentino(totalPrev)}</span></div>
-                              </div>
-                            )}
+                            
                           </>
                         );
                       })()}
