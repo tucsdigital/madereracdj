@@ -814,7 +814,7 @@ const ObraDetallePage = () => {
   })();
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto p-4 space-y-6">
+    <div className="w-full mx-auto p-4 space-y-6">
       <ObraHeader
         obra={obra}
         editando={editando}
