@@ -69,6 +69,88 @@ function calcularFechaVencimiento(fechaEmision) {
   return fecha.toISOString().split("T")[0]; // Formato YYYY-MM-DD
 }
 
+const normalizarPorcentaje = (value, fallback) => {
+  if (value === null || value === undefined || value === "") return fallback;
+  const porcentaje = Number(String(value).replace(",", "."));
+  return Number.isFinite(porcentaje) ? Math.max(0, porcentaje) : fallback;
+};
+
+const opcionActiva = (...values) =>
+  values.some(
+    (value) =>
+      value === true ||
+      value === 1 ||
+      value === "1" ||
+      String(value).toLowerCase() === "true"
+  );
+
+const opcionPresupuestoActiva = (presupuesto, campoActual, campoAnterior) => {
+  const actual = presupuesto?.[campoActual];
+  return actual !== undefined
+    ? opcionActiva(actual)
+    : opcionActiva(presupuesto?.[campoAnterior]);
+};
+
+// Fuente única para el resumen, el guardado y la conversión del presupuesto.
+// Los adicionales se calculan siempre sobre la base neta de productos, antes del envío.
+const calcularTotalesPresupuesto = ({
+  presupuesto = {},
+  items = [],
+  pagoEnEfectivo,
+  costoEnvio,
+}) => {
+  const { subtotal, descuentoTotal, total: subtotalConDescuento } = computeTotals(items);
+  const efectivo =
+    pagoEnEfectivo === undefined
+      ? opcionActiva(presupuesto?.pagoEnEfectivo)
+      : Boolean(pagoEnEfectivo);
+  const descuentoEfectivo = efectivo ? Math.round(subtotal * 0.1) : 0;
+  const baseImponible = Math.max(0, Math.round(subtotalConDescuento - descuentoEfectivo));
+  const aplicaIva = opcionPresupuestoActiva(
+    presupuesto,
+    "aplicaIva",
+    "aplicarIva"
+  );
+  const ivaPorcentaje = normalizarPorcentaje(presupuesto?.ivaPorcentaje, 21);
+  const ivaMonto = aplicaIva
+    ? Math.round(baseImponible * (ivaPorcentaje / 100))
+    : 0;
+  const aplicaTransferencia = opcionPresupuestoActiva(
+    presupuesto,
+    "aplicaTransferencia",
+    "aplicarTransferencia"
+  );
+  const transferenciaPorcentaje = normalizarPorcentaje(
+    presupuesto?.transferenciaPorcentaje,
+    10
+  );
+  const transferenciaMonto = aplicaTransferencia
+    ? Math.round(baseImponible * (transferenciaPorcentaje / 100))
+    : 0;
+  const envioRaw = costoEnvio === undefined ? presupuesto?.costoEnvio : costoEnvio;
+  const envioNumero = Number(envioRaw);
+  const envio = Number.isFinite(envioNumero) ? Math.max(0, envioNumero) : 0;
+  const totalFinal = Math.round(
+    baseImponible + ivaMonto + transferenciaMonto + envio
+  );
+
+  return {
+    subtotal,
+    descuentoTotal,
+    subtotalConDescuento,
+    descuentoEfectivo,
+    baseImponible,
+    aplicaIva,
+    ivaPorcentaje,
+    ivaMonto,
+    aplicaTransferencia,
+    transferenciaPorcentaje,
+    transferenciaMonto,
+    envio,
+    totalFinal,
+  };
+};
+
 const PresupuestoDetalle = () => {
   const params = useParams();
   const router = useRouter();
@@ -353,9 +435,20 @@ const PresupuestoDetalle = () => {
     if (editando && presupuesto) {
       console.log("Clonando presupuesto para edición");
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
-      presupuestoClonado.aplicaIva = Boolean(presupuestoClonado.aplicaIva);
+      presupuestoClonado.aplicaIva = opcionPresupuestoActiva(
+        presupuestoClonado,
+        "aplicaIva",
+        "aplicarIva"
+      );
+      presupuestoClonado.aplicarIva = presupuestoClonado.aplicaIva;
       presupuestoClonado.ivaPorcentaje = Number(presupuestoClonado.ivaPorcentaje) || 21;
-      presupuestoClonado.aplicaTransferencia = Boolean(presupuestoClonado.aplicaTransferencia);
+      presupuestoClonado.aplicaTransferencia = opcionPresupuestoActiva(
+        presupuestoClonado,
+        "aplicaTransferencia",
+        "aplicarTransferencia"
+      );
+      presupuestoClonado.aplicarTransferencia =
+        presupuestoClonado.aplicaTransferencia;
       presupuestoClonado.transferenciaPorcentaje = Number(presupuestoClonado.transferenciaPorcentaje) || 10;
       // Asegurar que clienteId y cliente estén presentes
       if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
@@ -585,6 +678,7 @@ const PresupuestoDetalle = () => {
 
       console.log("presupuestoClonado:", presupuestoClonado);
       setPresupuestoEdit(presupuestoClonado);
+      setPagoEnEfectivo(opcionActiva(presupuestoClonado.pagoEnEfectivo));
     }
   }, [editando, presupuesto]);
 
@@ -1582,7 +1676,6 @@ const PresupuestoDetalle = () => {
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-      const { subtotal, descuentoTotal, total: totalCalc } = computeTotals(productosArr);
       const costoEnvioCalculado =
         presupuestoEdit.tipoEnvio &&
         presupuestoEdit.tipoEnvio !== "retiro_local" &&
@@ -1591,15 +1684,23 @@ const PresupuestoDetalle = () => {
         !isNaN(Number(presupuestoEdit.costoEnvio))
           ? Number(presupuestoEdit.costoEnvio)
           : 0;
-      const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
-      const baseImponible = Math.max(0, totalCalc - descuentoEfectivo);
-      const aplicaIvaSave = presupuestoEdit?.aplicaIva === true || presupuestoEdit?.aplicarIva === true;
-      const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
-      const ivaMonto = aplicaIvaSave ? Math.round(baseImponible * (ivaPorcentaje / 100)) : 0;
-      const aplicaTransfSave = presupuestoEdit?.aplicaTransferencia === true || presupuestoEdit?.aplicarTransferencia === true;
-      const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 10);
-      const transferenciaMonto = aplicaTransfSave ? Math.round(baseImponible * (transferenciaPorcentaje / 100)) : 0;
-      const total = Math.round(baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado);
+      const {
+        subtotal,
+        descuentoTotal,
+        descuentoEfectivo,
+        aplicaIva: aplicaIvaSave,
+        ivaPorcentaje,
+        ivaMonto,
+        aplicaTransferencia: aplicaTransfSave,
+        transferenciaPorcentaje,
+        transferenciaMonto,
+        totalFinal: total,
+      } = calcularTotalesPresupuesto({
+        presupuesto: presupuestoEdit,
+        items: productosArr,
+        pagoEnEfectivo,
+        costoEnvio: costoEnvioCalculado,
+      });
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
@@ -1613,9 +1714,11 @@ const PresupuestoDetalle = () => {
         descuentoEfectivo,
         pagoEnEfectivo,
         aplicaIva: aplicaIvaSave,
+        aplicarIva: aplicaIvaSave,
         ivaPorcentaje,
         ivaMonto,
         aplicaTransferencia: aplicaTransfSave,
+        aplicarTransferencia: aplicaTransfSave,
         transferenciaPorcentaje,
         transferenciaMonto,
         total,
@@ -1647,9 +1750,11 @@ const PresupuestoDetalle = () => {
         descuentoEfectivo,
         pagoEnEfectivo,
         aplicaIva: aplicaIvaSave,
+        aplicarIva: aplicaIvaSave,
         ivaPorcentaje,
         ivaMonto,
         aplicaTransferencia: aplicaTransfSave,
+        aplicarTransferencia: aplicaTransfSave,
         transferenciaPorcentaje,
         transferenciaMonto,
         total,
@@ -3837,17 +3942,25 @@ const PresupuestoDetalle = () => {
 
                 {/* Totales y botones por debajo de la tabla */}
                 {(presupuestoEdit.productos || []).length > 0 && (() => {
-                  const { subtotal, descuentoTotal, total } = computeTotals(presupuestoEdit.productos);
-                  const envio = Number(presupuestoEdit.costoEnvio) || 0;
-                  const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
-                  const baseImponible = Math.max(0, total - descuentoEfectivo);
-                  const aplicaIvaEdit = presupuestoEdit?.aplicaIva === true || presupuestoEdit?.aplicarIva === true;
-                  const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
-                  const ivaMonto = aplicaIvaEdit ? Math.round(baseImponible * (ivaPorcentaje / 100)) : 0;
-                  const aplicaTransfEdit = presupuestoEdit?.aplicaTransferencia === true || presupuestoEdit?.aplicarTransferencia === true;
-                  const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 10);
-                  const transferenciaMonto = aplicaTransfEdit ? Math.round(baseImponible * (transferenciaPorcentaje / 100)) : 0;
-                  const totalFinal = Math.round(baseImponible + ivaMonto + transferenciaMonto + envio);
+                  const {
+                    subtotal,
+                    descuentoTotal,
+                    subtotalConDescuento,
+                    descuentoEfectivo,
+                    baseImponible,
+                    aplicaIva: aplicaIvaEdit,
+                    ivaPorcentaje,
+                    ivaMonto,
+                    aplicaTransferencia: aplicaTransfEdit,
+                    transferenciaPorcentaje,
+                    transferenciaMonto,
+                    envio,
+                    totalFinal,
+                  } = calcularTotalesPresupuesto({
+                    presupuesto: presupuestoEdit,
+                    items: presupuestoEdit.productos,
+                    pagoEnEfectivo,
+                  });
                   return (
                     <div className="flex flex-col items-end gap-3 mt-4">
                       <div className="flex w-full flex-col items-end gap-3">
@@ -3858,7 +3971,11 @@ const PresupuestoDetalle = () => {
                               <input
                                 type="checkbox"
                                 checked={Boolean(presupuestoEdit?.aplicaIva)}
-                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({
+                                  ...prev,
+                                  aplicaIva: e.target.checked,
+                                  aplicarIva: e.target.checked,
+                                }))}
                                 disabled={loadingPrecios}
                                 className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
                               />
@@ -3884,7 +4001,11 @@ const PresupuestoDetalle = () => {
                               <input
                                 type="checkbox"
                                 checked={Boolean(presupuestoEdit?.aplicaTransferencia)}
-                                onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))}
+                                onChange={(e) => setPresupuestoEdit((prev) => ({
+                                  ...prev,
+                                  aplicaTransferencia: e.target.checked,
+                                  aplicarTransferencia: e.target.checked,
+                                }))}
                                 disabled={loadingPrecios}
                                 className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
                               />
@@ -3906,27 +4027,29 @@ const PresupuestoDetalle = () => {
                           </div>
                         </div>
 
-                        {/* Banner resumen de totales */}
-                        <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                          <div>
-                            Subtotal: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span>
-                          </div>
-                          <div>
-                            Descuento: <span className="font-bold">$ {formatearNumeroArgentino(descuentoTotal)}</span>
-                          </div>
+                        {/* Resumen completo y recalculado del presupuesto */}
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-sm shadow-sm w-full font-semibold">
+                          <div>Subtotal bruto: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span></div>
+                          <div>Descuento productos: <span className="font-bold">- $ {formatearNumeroArgentino(descuentoTotal)}</span></div>
+                          <div>Subtotal neto: <span className="font-bold">$ {formatearNumeroArgentino(subtotalConDescuento)}</span></div>
                           {descuentoEfectivo > 0 && (
                             <div>
-                              Descuento (Efectivo 10%): <span className="font-bold text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                              Descuento (Efectivo 10%): <span className="font-bold text-green-600">- $ {formatearNumeroArgentino(descuentoEfectivo)}</span>
                             </div>
                           )}
+                          <div>Base para adicionales: <span className="font-bold">$ {formatearNumeroArgentino(baseImponible)}</span></div>
                           {envio > 0 && (
                             <div>
                               Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
                             </div>
                           )}
-                          {ivaMonto > 0 && <div>IVA ({ivaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaMonto)}</span></div>}
-                          {transferenciaMonto > 0 && <div>Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(transferenciaMonto)}</span></div>}
                           <div>
+                            IVA: <span className={aplicaIvaEdit ? "font-bold text-amber-600" : "font-bold text-muted-foreground"}>{aplicaIvaEdit ? `Sí (${ivaPorcentaje}%) · $ ${formatearNumeroArgentino(ivaMonto)}` : "No aplica"}</span>
+                          </div>
+                          <div>
+                            Transferencia: <span className={aplicaTransfEdit ? "font-bold text-blue-600" : "font-bold text-muted-foreground"}>{aplicaTransfEdit ? `Sí (${transferenciaPorcentaje}%) · $ ${formatearNumeroArgentino(transferenciaMonto)}` : "No aplica"}</span>
+                          </div>
+                          <div className="sm:col-span-2 lg:col-span-3 border-t border-primary/20 pt-2 text-lg">
                             Total Final: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
                           </div>
                         </div>
@@ -4019,56 +4142,64 @@ const PresupuestoDetalle = () => {
               const items = (presupuesto.productos && presupuesto.productos.length > 0)
                 ? presupuesto.productos
                 : (presupuesto.items || []);
-              const { subtotal, descuentoTotal, total } = computeTotals(items);
-              const envio = (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && Number(presupuesto.costoEnvio) > 0)
-                ? Number(presupuesto.costoEnvio)
-                : 0;
-              const descuentoEfectivo = presupuesto?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-              const baseImponible = Math.max(0, total - descuentoEfectivo);
-              const aplicaIva = presupuesto?.aplicaIva === true || presupuesto?.aplicarIva === true;
-              const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
-              const ivaMonto = aplicaIva ? Math.round(Number(presupuesto?.ivaMonto) || baseImponible * (ivaPorcentaje / 100)) : 0;
-              const aplicaTransferencia = presupuesto?.aplicaTransferencia === true || presupuesto?.aplicarTransferencia === true;
-              const transferenciaPorcentaje = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 10);
-              const transferenciaMonto = aplicaTransferencia ? Math.round(Number(presupuesto?.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
-              const totalCalculado = Math.round(baseImponible + ivaMonto + transferenciaMonto + envio);
-              const totalFinal = typeof presupuesto.total === "number" && !isNaN(presupuesto.total) && Number(presupuesto.total) > 0
-                ? Math.round(Number(presupuesto.total))
-                : totalCalculado;
+              const {
+                subtotal,
+                descuentoTotal,
+                subtotalConDescuento,
+                descuentoEfectivo,
+                baseImponible,
+                aplicaIva,
+                ivaPorcentaje,
+                ivaMonto,
+                aplicaTransferencia,
+                transferenciaPorcentaje,
+                transferenciaMonto,
+                envio,
+                totalFinal,
+              } = calcularTotalesPresupuesto({ presupuesto, items });
               return (
                 <div className="mt-6 flex justify-end">
-                  <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 w-full sm:min-w-[380px] sm:w-auto">
+                    <h4 className="font-semibold text-base mb-3">Resumen completo del presupuesto</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Subtotal:</span>
+                        <span>Subtotal bruto:</span>
                         <span>$ {formatearNumeroArgentino(subtotal)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Descuento total:</span>
-                        <span>$ {formatearNumeroArgentino(descuentoTotal)}</span>
+                        <span>Descuento de productos:</span>
+                        <span>- $ {formatearNumeroArgentino(descuentoTotal)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span>Subtotal neto:</span>
+                        <span>$ {formatearNumeroArgentino(subtotalConDescuento)}</span>
                       </div>
                       {descuentoEfectivo > 0 && (
                         <div className="flex justify-between">
                           <span>Descuento (Efectivo 10%):</span>
-                          <span className="text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                          <span className="text-green-600">- $ {formatearNumeroArgentino(descuentoEfectivo)}</span>
                         </div>
                       )}
+                      <div className="flex justify-between border-t pt-2">
+                        <span>Base para IVA/transferencia:</span>
+                        <span>$ {formatearNumeroArgentino(baseImponible)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span>IVA:</span>
+                        <span className={aplicaIva ? "font-medium text-amber-600" : "text-muted-foreground"}>
+                          {aplicaIva ? `Sí (${ivaPorcentaje}%) · $ ${formatearNumeroArgentino(ivaMonto)}` : "No aplica"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span>Transferencia:</span>
+                        <span className={aplicaTransferencia ? "font-medium text-blue-600" : "text-muted-foreground"}>
+                          {aplicaTransferencia ? `Sí (${transferenciaPorcentaje}%) · $ ${formatearNumeroArgentino(transferenciaMonto)}` : "No aplica"}
+                        </span>
+                      </div>
                       {envio > 0 && (
                         <div className="flex justify-between">
                           <span>Cotización de envío:</span>
                           <span>$ {formatearNumeroArgentino(envio)}</span>
-                        </div>
-                      )}
-                      {aplicaIva && ivaMonto > 0 && (
-                        <div className="flex justify-between">
-                          <span>IVA ({ivaPorcentaje}%):</span>
-                          <span>$ {formatearNumeroArgentino(ivaMonto)}</span>
-                        </div>
-                      )}
-                      {aplicaTransferencia && transferenciaMonto > 0 && (
-                        <div className="flex justify-between">
-                          <span>Transferencia ({transferenciaPorcentaje}%):</span>
-                          <span>$ {formatearNumeroArgentino(transferenciaMonto)}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-bold text-lg">
@@ -4109,19 +4240,25 @@ const PresupuestoDetalle = () => {
               onSubmit={async (ventaCampos) => {
                 try {
                   const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                  const { subtotal, descuentoTotal, total: totalBase } = computeTotals(items);
-                  const descuentoEfectivo = presupuesto.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                  const baseImponible = Math.max(0, totalBase - descuentoEfectivo);
-                  const aplicaIva = presupuesto?.aplicaIva === true || presupuesto?.aplicarIva === true;
-                  const ivaPorcentaje = Math.max(0, Number(presupuesto.ivaPorcentaje) || 21);
-                  const ivaMonto = aplicaIva ? Math.round(Number(presupuesto.ivaMonto) || baseImponible * (ivaPorcentaje / 100)) : 0;
-                  const aplicaTransferencia = presupuesto?.aplicaTransferencia === true || presupuesto?.aplicarTransferencia === true;
-                  const transferenciaPorcentaje = Math.max(0, Number(presupuesto.transferenciaPorcentaje) || 10);
-                  const transferenciaMonto = aplicaTransferencia ? Math.round(Number(presupuesto.transferenciaMonto) || baseImponible * (transferenciaPorcentaje / 100)) : 0;
                   const envio = ventaCampos.costoEnvio
                     ? Number(ventaCampos.costoEnvio)
                     : safeNumber(presupuesto.costoEnvio || 0);
-                  const totalVenta = Math.round(baseImponible + ivaMonto + transferenciaMonto + envio);
+                  const {
+                    subtotal,
+                    descuentoTotal,
+                    descuentoEfectivo,
+                    aplicaIva,
+                    ivaPorcentaje,
+                    ivaMonto,
+                    aplicaTransferencia,
+                    transferenciaPorcentaje,
+                    transferenciaMonto,
+                    totalFinal: totalVenta,
+                  } = calcularTotalesPresupuesto({
+                    presupuesto,
+                    items,
+                    costoEnvio: envio,
+                  });
 
                   const paymentIntentMonto =
                     ventaCampos.estadoPagoConversion === "pagado"
@@ -4146,9 +4283,11 @@ const PresupuestoDetalle = () => {
                     descuentoTotal,
                     descuentoEfectivo,
                     aplicaIva,
+                    aplicarIva: aplicaIva,
                     ivaPorcentaje,
                     ivaMonto,
                     aplicaTransferencia,
+                    aplicarTransferencia: aplicaTransferencia,
                     transferenciaPorcentaje,
                     transferenciaMonto,
                     total: totalVenta,

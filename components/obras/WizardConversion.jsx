@@ -41,6 +41,76 @@ import { useRouter } from "next/navigation";
 import SelectorClienteObras from "./SelectorClienteObras";
 import { getNextObraNumber } from "@/lib/obra-numbering";
 
+const opcionActiva = (valor) =>
+  valor === true || valor === 1 || valor === "1" || valor === "true";
+
+const precioLineaProducto = (producto = {}) => {
+  const precio = Math.max(0, Number(producto.precio) || 0);
+  const cantidad = Math.max(1, Number(producto.cantidad) || 1);
+  const esMadera = String(producto.categoria || "").toLowerCase() === "maderas";
+  const subcategoria = String(
+    producto.subcategoria || producto.subCategoria || ""
+  ).toLowerCase();
+  const esMachimbreODeck =
+    esMadera && (subcategoria === "machimbre" || subcategoria === "deck");
+
+  if (producto.precioIncluyeCantidad === false) {
+    return esMachimbreODeck ? precio : precio * cantidad;
+  }
+  return precio;
+};
+
+const calcularResumenBloque = (fuente = {}) => {
+  const productos = Array.isArray(fuente.productos) ? fuente.productos : [];
+  const subtotal = productos.reduce(
+    (acumulado, producto) => acumulado + precioLineaProducto(producto),
+    0
+  );
+  const descuentoTotal = productos.reduce((acumulado, producto) => {
+    const descuento = Math.min(
+      100,
+      Math.max(0, Number(producto.descuento) || 0)
+    );
+    return acumulado + precioLineaProducto(producto) * (descuento / 100);
+  }, 0);
+  const descuentoEfectivo = Math.max(
+    0,
+    Number(fuente.descuentoEfectivo) || 0
+  );
+  const base = Math.max(0, subtotal - descuentoTotal - descuentoEfectivo);
+  const aplicarIva = opcionActiva(fuente.aplicarIva ?? fuente.aplicaIva);
+  const ivaPorcentaje = Math.max(0, Number(fuente.ivaPorcentaje) || 0);
+  const ivaMonto = aplicarIva
+    ? Math.round(base * (ivaPorcentaje / 100))
+    : 0;
+  const aplicarTransferencia = opcionActiva(
+    fuente.aplicarTransferencia ?? fuente.aplicaTransferencia
+  );
+  const transferenciaPorcentaje = Math.max(
+    0,
+    Number(fuente.transferenciaPorcentaje) || 0
+  );
+  const transferenciaMonto = aplicarTransferencia
+    ? Math.round(base * (transferenciaPorcentaje / 100))
+    : 0;
+  const adicionales = ivaMonto + transferenciaMonto;
+
+  return {
+    subtotal: Math.round(subtotal),
+    descuentoTotal: Math.round(descuentoTotal),
+    descuentoEfectivo: Math.round(descuentoEfectivo),
+    base: Math.round(base),
+    aplicarIva,
+    ivaPorcentaje,
+    ivaMonto,
+    aplicarTransferencia,
+    transferenciaPorcentaje,
+    transferenciaMonto,
+    adicionales,
+    total: Math.round(base + adicionales),
+  };
+};
+
 const WizardConversion = ({
   presupuesto,
   open,
@@ -168,12 +238,22 @@ const WizardConversion = ({
       return false;
     }
     
-    // Validar bloque si hay múltiples
-    if (presupuesto?.bloques && presupuesto.bloques.length > 1) {
+    // Validar el bloque que se convertirá. Nunca se combinan alternativas.
+    if (presupuesto?.bloques && presupuesto.bloques.length > 0) {
       if (!datos.bloqueSeleccionado) {
         setError("Por favor seleccione un bloque");
         return false;
       }
+      const bloqueElegido = presupuesto.bloques.find(
+        (bloque) => bloque.id === datos.bloqueSeleccionado
+      );
+      if (!bloqueElegido || !Array.isArray(bloqueElegido.productos) || bloqueElegido.productos.length === 0) {
+        setError("El bloque seleccionado no tiene productos para convertir");
+        return false;
+      }
+    } else if (!Array.isArray(presupuesto?.productos) || presupuesto.productos.length === 0) {
+      setError("El presupuesto no tiene productos para convertir");
+      return false;
     }
     return true;
   };
@@ -224,61 +304,53 @@ const WizardConversion = ({
       // Sanitizar productos del bloque seleccionado
       const sanitizarProductos = (lista) =>
         (Array.isArray(lista) ? lista : []).map((p) => {
-          const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-          const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
           const precio = Number(p.precio) || 0;
           const cantidad = Number(p.cantidad) || 1;
-          const descuento = Number(p.descuento) || 0;
-          const base = isMachDeck ? precio : precio * cantidad;
+          const descuento = Math.min(
+            100,
+            Math.max(0, Number(p.descuento) || 0)
+          );
+          const base = precioLineaProducto(p);
           const subtotal = Math.round(base * (1 - descuento / 100));
           const item = {
             id: p.id,
+            originalId: p.originalId || p.id,
             nombre: p.nombre || "",
             categoria: p.categoria || "",
-            subcategoria: p.subcategoria || "",
+            subCategoria: p.subCategoria || p.subcategoria || "",
+            subcategoria: p.subcategoria || p.subCategoria || "",
             unidad: p.unidad || p.unidadMedida || "",
             unidadMedida: p.unidadMedida || p.unidad || "",
             cantidad,
             descuento,
             precio,
+            valorVenta: Number(p.valorVenta) || 0,
+            precioIncluyeCantidad: true,
             subtotal,
+            descripcion: p.descripcion || p.description || "",
           };
           if (p.alto !== undefined) item.alto = Number(p.alto) || 0;
           if (p.ancho !== undefined) item.ancho = Number(p.ancho) || 0;
-          if (p.largo !== undefined) item.largo = Number(p.largo) || 0;
+          if (p.largo !== undefined || p.largoNum !== undefined) {
+            item.largo = Number(p.largo ?? p.largoNum) || 0;
+            item.largoNum = item.largo;
+          }
+          if (p.m2 !== undefined) item.m2 = Number(p.m2) || 0;
+          if (p.ml !== undefined) item.ml = Number(p.ml) || 0;
           if (p.precioPorPie !== undefined) item.precioPorPie = Number(p.precioPorPie) || 0;
           if (p.cepilladoAplicado !== undefined) item.cepilladoAplicado = !!p.cepilladoAplicado;
           return item;
         });
 
-      const calcularSubtotal = (lista) =>
-        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
-          const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-          const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-          const precio = Number(p.precio) || 0;
-          const cantidad = Number(p.cantidad) || 1;
-          const base = isMachDeck ? precio : precio * cantidad;
-          return acc + base;
-        }, 0);
-
-      const calcularDescuento = (lista) =>
-        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
-          const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-          const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-          const precio = Number(p.precio) || 0;
-          const cantidad = Number(p.cantidad) || 1;
-          const base = isMachDeck ? precio : precio * cantidad;
-          const desc = Number(p.descuento) || 0;
-          return acc + Math.round(base * desc / 100);
-        }, 0);
-
       let productosObraSanitizados = [];
       let bloqueSeleccionadoNombre = null;
+      let bloqueSeleccionadoDatos = null;
 
       // Si hay bloques y se seleccionó uno específico
       if (presupuesto.bloques && presupuesto.bloques.length > 0 && datos.bloqueSeleccionado) {
         const bloqueSeleccionado = presupuesto.bloques.find(b => b.id === datos.bloqueSeleccionado);
         if (bloqueSeleccionado) {
+          bloqueSeleccionadoDatos = bloqueSeleccionado;
           productosObraSanitizados = sanitizarProductos(bloqueSeleccionado.productos || []);
           bloqueSeleccionadoNombre = bloqueSeleccionado.nombre || null;
         }
@@ -290,27 +362,23 @@ const WizardConversion = ({
       // NO hay materiales adicionales en el wizard (según requisitos)
       const materialesSanitizados = [];
 
-      // Calcular totales
-      const productosObraSubtotal = calcularSubtotal(productosObraSanitizados);
-      const productosObraDescuento = calcularDescuento(productosObraSanitizados);
-      const materialesSubtotal = 0;
-      const materialesDescuento = 0;
-      const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
-      const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
-      const descuentoEfectivoCombinado = Number(presupuesto?.descuentoEfectivo) || 0;
-      const baseCombinada = Math.max(0, subtotalCombinado - descuentoTotalCombinado - descuentoEfectivoCombinado);
-      // Respetar IVA/Transferencia del presupuesto original (compat ambos nombres)
-      const aplicaIvaPres = presupuesto?.aplicarIva === true || presupuesto?.aplicaIva === true;
-      const ivaPorcentajePres = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 0);
-      const ivaMontoPres = aplicaIvaPres
-        ? Math.max(0, Math.round(Number(presupuesto?.ivaMonto) || baseCombinada * (ivaPorcentajePres / 100)))
-        : 0;
-      const aplicaTransfPres = presupuesto?.aplicarTransferencia === true || presupuesto?.aplicaTransferencia === true;
-      const transfPorcentajePres = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
-      const transfMontoPres = aplicaTransfPres
-        ? Math.max(0, Math.round(Number(presupuesto?.transferenciaMonto) || baseCombinada * (transfPorcentajePres / 100)))
-        : 0;
-      const totalCombinado = Math.round(baseCombinada + ivaMontoPres + transfMontoPres);
+      // Calcular exclusivamente desde el bloque seleccionado. No se consultan
+      // ni se acumulan los totales de los demás bloques del presupuesto.
+      const fuenteCondiciones = bloqueSeleccionadoDatos || presupuesto;
+      const resumenSeleccionado = calcularResumenBloque(fuenteCondiciones);
+      const productosObraSubtotal = resumenSeleccionado.subtotal;
+      const productosObraDescuento = resumenSeleccionado.descuentoTotal;
+      const subtotalCombinado = resumenSeleccionado.subtotal;
+      const descuentoTotalCombinado = resumenSeleccionado.descuentoTotal;
+      const descuentoEfectivoCombinado = resumenSeleccionado.descuentoEfectivo;
+      const baseCombinada = resumenSeleccionado.base;
+      const aplicaIvaPres = resumenSeleccionado.aplicarIva;
+      const ivaPorcentajePres = resumenSeleccionado.ivaPorcentaje;
+      const ivaMontoPres = resumenSeleccionado.ivaMonto;
+      const aplicaTransfPres = resumenSeleccionado.aplicarTransferencia;
+      const transfPorcentajePres = resumenSeleccionado.transferenciaPorcentaje;
+      const transfMontoPres = resumenSeleccionado.transferenciaMonto;
+      const totalCombinado = resumenSeleccionado.total;
 
       // Usar cliente confirmado explícitamente o el del presupuesto como fallback
       const clienteFinal = clienteConfirmadoExplicitamente 
@@ -349,6 +417,8 @@ const WizardConversion = ({
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
         descuentoEfectivo: descuentoEfectivoCombinado,
+        baseImponible: Math.round(baseCombinada),
+        adicionalesTotal: ivaMontoPres + transfMontoPres,
         total: totalCombinado,
         aplicarIva: aplicaIvaPres,
         aplicaIva: aplicaIvaPres,
@@ -358,7 +428,11 @@ const WizardConversion = ({
         aplicaTransferencia: aplicaTransfPres,
         transferenciaPorcentaje: transfPorcentajePres,
         transferenciaMonto: transfMontoPres,
-        descripcionGeneral: datos.descripcionGeneral || presupuesto.descripcionGeneral || "",
+        descripcionGeneral:
+          datos.descripcionGeneral ||
+          bloqueSeleccionadoDatos?.descripcion ||
+          presupuesto.descripcionGeneral ||
+          "",
         fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
         presupuestoInicialId: presupuesto.id,
@@ -421,12 +495,17 @@ const WizardConversion = ({
 
   const tieneBloques = presupuesto.bloques && presupuesto.bloques.length > 0;
   const totalBloques = presupuesto.bloques?.length || 0;
-  const aplicaIvaPresupuesto = presupuesto?.aplicarIva === true || presupuesto?.aplicaIva === true;
-  const aplicaTransfPresupuesto = presupuesto?.aplicarTransferencia === true || presupuesto?.aplicaTransferencia === true;
-  const ivaPctPresupuesto = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 0);
-  const transfPctPresupuesto = Math.max(0, Number(presupuesto?.transferenciaPorcentaje) || 0);
-  const ivaMontoPresupuesto = aplicaIvaPresupuesto ? Math.max(0, Math.round(Number(presupuesto?.ivaMonto) || 0)) : 0;
-  const transfMontoPresupuesto = aplicaTransfPresupuesto ? Math.max(0, Math.round(Number(presupuesto?.transferenciaMonto) || 0)) : 0;
+  const bloqueSeleccionadoVista = tieneBloques
+    ? presupuesto.bloques.find((bloque) => bloque.id === datos.bloqueSeleccionado) || presupuesto.bloques[0]
+    : null;
+  const condicionesVista = bloqueSeleccionadoVista || presupuesto;
+  const resumenBloqueVista = calcularResumenBloque(condicionesVista);
+  const aplicaIvaPresupuesto = resumenBloqueVista.aplicarIva;
+  const aplicaTransfPresupuesto = resumenBloqueVista.aplicarTransferencia;
+  const ivaPctPresupuesto = resumenBloqueVista.ivaPorcentaje;
+  const transfPctPresupuesto = resumenBloqueVista.transferenciaPorcentaje;
+  const ivaMontoPresupuesto = resumenBloqueVista.ivaMonto;
+  const transfMontoPresupuesto = resumenBloqueVista.transferenciaMonto;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -620,8 +699,10 @@ const WizardConversion = ({
                   </label>
                   {/* Tabs/Pills para bloques */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {presupuesto.bloques.map((bloque) => (
-                      <button
+                    {presupuesto.bloques.map((bloque) => {
+                      const resumenBloque = calcularResumenBloque(bloque);
+                      return (
+                        <button
                         key={bloque.id}
                         onClick={() => setDatos({ ...datos, bloqueSeleccionado: bloque.id })}
                         className={`p-4 rounded-xl border-2 transition-all text-left ${
@@ -641,7 +722,7 @@ const WizardConversion = ({
                                 : "bg-gray-100"
                             }
                           >
-                            ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
+                            ${resumenBloque.total.toLocaleString("es-AR", {
                               minimumFractionDigits: 2,
                             })}
                           </Badge>
@@ -649,8 +730,9 @@ const WizardConversion = ({
                         <p className={`text-sm ${datos.bloqueSeleccionado === bloque.id ? "text-blue-100" : "text-gray-500"}`}>
                           {bloque.productos?.length || 0} productos
                         </p>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                   {datos.bloqueSeleccionado && (
                     <div className="mt-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-300 shadow-sm">
@@ -671,7 +753,7 @@ const WizardConversion = ({
                     Bloque único: <span className="font-bold">{presupuesto.bloques[0].nombre}</span>
                   </p>
                   <p className="text-xs text-blue-700">
-                    {presupuesto.bloques[0].productos?.length || 0} productos · ${(Number(presupuesto.bloques[0].total) || 0).toLocaleString("es-AR", {
+                    {presupuesto.bloques[0].productos?.length || 0} productos · ${calcularResumenBloque(presupuesto.bloques[0]).total.toLocaleString("es-AR", {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -686,22 +768,50 @@ const WizardConversion = ({
                 </div>
               )}
 
-              {(aplicaIvaPresupuesto || aplicaTransfPresupuesto) && (
-                <div className="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200 shadow-sm">
-                  <p className="text-sm font-semibold text-emerald-900 mb-2">
-                    Impuestos del presupuesto (se trasladan a la obra)
+              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-emerald-900">
+                    Resumen del bloque elegido
                   </p>
-                  <div className="space-y-1 text-sm text-emerald-800">
-                    {aplicaIvaPresupuesto && (
-                      <p>IVA ({ivaPctPresupuesto}%): <span className="font-bold">${ivaMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
-                    )}
-                    {aplicaTransfPresupuesto && (
-                      <p>Transferencia ({transfPctPresupuesto}%): <span className="font-bold">${transfMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
-                    )}
-                    <p>Total final presupuesto: <span className="font-bold">${Number(presupuesto?.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span></p>
+                  {bloqueSeleccionadoVista?.nombre && (
+                    <Badge variant="outline" className="border-emerald-300 bg-white text-emerald-700">
+                      {bloqueSeleccionadoVista.nombre}
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-1.5 text-sm text-emerald-800">
+                  <div className="flex justify-between gap-4">
+                    <span>Subtotal</span>
+                    <span className="font-bold tabular-nums">${resumenBloqueVista.subtotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {resumenBloqueVista.descuentoTotal > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <span>Descuentos</span>
+                      <span className="font-bold tabular-nums">- ${resumenBloqueVista.descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  {aplicaIvaPresupuesto && (
+                    <div className="flex justify-between gap-4">
+                      <span>IVA ({ivaPctPresupuesto}%)</span>
+                      <span className="font-bold tabular-nums">$ {ivaMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  {aplicaTransfPresupuesto && (
+                    <div className="flex justify-between gap-4">
+                      <span>Transferencia ({transfPctPresupuesto}%)</span>
+                      <span className="font-bold tabular-nums">$ {transfMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4 border-t border-emerald-200 pt-2">
+                    <span className="font-semibold">Adicionales</span>
+                    <span className="font-bold tabular-nums">$ {resumenBloqueVista.adicionales.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 text-base text-emerald-950">
+                    <span className="font-semibold">Total del bloque</span>
+                    <span className="font-bold tabular-nums">$ {resumenBloqueVista.total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="flex justify-end pt-6 border-t">
                 <Button 

@@ -7,19 +7,149 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
-import { 
-  Plus, 
-  Trash2, 
-  Search, 
-  Filter, 
-  Edit3, 
-  Check, 
-  X,
-  Save
+import {
+  Plus,
+  Trash2,
+  Search,
+  Filter,
+  Edit3,
+  Check,
+  X
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { detalleMedidaProducto } from "@/lib/obra-utils";
+
+const capitalizarInicial = (value, fallback = "") => {
+  const texto = String(value || fallback).trim();
+  return texto.replace(
+    /^[a-záéíóúüñ]/i,
+    (letra) => letra.toLocaleUpperCase("es-AR")
+  );
+};
+
+const normalizarPorcentaje = (value, fallback) => {
+  if (value === null || value === undefined || value === "") return fallback;
+  const numero = Number(String(value).replace(",", "."));
+  return Number.isFinite(numero) ? Math.max(0, numero) : fallback;
+};
+
+const opcionActiva = (value) =>
+  value === true || value === 1 || value === "1" || value === "true";
+
+const normalizarProductoBloque = (producto = {}) => {
+  const unidadMedida = String(
+    producto.unidadMedida || producto.unidad || "UN"
+  ).toUpperCase();
+  const cantidad = Math.max(1, Number(producto.cantidad) || 1);
+  const alto = Number(producto.alto ?? producto.ancho) || 0;
+  const largo = Number(producto.largo ?? producto.largoNum) || 0;
+  const precioGuardado = Math.max(0, Number(producto.precio) || 0);
+  const divisor =
+    unidadMedida === "M2"
+      ? alto * largo * cantidad
+      : unidadMedida === "ML"
+        ? largo * cantidad
+        : cantidad;
+  const valorVentaGuardado = Number(producto.valorVenta);
+  const valorVenta =
+    Number.isFinite(valorVentaGuardado) && valorVentaGuardado >= 0
+      ? valorVentaGuardado
+      : divisor > 0
+        ? precioGuardado / divisor
+        : precioGuardado;
+
+  return {
+    ...producto,
+    unidadMedida,
+    cantidad,
+    alto,
+    largo,
+    largoNum: largo,
+    valorVenta: Math.round(valorVenta * 100) / 100,
+    precio:
+      precioGuardado > 0
+        ? precioGuardado
+        : Math.round(Math.max(0, valorVenta) * Math.max(1, divisor)),
+  };
+};
+
+const normalizarBloque = (bloque = {}, obra = {}) => {
+  const productosRaw = Array.isArray(bloque.productos)
+    ? bloque.productos
+    : Array.isArray(bloque.items)
+      ? bloque.items
+      : [];
+  const productos = productosRaw.map(normalizarProductoBloque);
+  const aplicaIvaBloque = bloque.aplicarIva ?? bloque.aplicaIva;
+  const aplicaTransferenciaBloque =
+    bloque.aplicarTransferencia ?? bloque.aplicaTransferencia;
+
+  return {
+    ...bloque,
+    productos,
+    aplicarIva:
+      aplicaIvaBloque === undefined
+        ? opcionActiva(obra.aplicarIva ?? obra.aplicaIva)
+        : opcionActiva(aplicaIvaBloque),
+    ivaPorcentaje: normalizarPorcentaje(
+      bloque.ivaPorcentaje,
+      normalizarPorcentaje(obra.ivaPorcentaje, 21)
+    ),
+    aplicarTransferencia:
+      aplicaTransferenciaBloque === undefined
+        ? opcionActiva(obra.aplicarTransferencia ?? obra.aplicaTransferencia)
+        : opcionActiva(aplicaTransferenciaBloque),
+    transferenciaPorcentaje: normalizarPorcentaje(
+      bloque.transferenciaPorcentaje,
+      normalizarPorcentaje(obra.transferenciaPorcentaje, 10)
+    ),
+  };
+};
+
+const calcularTotalesBloque = (bloque = {}, pagoEnEfectivo = false) => {
+  const productos = Array.isArray(bloque.productos) ? bloque.productos : [];
+  const subtotal = productos.reduce(
+    (acc, producto) => acc + (Number(producto.precio) || 0),
+    0
+  );
+  const descuentoTotal = productos.reduce(
+    (acc, producto) =>
+      acc +
+      (Number(producto.precio) || 0) *
+        (Math.min(100, Math.max(0, Number(producto.descuento) || 0)) / 100),
+    0
+  );
+  const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
+  const base = Math.max(0, subtotal - descuentoTotal - descuentoEfectivo);
+  const aplicarIva = opcionActiva(bloque.aplicarIva ?? bloque.aplicaIva);
+  const ivaPorcentaje = normalizarPorcentaje(bloque.ivaPorcentaje, 21);
+  const ivaMonto = aplicarIva ? Math.round(base * (ivaPorcentaje / 100)) : 0;
+  const aplicarTransferencia = opcionActiva(
+    bloque.aplicarTransferencia ?? bloque.aplicaTransferencia
+  );
+  const transferenciaPorcentaje = normalizarPorcentaje(
+    bloque.transferenciaPorcentaje,
+    10
+  );
+  const transferenciaMonto = aplicarTransferencia
+    ? Math.round(base * (transferenciaPorcentaje / 100))
+    : 0;
+
+  return {
+    subtotal: Math.round(subtotal),
+    descuentoTotal: Math.round(descuentoTotal),
+    descuentoEfectivo: Math.round(descuentoEfectivo),
+    base: Math.round(base),
+    aplicarIva,
+    ivaPorcentaje,
+    ivaMonto,
+    aplicarTransferencia,
+    transferenciaPorcentaje,
+    transferenciaMonto,
+    total: Math.round(base + ivaMonto + transferenciaMonto),
+  };
+};
 
 const PresupuestoDetalle = ({
   obra,
@@ -27,9 +157,6 @@ const PresupuestoDetalle = ({
   formatearNumeroArgentino,
   onObraUpdate,
   onGuardarRef,
-  onRequestSave,
-  shouldSave,
-  onResetShouldSave
 }) => {
   // Estados para bloques
   const [bloques, setBloques] = useState([]);
@@ -37,13 +164,6 @@ const PresupuestoDetalle = ({
   const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
   const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
   // const [descripcionGeneral, setDescripcionGeneral] = useState("");
-  const [aplicarIva, setAplicarIva] = useState(false);
-  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
-  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
-  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
-
-  // Debug: Log de props recibidas
-  console.log("🔍 PresupuestoDetalle props - editando:", editando, "shouldSave:", shouldSave);
 
   // Estados para catálogo de productos
   const [productosObra, setProductosObra] = useState([]);
@@ -54,6 +174,7 @@ const PresupuestoDetalle = ({
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12);
+  const [isPending, startTransition] = React.useTransition();
 
   // Snapshot original para edición: al entrar en edición se congela una copia
   // profunda; al cancelar se restaura sin tocar Firestore ni perder medidas.
@@ -69,22 +190,31 @@ const PresupuestoDetalle = ({
     snapshotKeyRef.current = obraDocKey;
     snapshotRef.current = null;
     if (obra.bloques && obra.bloques.length > 0) {
-      setBloques(JSON.parse(JSON.stringify(obra.bloques)));
+      setBloques(
+        JSON.parse(JSON.stringify(obra.bloques)).map((bloque) =>
+          normalizarBloque(bloque, obra)
+        )
+      );
     } else {
       // Crear un bloque inicial si no hay bloques
       const bloqueInicial = {
         id: `presupuesto-${Date.now()}`,
-        nombre: "Bloque 1",
+        nombre: "Presupuesto 1",
         productos: [],
-        descripcion: ""
+        descripcion: "",
+        aplicarIva: opcionActiva(obra.aplicarIva ?? obra.aplicaIva),
+        ivaPorcentaje: normalizarPorcentaje(obra.ivaPorcentaje, 21),
+        aplicarTransferencia: opcionActiva(
+          obra.aplicarTransferencia ?? obra.aplicaTransferencia
+        ),
+        transferenciaPorcentaje: normalizarPorcentaje(
+          obra.transferenciaPorcentaje,
+          10
+        ),
       };
       setBloques([bloqueInicial]);
     }
     setBloqueActivo(0);
-    setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
-    setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
-    setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
-    setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
     // setDescripcionGeneral(obra.descripcionGeneral || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [obraDocKey, editando]);
@@ -97,10 +227,6 @@ const PresupuestoDetalle = ({
         snapshotKeyRef.current = obraDocKey;
         snapshotRef.current = {
           bloques: JSON.parse(JSON.stringify(bloques.length > 0 ? bloques : (obra?.bloques || []))),
-          aplicarIva,
-          ivaPorcentaje,
-          aplicarTransferencia,
-          transferenciaPorcentaje,
         };
       }
     }
@@ -110,34 +236,6 @@ const PresupuestoDetalle = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editando]);
 
-  // Exponer restauración para el botón Cancelar del padre
-  useEffect(() => {
-    if (onGuardarRef) {
-      onGuardarRef.current = {
-        guardar: () => {
-          setShouldSaveLocal(true);
-        },
-        cancelar: () => {
-          if (snapshotRef.current) {
-            const snap = snapshotRef.current;
-            setBloques(JSON.parse(JSON.stringify(snap.bloques)));
-            setBloqueActivo(0);
-            setAplicarIva(snap.aplicarIva);
-            setIvaPorcentaje(snap.ivaPorcentaje);
-            setAplicarTransferencia(snap.aplicarTransferencia);
-            setTransferenciaPorcentaje(snap.transferenciaPorcentaje);
-            snapshotRef.current = null;
-          }
-        },
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onGuardarRef, bloques, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje]);
-
-  const [shouldSaveLocal, setShouldSaveLocal] = useState(false);
-
-
-
   // Cargar catálogo de productos de obra
   useEffect(() => {
     if (editando) {
@@ -146,7 +244,7 @@ const PresupuestoDetalle = ({
           const snapProd = await getDocs(collection(db, "productos_obras"));
           const prods = snapProd.docs.map((d) => ({ id: d.id, ...d.data() }));
           setProductosObra(prods);
-          
+
           const agrupados = {};
           prods.forEach((p) => {
             const cat = p.categoria || "Sin categoría";
@@ -171,7 +269,7 @@ const PresupuestoDetalle = ({
   // Resetear página cuando cambien los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaObraId, busquedaDebounced]);
+  }, [categoriaObraId, busquedaDebounced, bloqueActivo]);
 
   // Función para calcular precio de productos de obra
   const calcularPrecioProductoObra = ({ unidadMedida, alto, largo, valorVenta, cantidad }) => {
@@ -194,9 +292,13 @@ const PresupuestoDetalle = ({
   const agregarBloque = () => {
     const nuevoBloque = {
       id: `presupuesto-${Date.now()}`,
-      nombre: `Bloque ${bloques.length + 1}`,
+      nombre: `Presupuesto ${bloques.length + 1}`,
       productos: [],
-      descripcion: ""
+      descripcion: "",
+      aplicarIva: false,
+      ivaPorcentaje: 21,
+      aplicarTransferencia: false,
+      transferenciaPorcentaje: 10,
     };
     setBloques(prev => [...prev, nuevoBloque]);
     setBloqueActivo(bloques.length);
@@ -204,36 +306,44 @@ const PresupuestoDetalle = ({
 
   const eliminarBloque = (bloqueIndex) => {
     if (bloques.length <= 1) return;
-    
+
     setBloques(prev => prev.filter((_, index) => index !== bloqueIndex));
-    
+
     if (bloqueActivo >= bloqueIndex) {
       setBloqueActivo(prev => Math.max(0, prev - 1));
     }
   };
 
   const actualizarNombreBloque = (bloqueIndex, nuevoNombre) => {
-    setBloques(prev => prev.map((bloque, index) => 
+    setBloques(prev => prev.map((bloque, index) =>
       index === bloqueIndex ? { ...bloque, nombre: nuevoNombre } : bloque
     ));
   };
 
   const actualizarDescripcionBloque = (bloqueIndex, descripcion) => {
-    setBloques(prev => prev.map((bloque, index) => 
+    setBloques(prev => prev.map((bloque, index) =>
       index === bloqueIndex ? { ...bloque, descripcion } : bloque
     ));
+  };
+
+  const actualizarConfiguracionBloque = (campo, valor) => {
+    setBloques((prev) =>
+      prev.map((bloque, index) =>
+        index === bloqueActivo ? { ...bloque, [campo]: valor } : bloque
+      )
+    );
   };
 
   // Funciones para manejar productos en bloques
   const agregarProducto = (prod) => {
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
-    
+
     // Generar ID único para permitir duplicados del mismo producto
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substr(2, 5);
     const uniqueId = `${prod.id}-${timestamp}-${randomSuffix}`;
-    
+
     const unidadMedida = prod.unidadMedida || "UN";
     const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
@@ -250,7 +360,7 @@ const PresupuestoDetalle = ({
       descuento: 0,
       descripcion: "",
     };
-    
+
     const precio = calcularPrecioProductoObra({
       unidadMedida,
       alto: nuevo.alto,
@@ -259,18 +369,19 @@ const PresupuestoDetalle = ({
       cantidad: nuevo.cantidad,
     });
     nuevo.precio = precio;
-    
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueActivo 
+
+    setBloques(prev => prev.map((bloque, index) =>
+      index === bloqueActivo
         ? { ...bloque, productos: [...bloque.productos, nuevo] }
         : bloque
     ));
+    setPaginaActual(1);
   };
 
   const agregarProductoManual = () => {
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
-    
+
     const nuevo = {
       id: `manual-${Date.now()}`,
       nombre: "Nuevo ítem",
@@ -285,184 +396,185 @@ const PresupuestoDetalle = ({
       descripcion: "",
       _esManual: true,
     };
-    
-    nuevo.precio = calcularPrecioProductoObra({ 
-      unidadMedida: nuevo.unidadMedida, 
-      alto: nuevo.alto, 
-      largo: nuevo.largo, 
-      valorVenta: nuevo.valorVenta, 
-      cantidad: nuevo.cantidad 
+
+    nuevo.precio = calcularPrecioProductoObra({
+      unidadMedida: nuevo.unidadMedida,
+      alto: nuevo.alto,
+      largo: nuevo.largo,
+      valorVenta: nuevo.valorVenta,
+      cantidad: nuevo.cantidad
     });
-    
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueActivo 
+
+    setBloques(prev => prev.map((bloque, index) =>
+      index === bloqueActivo
         ? { ...bloque, productos: [nuevo, ...bloque.productos] }
         : bloque
     ));
   };
 
   const quitarProducto = (id) => {
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueActivo 
+    setBloques(prev => prev.map((bloque, index) =>
+      index === bloqueActivo
         ? { ...bloque, productos: bloque.productos.filter((p) => p.id !== id) }
         : bloque
     ));
   };
 
+  const quitarProductoDesdeCatalogo = (productoCatalogoId) => {
+    setBloques((prev) =>
+      prev.map((bloque, index) => {
+        if (index !== bloqueActivo) return bloque;
+
+        const indiceProducto = bloque.productos.findIndex(
+          (producto) =>
+            (producto.originalId || producto.id) === productoCatalogoId
+        );
+        if (indiceProducto === -1) return bloque;
+
+        return {
+          ...bloque,
+          productos: bloque.productos.filter(
+            (_, productoIndex) => productoIndex !== indiceProducto
+          ),
+        };
+      })
+    );
+    setPaginaActual(1);
+  };
+
   const duplicarProducto = (producto) => {
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
-    
+
     // Generar ID único para el producto duplicado
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substr(2, 5);
     const uniqueId = `${producto.originalId || producto.id}-${timestamp}-${randomSuffix}`;
-    
+
     const duplicado = {
       ...producto,
       id: uniqueId,
       originalId: producto.originalId || producto.id,
     };
-    
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueActivo 
+
+    setBloques(prev => prev.map((bloque, index) =>
+      index === bloqueActivo
         ? { ...bloque, productos: [...bloque.productos, duplicado] }
         : bloque
     ));
   };
 
   const actualizarCampo = (id, campo, valor) => {
-    setBloques(prev => prev.map((bloque, bloqueIndex) => 
-      bloqueIndex === bloqueActivo 
+    setBloques(prev => prev.map((bloque, bloqueIndex) =>
+      bloqueIndex === bloqueActivo
         ? {
-            ...bloque,
-            productos: bloque.productos.map((p) => {
-      if (p.id !== id) return p;
-      
-              const actualizado = { ...p };
-              
-              if (campo === "unidadMedida") {
-                actualizado.unidadMedida = valor;
-              } else if (campo === "descuento") {
-                actualizado[campo] = Number(valor) || 0;
-              } else if (campo === "valorVenta") {
-                actualizado[campo] = valor === "" ? "" : Number(valor);
-              } else if (campo === "descripcion") {
-                actualizado[campo] = valor;
-              } else if (campo === "largo") {
-                // Compat: los registros viejos guardan largoNum/ml.
-                // NUNCA pisar con 0: "" conserva el valor previo hasta guardar.
-                if (valor === "" || valor === null || valor === undefined) {
-                  actualizado.largo = p.largo ?? p.largoNum ?? "";
-                } else {
-                  const num = Number(valor);
-                  if (!Number.isFinite(num)) return p;
-                  actualizado.largo = num;
-                  actualizado.largoNum = num;
-                  if (String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
-                    const cant = Number(actualizado.cantidad) || 1;
-                    actualizado.ml = num * cant;
-                  }
-                }
-              } else if (campo === "alto" || campo === "cantidad") {
-                if (valor === "" || valor === null || valor === undefined) {
-                  actualizado[campo] = p[campo] ?? (campo === "cantidad" ? 1 : "");
-                } else {
-                  const num = Number(valor);
-                  if (!Number.isFinite(num)) return p;
-                  actualizado[campo] = num;
-                }
-                if (campo === "cantidad" && String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
-                  const largoNum = Number(actualizado.largo ?? actualizado.largoNum) || 0;
-                  actualizado.ml = largoNum * (Number(actualizado.cantidad) || 1);
-                }
+          ...bloque,
+          productos: bloque.productos.map((p) => {
+            if (p.id !== id) return p;
+
+            const actualizado = { ...p };
+
+            if (campo === "unidadMedida") {
+              actualizado.unidadMedida = valor;
+            } else if (campo === "descuento") {
+              actualizado[campo] = Math.min(
+                100,
+                Math.max(0, Number(valor) || 0)
+              );
+            } else if (campo === "valorVenta") {
+              actualizado[campo] = valor === "" ? "" : Number(valor);
+            } else if (campo === "descripcion") {
+              actualizado[campo] = valor;
+            } else if (campo === "largo") {
+              // Compat: los registros viejos guardan largoNum/ml.
+              // NUNCA pisar con 0: "" conserva el valor previo hasta guardar.
+              if (valor === "" || valor === null || valor === undefined) {
+                actualizado.largo = p.largo ?? p.largoNum ?? "";
               } else {
-                if (valor === "" || valor === null || valor === undefined) {
-                  actualizado[campo] = p[campo] ?? "";
-                } else {
-                  const num = Number(valor);
-                  actualizado[campo] = Number.isFinite(num) ? num : (p[campo] ?? "");
+                const num = Number(valor);
+                if (!Number.isFinite(num)) return p;
+                actualizado.largo = num;
+                actualizado.largoNum = num;
+                if (String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
+                  const cant = Number(actualizado.cantidad) || 1;
+                  actualizado.ml = num * cant;
                 }
               }
-              
-              if (campo !== "descripcion") {
-                const alto = Number(actualizado.alto) || 0;
-                const largo = Number(actualizado.largo) || 0;
-                const cantidad = Number(actualizado.cantidad) || 1;
-                const valorVenta = Number(actualizado.valorVenta) || 0;
-                
-        const precioBase = calcularPrecioProductoObra({
-          unidadMedida: actualizado.unidadMedida,
-                  alto,
-                  largo,
-                  valorVenta,
-                  cantidad,
-        });
-        actualizado.precio = Math.round(precioBase);
-      }
-      
-      return actualizado;
-            })
-          }
+            } else if (campo === "alto" || campo === "cantidad") {
+              if (valor === "" || valor === null || valor === undefined) {
+                actualizado[campo] = p[campo] ?? (campo === "cantidad" ? 1 : "");
+              } else {
+                const num = Number(valor);
+                if (!Number.isFinite(num)) return p;
+                actualizado[campo] = num;
+              }
+              if (campo === "cantidad" && String(actualizado.unidadMedida || "").toUpperCase() === "ML") {
+                const largoNum = Number(actualizado.largo ?? actualizado.largoNum) || 0;
+                actualizado.ml = largoNum * (Number(actualizado.cantidad) || 1);
+              }
+            } else {
+              if (valor === "" || valor === null || valor === undefined) {
+                actualizado[campo] = p[campo] ?? "";
+              } else {
+                const num = Number(valor);
+                actualizado[campo] = Number.isFinite(num) ? num : (p[campo] ?? "");
+              }
+            }
+
+            if (campo !== "descripcion") {
+              const alto = Number(actualizado.alto) || 0;
+              const largo = Number(actualizado.largo) || 0;
+              const cantidad = Number(actualizado.cantidad) || 1;
+              const valorVenta = Number(actualizado.valorVenta) || 0;
+
+              const precioBase = calcularPrecioProductoObra({
+                unidadMedida: actualizado.unidadMedida,
+                alto,
+                largo,
+                valorVenta,
+                cantidad,
+              });
+              actualizado.precio = Math.round(precioBase);
+            }
+
+            return actualizado;
+          })
+        }
         : bloque
     ));
   };
 
   const actualizarNombreManual = (id, nombre) => {
-    setBloques(prev => prev.map((bloque, bloqueIndex) => 
-      bloqueIndex === bloqueActivo 
+    setBloques(prev => prev.map((bloque, bloqueIndex) =>
+      bloqueIndex === bloqueActivo
         ? {
-            ...bloque,
-            productos: bloque.productos.map((p) => (p.id === id ? { ...p, nombre } : p))
-          }
+          ...bloque,
+          productos: bloque.productos.map((p) => (p.id === id ? { ...p, nombre } : p))
+        }
         : bloque
     ));
   };
 
   // Cálculos de totales por bloque
   const totalesPorBloque = useMemo(() => {
-    return bloques.map(bloque => {
-      const subtotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0), 0);
-      const descuentoTotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0);
-      const descuentoEfectivo = obra?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-      const total = subtotal - descuentoTotal - descuentoEfectivo;
-      return { subtotal, descuentoTotal, descuentoEfectivo, total };
-    });
+    return bloques.map((bloque) =>
+      calcularTotalesBloque(bloque, opcionActiva(obra?.pagoEnEfectivo))
+    );
   }, [bloques, obra?.pagoEnEfectivo]);
-
-  // Totales generales del presupuesto incluyendo IVA/Transferencia
-  const totalesGenerales = useMemo(() => {
-    const subtotal = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.subtotal) || 0), 0);
-    const descuentoTotal = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.descuentoTotal) || 0), 0);
-    const descuentoEfectivo = bloques.reduce((acc, bloque, index) => acc + (Number(totalesPorBloque[index]?.descuentoEfectivo) || 0), 0);
-    const base = Math.max(0, subtotal - descuentoTotal - descuentoEfectivo);
-    const ivaPct = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
-    const transfPct = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
-    const iva = aplicarIva ? base * (ivaPct / 100) : 0;
-    const transf = aplicarTransferencia ? base * (transfPct / 100) : 0;
-    return {
-      subtotal,
-      descuentoTotal,
-      descuentoEfectivo,
-      base,
-      ivaPorcentaje: ivaPct,
-      ivaMonto: Math.round(iva),
-      transferenciaPorcentaje: transfPct,
-      transferenciaMonto: Math.round(transf),
-      total: Math.round(base + iva + transf),
-    };
-  }, [bloques, totalesPorBloque, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje]);
 
   // Bloque actual
   const bloqueActual = bloques[bloqueActivo];
-  const itemsSeleccionados = bloqueActual?.productos || [];
+  const itemsSeleccionados = useMemo(
+    () => bloqueActual?.productos || [],
+    [bloqueActual]
+  );
 
   // Función para guardar cambios
   const guardarCambios = useCallback(async () => {
     console.log("🔄 Iniciando guardado de cambios...");
     try {
       const obraRef = doc(db, "obras", obra.id);
-      
+
       // Actualizar bloques con totales calculados
       const bloquesActualizados = bloques.map((bloque, index) => {
         const totales = totalesPorBloque[index];
@@ -471,36 +583,48 @@ const PresupuestoDetalle = ({
           subtotal: totales.subtotal,
           descuentoTotal: totales.descuentoTotal,
           descuentoEfectivo: totales.descuentoEfectivo,
+          baseImponible: totales.base,
+          aplicarIva: totales.aplicarIva,
+          aplicaIva: totales.aplicarIva,
+          ivaPorcentaje: totales.ivaPorcentaje,
+          ivaMonto: totales.ivaMonto,
+          aplicarTransferencia: totales.aplicarTransferencia,
+          aplicaTransferencia: totales.aplicarTransferencia,
+          transferenciaPorcentaje: totales.transferenciaPorcentaje,
+          transferenciaMonto: totales.transferenciaMonto,
           total: totales.total,
         };
       });
 
-      // Recalcular totales generales del presupuesto
-      const presupuestoSubtotal = bloquesActualizados.reduce((acc, b) => acc + (Number(b.subtotal) || 0), 0);
-      const presupuestoDescuento = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoTotal) || 0), 0);
-      const presupuestoDescuentoEfectivo = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoEfectivo) || 0), 0);
-      const presupuestoBase = Math.max(0, presupuestoSubtotal - presupuestoDescuento - presupuestoDescuentoEfectivo);
-
-      const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
-      const ivaMonto = aplicarIva ? presupuestoBase * (ivaPorcentajeNumerico / 100) : 0;
-      const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
-      const transferenciaMonto = aplicarTransferencia ? presupuestoBase * (transferenciaPorcentajeNumerico / 100) : 0;
-      const presupuestoTotal = Math.round(presupuestoBase + ivaMonto + transferenciaMonto);
+      // Los bloques representan presupuestos alternativos: nunca se suman.
+      // Los campos raíz solo se completan cuando existe un único bloque.
+      const tieneBloqueUnico = bloquesActualizados.length === 1;
+      const bloqueReferencia = tieneBloqueUnico ? bloquesActualizados[0] : {};
 
       const updateData = {
         bloques: bloquesActualizados,
-        subtotal: presupuestoSubtotal,
-        descuentoTotal: presupuestoDescuento,
-        descuentoEfectivo: presupuestoDescuentoEfectivo,
-        total: presupuestoTotal,
-        aplicarIva: aplicarIva,
-        aplicaIva: aplicarIva,
-        ivaPorcentaje: ivaPorcentajeNumerico,
-        ivaMonto: Math.round(ivaMonto),
-        aplicarTransferencia: aplicarTransferencia,
-        aplicaTransferencia: aplicarTransferencia,
-        transferenciaPorcentaje: transferenciaPorcentajeNumerico,
-        transferenciaMonto: Math.round(transferenciaMonto),
+        bloqueActivoId: bloquesActualizados[bloqueActivo]?.id || null,
+        totalesPorBloque: true,
+        subtotal: Number(bloqueReferencia.subtotal) || 0,
+        descuentoTotal: Number(bloqueReferencia.descuentoTotal) || 0,
+        descuentoEfectivo: Number(bloqueReferencia.descuentoEfectivo) || 0,
+        total: Number(bloqueReferencia.total) || 0,
+        aplicarIva: opcionActiva(bloqueReferencia.aplicarIva),
+        aplicaIva: opcionActiva(bloqueReferencia.aplicarIva),
+        ivaPorcentaje: tieneBloqueUnico
+          ? normalizarPorcentaje(bloqueReferencia.ivaPorcentaje, 21)
+          : 0,
+        ivaMonto: Number(bloqueReferencia.ivaMonto) || 0,
+        aplicarTransferencia: opcionActiva(
+          bloqueReferencia.aplicarTransferencia
+        ),
+        aplicaTransferencia: opcionActiva(
+          bloqueReferencia.aplicarTransferencia
+        ),
+        transferenciaPorcentaje: tieneBloqueUnico
+          ? normalizarPorcentaje(bloqueReferencia.transferenciaPorcentaje, 10)
+          : 0,
+        transferenciaMonto: Number(bloqueReferencia.transferenciaMonto) || 0,
         fechaModificacion: new Date().toISOString(),
       };
 
@@ -515,12 +639,12 @@ const PresupuestoDetalle = ({
           where("tipo", "==", "obra")
         );
         const obrasSnap = await getDocs(obrasQuery);
-        
+
         if (!obrasSnap.empty) {
           const actualizacionesObras = obrasSnap.docs.map(async (obraDoc) => {
             const obraData = obraDoc.data();
             const bloqueIdObra = obraData.presupuestoInicialBloqueId;
-            
+
             // Si la obra está vinculada a un bloque específico
             if (bloqueIdObra) {
               const bloqueActualizado = bloquesActualizados.find(b => b.id === bloqueIdObra);
@@ -528,11 +652,12 @@ const PresupuestoDetalle = ({
                 // Sanitizar productos del bloque actualizado
                 const productosObraSanitizados = Array.isArray(bloqueActualizado.productos) ? bloqueActualizado.productos.map((p) => {
                   const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-                  const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
                   const precio = Number(p.precio) || 0;
                   const cantidad = Number(p.cantidad) || 1;
                   const descuento = Number(p.descuento) || 0;
-                  const base = isMachDeck ? precio : precio * cantidad;
+                  // En presupuestos de obra `precio` es el total de la línea
+                  // (precio unitario × medida × cantidad), no debe multiplicarse otra vez.
+                  const base = precio;
                   const subtotal = Math.round(base * (1 - descuento / 100));
                   const item = {
                     id: p.id,
@@ -543,6 +668,8 @@ const PresupuestoDetalle = ({
                     cantidad,
                     descuento,
                     precio,
+                    valorVenta: Number(p.valorVenta) || 0,
+                    precioIncluyeCantidad: true,
                     subtotal,
                   };
                   if (esMadera) {
@@ -554,22 +681,17 @@ const PresupuestoDetalle = ({
                   }
                   return item;
                 }) : [];
-                
+
                 // Recalcular totales de productos de la obra
                 const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
-                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                  return acc + base;
+                  return acc + (Number(p.precio) || 0);
                 }, 0);
-                
+
                 const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
-                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                  const base = Number(p.precio) || 0;
                   return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
                 }, 0);
-                
+
                 // Mantener materiales existentes de la obra
                 const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
                 const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
@@ -578,18 +700,41 @@ const PresupuestoDetalle = ({
                   const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                   return acc + base;
                 }, 0);
-                
+
                 const materialesDescuento = materialesExistentes.reduce((acc, p) => {
                   const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
                   const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
                   const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                   return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
                 }, 0);
-                
+
                 // Totales combinados
                 const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
                 const descuentoCombinado = productosObraDescuento + materialesDescuento;
-                
+                const descuentoEfectivoObra = opcionActiva(obraData.pagoEnEfectivo)
+                  ? Math.round(subtotalCombinado * 0.1)
+                  : 0;
+                const baseCombinada = Math.max(
+                  0,
+                  subtotalCombinado - descuentoCombinado - descuentoEfectivoObra
+                );
+                const ivaMontoObra = bloqueActualizado.aplicarIva
+                  ? Math.round(
+                      baseCombinada *
+                        (normalizarPorcentaje(bloqueActualizado.ivaPorcentaje, 21) / 100)
+                    )
+                  : 0;
+                const transferenciaMontoObra = bloqueActualizado.aplicarTransferencia
+                  ? Math.round(
+                      baseCombinada *
+                        (normalizarPorcentaje(
+                          bloqueActualizado.transferenciaPorcentaje,
+                          10
+                        ) /
+                          100)
+                    )
+                  : 0;
+
                 // Actualizar la obra vinculada con TODOS los totales
                 await updateDoc(doc(db, "obras", obraDoc.id), {
                   productos: productosObraSanitizados,
@@ -604,10 +749,22 @@ const PresupuestoDetalle = ({
                   // Totales combinados
                   subtotal: subtotalCombinado,
                   descuentoTotal: descuentoCombinado,
-                  total: subtotalCombinado - descuentoCombinado,
+                  descuentoEfectivo: descuentoEfectivoObra,
+                  aplicarIva: bloqueActualizado.aplicarIva,
+                  aplicaIva: bloqueActualizado.aplicarIva,
+                  ivaPorcentaje: bloqueActualizado.ivaPorcentaje,
+                  ivaMonto: ivaMontoObra,
+                  aplicarTransferencia: bloqueActualizado.aplicarTransferencia,
+                  aplicaTransferencia: bloqueActualizado.aplicarTransferencia,
+                  transferenciaPorcentaje:
+                    bloqueActualizado.transferenciaPorcentaje,
+                  transferenciaMonto: transferenciaMontoObra,
+                  total: Math.round(
+                    baseCombinada + ivaMontoObra + transferenciaMontoObra
+                  ),
                   fechaModificacion: new Date().toISOString(),
                 });
-                
+
                 console.log(`✅ Obra ${obraDoc.id} sincronizada con bloque ${bloqueIdObra}`);
               }
             } else {
@@ -641,21 +798,21 @@ const PresupuestoDetalle = ({
                 }
                 return item;
               });
-              
+
               const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
                 const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
                 const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
                 const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                 return acc + base;
               }, 0);
-              
+
               const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
                 const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
                 const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
                 const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                 return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
               }, 0);
-              
+
               // Mantener materiales existentes
               const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
               const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
@@ -664,17 +821,17 @@ const PresupuestoDetalle = ({
                 const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                 return acc + base;
               }, 0);
-              
+
               const materialesDescuento = materialesExistentes.reduce((acc, p) => {
                 const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
                 const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
                 const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
                 return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
               }, 0);
-              
+
               const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
               const descuentoCombinado = productosObraDescuento + materialesDescuento;
-              
+
               await updateDoc(doc(db, "obras", obraDoc.id), {
                 productos: productosObraSanitizados,
                 // Total de productos del presupuesto
@@ -691,11 +848,11 @@ const PresupuestoDetalle = ({
                 total: subtotalCombinado - descuentoCombinado,
                 fechaModificacion: new Date().toISOString(),
               });
-              
+
               console.log(`✅ Obra ${obraDoc.id} sincronizada (sin bloque específico)`);
             }
           });
-          
+
           await Promise.all(actualizacionesObras);
           console.log(`✅ ${obrasSnap.docs.length} obra(s) sincronizada(s) exitosamente`);
         }
@@ -709,251 +866,277 @@ const PresupuestoDetalle = ({
         ...obra,
         ...updateData
       };
-      
+
       // Notificar al componente padre para actualizar el estado
       if (onObraUpdate) {
         onObraUpdate(obraActualizada);
         console.log("✅ Estado local actualizado");
       }
 
+      return true;
     } catch (error) {
       console.error("Error guardando cambios:", error);
       alert("Error al guardar los cambios");
+      return false;
     }
-  }, [obra, bloques, totalesPorBloque, aplicarIva, ivaPorcentaje, aplicarTransferencia, transferenciaPorcentaje, onObraUpdate]);
+  }, [obra, bloques, bloqueActivo, totalesPorBloque, onObraUpdate]);
 
-  // Ejecutar guardado: por flag del padre (shouldSave) o por ref interna.
-  // Nunca guarda al cancelar: cancelar solo restaura el snapshot local.
+  // El encabezado espera el resultado real del guardado antes de salir del
+  // modo edición. Cancelar restaura el snapshot sin escribir en Firestore.
   useEffect(() => {
-    const debeGuardar = shouldSave || shouldSaveLocal;
-    if (!debeGuardar || !editando) return;
-    guardarCambios().finally(() => {
-      setShouldSaveLocal(false);
-      if (onResetShouldSave) {
-        setTimeout(() => onResetShouldSave(), 100);
-      }
-    });
-  }, [shouldSave, shouldSaveLocal, editando, onResetShouldSave, guardarCambios]);
+    if (!onGuardarRef) return;
+    onGuardarRef.current = {
+      guardar: guardarCambios,
+      cancelar: () => {
+        if (!snapshotRef.current) return;
+        const snap = snapshotRef.current;
+        setBloques(JSON.parse(JSON.stringify(snap.bloques)));
+        setBloqueActivo(0);
+        snapshotRef.current = null;
+      },
+    };
+  }, [guardarCambios, onGuardarRef]);
 
-  // Filtros para productos
-  const fuenteProductos = busquedaDebounced
-    ? (categoriaObraId ? (productosObraPorCategoria[categoriaObraId] || []) : productosObra)
-    : (categoriaObraId ? productosObraPorCategoria[categoriaObraId] : productosObra);
+  const productosSeleccionadosPorId = useMemo(() => {
+    return itemsSeleccionados.reduce((conteo, producto) => {
+      if (producto._esManual) return conteo;
+      const productoId = producto.originalId || producto.id;
+      conteo.set(productoId, (conteo.get(productoId) || 0) + 1);
+      return conteo;
+    }, new Map());
+  }, [itemsSeleccionados]);
 
-  const productosFiltrados = fuenteProductos?.filter((prod) => {
-    if (!busquedaDebounced) return true;
-    const q = busquedaDebounced.toLowerCase();
-    return String(prod.nombre || "").toLowerCase().includes(q) || 
-           String(prod.unidadMedida || "").toLowerCase().includes(q);
-  }).slice(0, 48) || [];
+  // Filtros para productos. Los que ya pertenecen al bloque activo siempre
+  // aparecen primero, manteniendo el orden original dentro de cada grupo.
+  const productosFiltrados = useMemo(() => {
+    const fuente = categoriaObraId
+      ? productosObraPorCategoria[categoriaObraId] || []
+      : productosObra;
+    const consulta = String(busquedaDebounced || "")
+      .trim()
+      .toLocaleLowerCase("es-AR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const filtrados = consulta
+      ? fuente.filter((producto) => {
+          const texto = [
+            producto.nombre,
+            producto.categoria,
+            producto.unidadMedida,
+          ]
+            .join(" ")
+            .toLocaleLowerCase("es-AR")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+          return texto.includes(consulta);
+        })
+      : fuente;
+
+    return filtrados
+      .map((producto, indice) => ({ producto, indice }))
+      .sort((a, b) => {
+        const seleccionadoA = productosSeleccionadosPorId.has(a.producto.id);
+        const seleccionadoB = productosSeleccionadosPorId.has(b.producto.id);
+        if (seleccionadoA === seleccionadoB) return a.indice - b.indice;
+        return seleccionadoA ? -1 : 1;
+      })
+      .map(({ producto }) => producto);
+  }, [
+    busquedaDebounced,
+    categoriaObraId,
+    productosObra,
+    productosObraPorCategoria,
+    productosSeleccionadosPorId,
+  ]);
+
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(totalProductos / productosPorPagina)
+  );
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    return productosFiltrados.slice(inicio, inicio + productosPorPagina);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
 
   // Si no está en modo edición, mostrar solo la visualización
   if (!editando) {
-    const aplicaIvaGuardado = obra?.aplicarIva === true || obra?.aplicaIva === true;
-    const aplicaTransfGuardado = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-    const baseGuardada = Math.max(
-      0,
-      (Number(obra?.subtotal) || 0) -
-        (Number(obra?.descuentoTotal) || 0) -
-        (Number(obra?.descuentoEfectivo) || 0)
-    );
-    const ivaGuardado = aplicaIvaGuardado
-      ? Math.max(0, Number(obra?.ivaMonto) || Math.round(baseGuardada * (Math.max(0, Number(obra?.ivaPorcentaje) || 0) / 100)))
-      : 0;
-    const transfGuardado = aplicaTransfGuardado
-      ? Math.max(0, Number(obra?.transferenciaMonto) || Math.round(baseGuardada * (Math.max(0, Number(obra?.transferenciaPorcentaje) || 0) / 100)))
-      : 0;
-    const calculadoGuardado = Math.round(baseGuardada + ivaGuardado + transfGuardado);
-    const totalObraGuardado = Number(obra?.total);
-    // Los registros viejos pueden tener total = base (sin impuestos): en ese
-    // caso se le suman los montos guardados para no mostrar precio sin IVA.
-    const totalGeneralGuardado = Number.isFinite(totalObraGuardado) && totalObraGuardado > 0
-      ? (Math.abs(totalObraGuardado - calculadoGuardado) < 1
-          ? Math.round(totalObraGuardado)
-          : ((ivaGuardado > 0 || transfGuardado > 0) && Math.abs(totalObraGuardado - baseGuardada) < Math.max(1, calculadoGuardado * 0.001)
-              ? Math.round(totalObraGuardado + ivaGuardado + transfGuardado)
-              : Math.round(totalObraGuardado)))
-      : calculadoGuardado;
     return (
       <div className="space-y-6">
-        {bloques.map((bloque, index) => (
-          <Card key={bloque.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-semibold">{bloque.nombre}</span>
-                  <span className="text-sm text-gray-500">
-                    {bloque.productos?.length || 0} producto{(bloque.productos?.length || 0) !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">Total del Bloque</div>
-                  <div className="text-lg font-bold text-green-600">
-                    ${formatearNumeroArgentino(bloque.total || 0)}
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Totales del bloque */}
-              <div className={`grid gap-4 mb-4 p-4 bg-gray-50 rounded-lg ${obra?.pagoEnEfectivo ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                <div className="text-center">
-                  <div className="text-sm text-gray-500">Subtotal</div>
-                  <div className="font-semibold">${formatearNumeroArgentino(bloque.subtotal || 0)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-500">Descuento</div>
-                  <div className="font-semibold text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</div>
-                </div>
-                {obra?.pagoEnEfectivo && (
-                  <div className="text-center">
-                    <div className="text-sm text-gray-500">Descuento (Efectivo 10%)</div>
-                    <div className="font-semibold text-green-600">${formatearNumeroArgentino(bloque.descuentoEfectivo || 0)}</div>
-                  </div>
-                )}
-                <div className="text-center">
-                  <div className="text-sm text-gray-500">Total</div>
-                  <div className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</div>
-                </div>
-              </div>
+        {bloques.map((bloque, index) => {
+          const cantidadProductos = bloque.productos?.length || 0;
+          const totales = calcularTotalesBloque(
+            bloque,
+            opcionActiva(obra?.pagoEnEfectivo)
+          );
+          const totalBloque = totales.total;
+          const columnasTotales =
+            totales.aplicarIva || totales.aplicarTransferencia
+              ? "sm:grid-cols-3 lg:grid-cols-6"
+              : obra?.pagoEnEfectivo
+                ? "sm:grid-cols-4"
+                : "sm:grid-cols-3";
 
-              {/* Productos del bloque */}
-              {bloque.productos && bloque.productos.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="p-2 text-left">Producto</th>
-                        <th className="p-2 text-center">Cant.</th>
-                        <th className="p-2 text-center">Unidad</th>
-                        <th className="p-2 text-center">Alto</th>
-                        <th className="p-2 text-center">Largo</th>
-                        <th className="p-2 text-center">Medida</th>
-                        <th className="p-2 text-right">Valor Unit.</th>
-                        <th className="p-2 text-center">Desc. %</th>
-                        <th className="p-2 text-right">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bloque.productos.map((producto) => {
-                        const medida = detalleMedidaProducto(producto);
-                        let subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
-                        // Si es pago en efectivo, aplicar descuento adicional del 10%
-                        if (obra?.pagoEnEfectivo) {
-                          subtotal = subtotal * 0.9;
-                        }
-                        return (
-                          <React.Fragment key={producto.id}>
-                            <tr className="border-b">
-                              <td className="p-2">
-                                <div className="font-medium">{producto.nombre}</div>
-                                <div className="text-xs text-gray-500">{producto.categoria}</div>
-                                {medida.sub && (
-                                  <div className="text-[11px] text-gray-500">{medida.sub}</div>
-                                )}
-                              </td>
-                              <td className="p-2 text-center">{producto.cantidad}</td>
-                              <td className="p-2 text-center">
-                                <Badge variant="outline">{medida.unidad}</Badge>
-                              </td>
-                              <td className="p-2 text-center">
-                                {medida.altoTxt}
-                              </td>
-                              <td className="p-2 text-center">
-                                {medida.largoTxt}
-                              </td>
-                              <td className="p-2 text-center">
-                                {medida.medidaTxt}
-                              </td>
-                              <td className="p-2 text-right">
-                                ${formatearNumeroArgentino(
-                                  obra?.pagoEnEfectivo 
-                                    ? Number(producto.valorVenta) * 0.9
-                                    : producto.valorVenta
-                                )}
-                              </td>
-                              <td className="p-2 text-center">{producto.descuento}%</td>
-                              <td className="p-2 text-right font-semibold">${formatearNumeroArgentino(subtotal)}</td>
-                            </tr>
-                            {producto.descripcion && (
-                              <tr className="border-b bg-gray-50">
-                                <td colSpan={9} className="p-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
-                                    <span className="text-xs text-gray-700">{producto.descripcion}</span>
+          return (
+            <Card key={bloque.id} className="overflow-hidden border-slate-200/80 shadow-sm">
+              <CardHeader className="mb-0 border-slate-200/80 bg-slate-50/70 px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-xs font-semibold tracking-wide text-white">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-base font-semibold text-slate-900 sm:text-lg">
+                        {bloque.nombre || `Presupuesto ${index + 1}`}
+                      </CardTitle>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {cantidadProductos} {cantidadProductos === 1 ? "producto" : "productos"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total del bloque</p>
+                    <p className="mt-1 text-lg font-semibold tracking-tight text-emerald-600 tabular-nums sm:text-xl">
+                      ${formatearNumeroArgentino(totalBloque)}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className={`grid grid-cols-2 divide-x divide-y divide-slate-200/80 border-b border-slate-200/80 bg-white ${columnasTotales}`}>
+                  <div className="px-5 py-4 sm:px-6">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Subtotal</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800 tabular-nums">${formatearNumeroArgentino(totales.subtotal)}</p>
+                  </div>
+                  <div className="px-5 py-4 sm:px-6">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Descuento</p>
+                    <p className="mt-1 text-sm font-semibold text-amber-600 tabular-nums">${formatearNumeroArgentino(totales.descuentoTotal)}</p>
+                  </div>
+                  {obra?.pagoEnEfectivo && (
+                    <div className="px-5 py-4 sm:px-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Efectivo</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-600 tabular-nums">${formatearNumeroArgentino(totales.descuentoEfectivo)}</p>
+                    </div>
+                  )}
+                  {totales.aplicarIva && (
+                    <div className="px-5 py-4 sm:px-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">IVA ({totales.ivaPorcentaje}%)</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-600 tabular-nums">${formatearNumeroArgentino(totales.ivaMonto)}</p>
+                    </div>
+                  )}
+                  {totales.aplicarTransferencia && (
+                    <div className="px-5 py-4 sm:px-6">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Transferencia ({totales.transferenciaPorcentaje}%)</p>
+                      <p className="mt-1 text-sm font-semibold text-blue-600 tabular-nums">${formatearNumeroArgentino(totales.transferenciaMonto)}</p>
+                    </div>
+                  )}
+                  <div className="bg-emerald-50/60 px-5 py-4 sm:px-6">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/70">Total</p>
+                    <p className="mt-1 text-sm font-bold text-emerald-700 tabular-nums">${formatearNumeroArgentino(totalBloque)}</p>
+                  </div>
+                </div>
+
+                {/* Productos del bloque */}
+                {bloque.productos && bloque.productos.length > 0 ? (
+                  <div className="overflow-x-auto -mx-1">
+                    <table className="w-full text-sm border-separate border-spacing-0">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cant.</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Alto</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Largo</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Medida</th>
+                          <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Unit.</th>
+                          <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Desc. %</th>
+                          <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bloque.productos.map((producto) => {
+                          const medida = detalleMedidaProducto(producto);
+                          let subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
+                          // Si es pago en efectivo, aplicar descuento adicional del 10%
+                          if (obra?.pagoEnEfectivo) {
+                            subtotal = subtotal * 0.9;
+                          }
+                          return (
+                            <React.Fragment key={producto.id}>
+                              <tr className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors duration-150">
+                                <td className="px-3 py-2.5">
+                                  <div className="font-medium text-gray-900">
+                                    {capitalizarInicial(
+                                      producto.nombre,
+                                      "Producto sin nombre"
+                                    )}
                                   </div>
                                 </td>
+                                <td className="px-3 py-2.5 text-center text-gray-700">{producto.cantidad}</td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <Badge variant="outline" className="text-xs font-normal text-gray-600 border-gray-300">{medida.unidad}</Badge>
+                                </td>
+                                <td className="px-3 py-2.5 text-center text-gray-700">{medida.altoTxt}</td>
+                                <td className="px-3 py-2.5 text-center text-gray-700">{medida.largoTxt}</td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-medium text-gray-900">
+                                  ${formatearNumeroArgentino(
+                                    obra?.pagoEnEfectivo
+                                      ? Number(producto.valorVenta) * 0.9
+                                      : producto.valorVenta
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  {producto.descuento > 0 ? (
+                                    <span className="text-xs font-medium text-orange-600">{producto.descuento}%</span>
+                                  ) : (
+                                    <span className="text-gray-300">0%</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-semibold text-gray-900">
+                                  ${formatearNumeroArgentino(subtotal)}
+                                </td>
                               </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Icon icon="heroicons:cube" className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>No hay productos en este bloque</p>
-                </div>
-              )}
-
-              {/* Descripción si existe */}
-              {bloque.descripcion && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon icon="heroicons:document-text" className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Descripción</span>
+                              {(producto.descripcion || producto.description) && (
+                                <tr className="border-b border-gray-100 bg-gray-50/50">
+                                  <td colSpan={9} className="px-3 py-2">
+                                    <div className="flex items-start gap-2">
+                                      <span className="shrink-0 text-xs font-medium text-gray-500">Descripción:</span>
+                                      <span className="text-xs leading-relaxed text-gray-600">{producto.descripcion || producto.description}</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <p className="text-sm text-blue-700">{bloque.descripcion}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-        {/* Resumen general con IVA/Transferencia */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Icon icon="heroicons:calculator" className="w-5 h-5" />
-              Resumen General del Presupuesto
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 text-sm">
-              <div className="text-center p-3 bg-slate-50 rounded-lg border">
-                <div className="text-gray-500">Subtotal</div>
-                <div className="font-semibold">${formatearNumeroArgentino((Number(obra?.subtotal) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.subtotal) || 0), 0))}</div>
-              </div>
-              <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-                <div className="text-orange-700">Descuento</div>
-                <div className="font-semibold text-orange-800">${formatearNumeroArgentino((Number(obra?.descuentoTotal) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.descuentoTotal) || 0), 0))}</div>
-              </div>
-              {((Number(obra?.descuentoEfectivo) || 0) > 0 || bloques.some((_, i) => (Number(totalesPorBloque[i]?.descuentoEfectivo) || 0) > 0)) && (
-                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="text-green-700">Desc. Efectivo 10%</div>
-                  <div className="font-semibold text-green-800">${formatearNumeroArgentino((Number(obra?.descuentoEfectivo) || 0) || bloques.reduce((acc, _, i) => acc + (Number(totalesPorBloque[i]?.descuentoEfectivo) || 0), 0))}</div>
-                </div>
-              )}
-              {aplicaIvaGuardado && (
-                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-blue-700">IVA ({Number(obra?.ivaPorcentaje) || 0}%)</div>
-                  <div className="font-semibold text-blue-800">${formatearNumeroArgentino(ivaGuardado)}</div>
-                </div>
-              )}
-              {aplicaTransfGuardado && (
-                <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="text-purple-700">Transferencia ({Number(obra?.transferenciaPorcentaje) || 0}%)</div>
-                  <div className="font-semibold text-purple-800">${formatearNumeroArgentino(transfGuardado)}</div>
-                </div>
-              )}
-              <div className="text-center p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                <div className="text-emerald-700">Total Final</div>
-                <div className="font-bold text-emerald-800">${formatearNumeroArgentino(totalGeneralGuardado)}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Icon icon="heroicons:cube" className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>No hay productos en este bloque</p>
+                  </div>
+                )}
+
+                {/* Descripción si existe */}
+                {bloque.descripcion && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon icon="heroicons:document-text" className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">Descripción</span>
+                    </div>
+                    <p className="text-sm text-blue-700">{bloque.descripcion}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     );
   }
@@ -962,37 +1145,49 @@ const PresupuestoDetalle = ({
   return (
     <div className="space-y-6">
       {/* Gestión de Bloques */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Icon icon="heroicons:squares-2x2" className="w-5 h-5" />
-              Gestión de Bloques
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Icon icon="heroicons:squares-2x2" className="h-5 w-5 text-primary" />
+                Presupuestos por bloque
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Creá y organizá las opciones de este presupuesto.
+              </p>
             </div>
-            <Button onClick={agregarBloque} variant="outline" size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Bloque
+            <Button onClick={agregarBloque} size="sm" className="shrink-0">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo bloque
             </Button>
-          </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
+        <CardContent className="space-y-5 p-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {bloques.map((bloque, index) => (
               <div
                 key={bloque.id}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
-                  index === bloqueActivo
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                role="button"
+                tabIndex={0}
+                className={`group rounded-xl border p-3 transition-all ${index === bloqueActivo
+                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                  : "border-slate-200 bg-white hover:border-primary/40 hover:shadow-sm"
+                  }`}
                 onClick={() => setBloqueActivo(index)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setBloqueActivo(index);
+                  }
+                }}
               >
                 {editandoNombreBloque === index ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
                     <Input
                       value={nuevoNombreBloque}
                       onChange={(e) => setNuevoNombreBloque(e.target.value)}
-                      className="h-8 w-32"
+                      className="h-9 flex-1"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           actualizarNombreBloque(index, nuevoNombreBloque);
@@ -1008,7 +1203,7 @@ const PresupuestoDetalle = ({
                     />
                     <Button
                       size="sm"
-                      variant="outline"
+                      className="h-9 w-9 p-0"
                       onClick={() => {
                         actualizarNombreBloque(index, nuevoNombreBloque);
                         setEditandoNombreBloque(null);
@@ -1020,6 +1215,7 @@ const PresupuestoDetalle = ({
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-9 w-9 p-0"
                       onClick={() => {
                         setEditandoNombreBloque(null);
                         setNuevoNombreBloque("");
@@ -1029,268 +1225,387 @@ const PresupuestoDetalle = ({
                     </Button>
                   </div>
                 ) : (
-                  <>
-                    <span className="font-medium">{bloque.nombre}</span>
-                    <span className="text-xs text-gray-500">
-                      ({bloque.productos.length} productos)
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${index === bloqueActivo ? "bg-primary text-primary-foreground" : "bg-slate-100 text-slate-600"}`}>
+                      {String(index + 1).padStart(2, "0")}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditandoNombreBloque(index);
-                        setNuevoNombreBloque(bloque.nombre);
-                      }}
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </Button>
-                    {bloques.length > 1 && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          eliminarBloque(index);
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">{bloque.nombre}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {bloque.productos.length} {bloque.productos.length === 1 ? "producto" : "productos"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-slate-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditandoNombreBloque(index);
+                              setNuevoNombreBloque(bloque.nombre);
+                            }}
+                            title="Renombrar bloque"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          {bloques.length > 1 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                eliminarBloque(index);
+                              }}
+                              title="Eliminar bloque"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="bg-white text-[10px]">
+                          {bloque.aplicarIva ? `IVA ${normalizarPorcentaje(bloque.ivaPorcentaje, 21)}%` : "Sin IVA"}
+                        </Badge>
+                        <Badge variant="outline" className="bg-white text-[10px]">
+                          {bloque.aplicarTransferencia ? `Transferencia ${normalizarPorcentaje(bloque.transferenciaPorcentaje, 10)}%` : "Sin transferencia"}
+                        </Badge>
+                      </div>
+                      <p className="mt-3 text-base font-bold tabular-nums text-emerald-600">
+                        $ {formatearNumeroArgentino(totalesPorBloque[index]?.total || 0)}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Información del bloque activo */}
           {bloqueActual && (
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-lg">{bloqueActual.nombre}</h3>
-              </div>
-              
-              <div className={`grid gap-4 text-sm ${obra?.pagoEnEfectivo ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                <div className="text-center">
-                  <div className="text-gray-500">Subtotal</div>
-                  <div className="font-semibold">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.subtotal || 0)}</div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bloque activo</p>
+                  <h3 className="mt-1 text-lg font-semibold text-slate-900">{bloqueActual.nombre}</h3>
                 </div>
-                <div className="text-center">
-                  <div className="text-gray-500">Descuento</div>
-                  <div className="font-semibold text-orange-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.descuentoTotal || 0)}</div>
-                </div>
-                {obra?.pagoEnEfectivo && (
-                  <div className="text-center">
-                    <div className="text-gray-500">Descuento (Efectivo 10%)</div>
-                    <div className="font-semibold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.descuentoEfectivo || 0)}</div>
+                <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:max-w-2xl">
+                  <div className={`rounded-lg border p-3 ${bloqueActual.aplicarIva ? "border-amber-200 bg-amber-50/60" : "border-slate-200"}`}>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Aplicar IVA</span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(bloqueActual.aplicarIva)}
+                        onChange={(event) => actualizarConfiguracionBloque("aplicarIva", event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </label>
+                    <div className="mt-2 flex items-center justify-self-end gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={bloqueActual.ivaPorcentaje ?? 21}
+                        onChange={(event) => actualizarConfiguracionBloque("ivaPorcentaje", event.target.value)}
+                        disabled={!bloqueActual.aplicarIva}
+                        className="h-8 text-right"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
                   </div>
-                )}
-                <div className="text-center">
-                  <div className="text-gray-500">Total</div>
-                  <div className="font-bold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.total || 0)}</div>
+                  <div className={`rounded-lg border p-3 ${bloqueActual.aplicarTransferencia ? "border-blue-200 bg-blue-50/60" : "border-slate-200"}`}>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Transferencia</span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(bloqueActual.aplicarTransferencia)}
+                        onChange={(event) => actualizarConfiguracionBloque("aplicarTransferencia", event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </label>
+                    <div className="mt-2 flex items-center justify-self-end gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={bloqueActual.transferenciaPorcentaje ?? 10}
+                        onChange={(event) => actualizarConfiguracionBloque("transferenciaPorcentaje", event.target.value)}
+                        disabled={!bloqueActual.aplicarTransferencia}
+                        className="h-8 text-right"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-          </div>
-          )}
-
-          {/* IVA y Transferencia - solo en modo edición */}
-          {editando && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-3">
-              <h4 className="font-semibold text-sm">Cargos adicionales</h4>
-              <div className="flex flex-wrap gap-4 items-end">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={aplicarIva}
-                    onChange={(e) => setAplicarIva(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm font-medium">IVA</label>
-                </div>
-                {aplicarIva && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">%</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={ivaPorcentaje}
-                      onChange={(e) => setIvaPorcentaje(e.target.value)}
-                      className="w-20 px-2 py-1 border rounded text-sm"
-                    />
+              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-3 lg:grid-cols-5">
+                {[
+                  ["Subtotal", totalesPorBloque[bloqueActivo]?.subtotal, "text-slate-900"],
+                  ["Descuentos", totalesPorBloque[bloqueActivo]?.descuentoTotal, "text-amber-600"],
+                  [`IVA ${totalesPorBloque[bloqueActivo]?.aplicarIva ? `(${totalesPorBloque[bloqueActivo]?.ivaPorcentaje}%)` : ""}`, totalesPorBloque[bloqueActivo]?.ivaMonto, "text-amber-600"],
+                  [`Transferencia ${totalesPorBloque[bloqueActivo]?.aplicarTransferencia ? `(${totalesPorBloque[bloqueActivo]?.transferenciaPorcentaje}%)` : ""}`, totalesPorBloque[bloqueActivo]?.transferenciaMonto, "text-blue-600"],
+                  ["Total del bloque", totalesPorBloque[bloqueActivo]?.total, "text-emerald-600"],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="bg-white px-3 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                    <p className={`mt-1 text-sm font-bold tabular-nums ${color}`}>$ {formatearNumeroArgentino(value || 0)}</p>
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={aplicarTransferencia}
-                    onChange={(e) => setAplicarTransferencia(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm font-medium">Transferencia</label>
-                </div>
-                {aplicarTransferencia && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">%</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={transferenciaPorcentaje}
-                      onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
-                      className="w-20 px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3 flex flex-col md:flex-row gap-3 md:gap-6 text-sm shadow-sm font-semibold">
-                <div>Subtotal: <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.subtotal)}</span></div>
-                <div>Descuento: <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.descuentoTotal)}</span></div>
-                {totalesGenerales.descuentoEfectivo > 0 && (
-                  <div>Desc. Efectivo 10%: <span className="font-bold text-green-600">${formatearNumeroArgentino(totalesGenerales.descuentoEfectivo)}</span></div>
-                )}
-                {aplicarIva && totalesGenerales.ivaMonto > 0 && (
-                  <div>IVA ({totalesGenerales.ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.ivaMonto)}</span></div>
-                )}
-                {aplicarTransferencia && totalesGenerales.transferenciaMonto > 0 && (
-                  <div>Transferencia ({totalesGenerales.transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(totalesGenerales.transferenciaMonto)}</span></div>
-                )}
-                <div>Total Final: <span className="font-bold text-green-600">${formatearNumeroArgentino(totalesGenerales.total)}</span></div>
+                ))}
               </div>
             </div>
           )}
-
         </CardContent>
       </Card>
 
       {/* Catálogo de Productos */}
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Icon icon="heroicons:cube" className="w-5 h-5" />
-            Catálogo de Productos
-        </CardTitle>
-      </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 items-center mb-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Buscar productos..."
-                  value={busquedaProductoObra}
-                  onChange={(e) => setBusquedaProductoObra(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-              <Select value={categoriaObraId} onValueChange={setCategoriaObraId}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas las categorías</SelectItem>
-                  {categoriasObra.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            <Button onClick={agregarProductoManual} variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Ítem Manual
-              </Button>
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Filter className="h-5 w-5 text-primary" />
+                Catálogo de productos
+                <Badge variant="outline" className="ml-1 bg-white">
+                  {bloqueActual?.nombre}
+                </Badge>
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elegí los productos que querés agregar al presupuesto.
+              </p>
             </div>
+            <Button onClick={agregarProductoManual} variant="outline" size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar ítem manual
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex flex-1 flex-wrap gap-2">
+              {categoriasObra.map((categoria) => (
+                <button
+                  key={categoria}
+                  type="button"
+                  onClick={() =>
+                    setCategoriaObraId((actual) =>
+                      actual === categoria ? "" : categoria
+                    )
+                  }
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${categoriaObraId === categoria
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-primary/40 hover:text-primary"
+                    }`}
+                >
+                  {capitalizarInicial(categoria)}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Buscar productos..."
+                value={busquedaProductoObra}
+                onChange={(e) => setBusquedaProductoObra(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
-              {productosFiltrados.map((prod) => {
-                // Contar cuántas veces se ha agregado este producto (por originalId)
-                const vecesAgregado = itemsSeleccionados.filter((p) => p.originalId === prod.id || p.id === prod.id).length;
-                const precio = Number(prod.valorVenta) || 0;
-                
-                return (
-                  <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                    vecesAgregado > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-blue-300"
+          <div className="min-h-56 rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+            {categoriasObra.length === 0 ? (
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <Icon icon="heroicons:cube-transparent" className="mb-2 h-9 w-9 text-slate-300" />
+                <p className="font-medium text-slate-700">No hay productos disponibles</p>
+              </div>
+            ) : productosFiltrados.length === 0 ? (
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <Search className="mb-2 h-8 w-8 text-slate-300" />
+                <p className="font-medium text-slate-700">No encontramos productos</p>
+                <p className="mt-1 text-sm text-slate-500">Probá con otra búsqueda o categoría.</p>
+              </div>
+            ) : (
+              <div className="relative grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {isPending && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-sm">
+                    <span className="text-sm font-medium text-slate-600">Actualizando catálogo…</span>
+                  </div>
+                )}
+                {productosPaginados.map((prod) => {
+              const vecesAgregado = productosSeleccionadosPorId.get(prod.id) || 0;
+              const precio = Number(prod.valorVenta) || 0;
+
+              return (
+                <div key={prod.id} className={`group relative flex h-full flex-col rounded-xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md ${vecesAgregado > 0 ? "border-primary/40 ring-1 ring-primary/10" : "border-slate-200 hover:border-primary/30"
                   }`}>
-                    <div className="p-4 flex flex-col h-full">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
-                              🏗️
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-semibold truncate">{prod.nombre}</h4>
-                              {vecesAgregado > 0 && (
-                                <div className="flex items-center gap-1 text-blue-600 mt-1">
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                                  </svg>
-                                  <span className="text-xs font-medium">Agregado ({vecesAgregado})</span>
-                                </div>
-                              )}
-                            </div>
+                  <div className="flex h-full flex-col p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm">
+                            🏗️
                           </div>
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-slate-900" title={prod.nombre}>
+                              {capitalizarInicial(prod.nombre, "Producto sin nombre")}
+                            </h4>
+                            {vecesAgregado > 0 && (
+                              <Badge className="mt-1 bg-primary/10 text-[10px] text-primary hover:bg-primary/10">
+                                Agregado {vecesAgregado}×
+                              </Badge>
+                            )}
+                          </div>
+                    </div>
+                    <div className="flex flex-1 items-end justify-between gap-3 border-t border-slate-100 pt-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Valor unitario</p>
+                        <p className="mt-1 font-bold tabular-nums text-slate-900">$ {formatearNumeroArgentino(precio)}</p>
                       </div>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Precio:</span>
-                          <span className="text-sm font-semibold">{formatearNumeroArgentino(precio)}</span>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <button
-                          onClick={() => agregarProducto(prod)}
-                          className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
+                      <Badge variant="outline" className="bg-slate-50 text-[10px] text-slate-600">
+                        {String(prod.unidadMedida || "UN").toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className={`mt-3 grid gap-2 ${vecesAgregado > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+                      {vecesAgregado > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => quitarProductoDesdeCatalogo(prod.id)}
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          aria-label={`Quitar ${prod.nombre || "producto"} del bloque`}
                         >
-                          {vecesAgregado > 0 ? `Agregar otra (${vecesAgregado + 1})` : "Agregar"}
-                        </button>
-                      </div>
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          {vecesAgregado > 1 ? "Quitar uno" : "Quitar"}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() => agregarProducto(prod)}
+                        size="sm"
+                        className="w-full"
+                      >
+                        {vecesAgregado > 0 ? "Agregar otro" : "Agregar"}
+                      </Button>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+                })}
+              </div>
+            )}
+          </div>
+
+          {productosFiltrados.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                Mostrando {(paginaActual - 1) * productosPorPagina + 1}–{Math.min(paginaActual * productosPorPagina, totalProductos)} de {totalProductos}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === 1 || isPending}
+                  onClick={() => startTransition(() => setPaginaActual(1))}
+                >
+                  «
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === 1 || isPending}
+                  onClick={() => startTransition(() => setPaginaActual((pagina) => Math.max(1, pagina - 1)))}
+                >
+                  Anterior
+                </Button>
+                <span className="min-w-20 px-2 text-center text-sm font-medium text-slate-600">
+                  {paginaActual} / {totalPaginas}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === totalPaginas || isPending}
+                  onClick={() => startTransition(() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1)))}
+                >
+                  Siguiente
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === totalPaginas || isPending}
+                  onClick={() => startTransition(() => setPaginaActual(totalPaginas))}
+                >
+                  »
+                </Button>
+              </div>
             </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Productos Seleccionados */}
       {itemsSeleccionados.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Icon icon="heroicons:clipboard-document-list" className="w-5 h-5" />
-              Productos del Bloque: {bloqueActual?.nombre}
-            </CardTitle>
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Icon icon="heroicons:clipboard-document-list" className="h-5 w-5 text-primary" />
+                  Productos del bloque
+                  <Badge variant="outline" className="bg-white">{bloqueActual?.nombre}</Badge>
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Revisá y ajustá los productos agregados.
+                </p>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-xs text-slate-500">{itemsSeleccionados.length} {itemsSeleccionados.length === 1 ? "producto" : "productos"}</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-600">
+                  $ {formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.total || 0)}
+                </p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="p-2 text-left">Producto</th>
-                    <th className="p-2 text-center">Cant.</th>
-                    <th className="p-2 text-center">Unidad</th>
-                    <th className="p-2 text-center">Alto</th>
-                    <th className="p-2 text-center">Largo</th>
-                    <th className="p-2 text-center">Medida</th>
-                    <th className="p-2 text-right">Valor Unit.</th>
-                    <th className="p-2 text-center">Desc. %</th>
-                    <th className="p-2 text-right">Subtotal</th>
-                    <th className="p-2 text-center">Acciones</th>
+              <table className="min-w-[1100px] w-full text-sm">
+                <thead className="bg-slate-800">
+                  <tr className="border-b border-slate-700">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">Producto</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Cant.</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Unidad</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Alto</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Largo</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Medida</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-100">Precio unitario</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Desc. %</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-100">Total línea</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsSeleccionados.map((p) => {
                     const medida = detalleMedidaProducto(p);
                     const u = medida.unidad;
-                    const sub = Number(p.precio || 0) * (1 - Number(p.descuento || 0) / 100);
+                    const descuento = Math.min(
+                      100,
+                      Math.max(0, Number(p.descuento) || 0)
+                    );
+                    const sub =
+                      (Number(p.precio) || 0) * (1 - descuento / 100);
                     const requiereAlto = u === "M2";
                     const requiereLargo = u === "M2" || u === "ML";
-                    
+
                     return (
                       <React.Fragment key={p.id}>
-                        <tr className="border-b">
-                          <td className="p-2">
+                        <tr className="border-b border-slate-100 bg-white hover:bg-slate-50/60">
+                          <td className="px-4 py-3">
                             <div className="font-medium">
                               {p._esManual ? (
                                 <Input
@@ -1300,7 +1615,12 @@ const PresupuestoDetalle = ({
                                 />
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  <span>{p.nombre}</span>
+                                  <span>
+                                    {capitalizarInicial(
+                                      p.nombre,
+                                      "Producto sin nombre"
+                                    )}
+                                  </span>
                                   {itemsSeleccionados.filter(item => (item.originalId || item.id) === (p.originalId || p.id)).length > 1 && (
                                     <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
                                       Duplicado
@@ -1309,20 +1629,19 @@ const PresupuestoDetalle = ({
                                 </div>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500">{p.categoria}</div>
                           </td>
-                          
-                          <td className="p-2 text-center">
+
+                          <td className="px-3 py-3 text-center">
                             <Input
                               type="number"
                               min={1}
                               value={p.cantidad}
                               onChange={(e) => actualizarCampo(p.id, "cantidad", e.target.value)}
-                              className="w-20 mx-auto"
+                              className="h-9 w-20 mx-auto text-center"
                             />
                           </td>
-                          
-                          <td className="p-2 text-center">
+
+                          <td className="px-3 py-3 text-center">
                             {p._esManual ? (
                               <Select
                                 value={u}
@@ -1341,111 +1660,105 @@ const PresupuestoDetalle = ({
                               <Badge variant="outline">{u}</Badge>
                             )}
                           </td>
-                          
-                          <td className="p-2 text-center">
+
+                          <td className="px-3 py-3 text-center">
                             {requiereAlto ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={p.alto}
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={p.alto}
                                 onChange={(e) => actualizarCampo(p.id, "alto", e.target.value)}
-                                  className="w-24 mx-auto"
-                                />
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          
-                          <td className="p-2 text-center">
-                            {requiereLargo ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={p.largo ?? p.largoNum ?? ""}
-                                onChange={(e) => actualizarCampo(p.id, "largo", e.target.value)}
-                                  className="w-24 mx-auto"
-                                />
+                                className="h-9 w-24 mx-auto text-center"
+                              />
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
 
-                          <td className="p-2 text-center">
-                            <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
-                            {medida.sub && (
-                              <div className="text-[11px] text-gray-400">{medida.sub}</div>
-                            )}
-                          </td>
-                          
-                          <td className="p-2 text-right">
-                            {p._esManual ? (
-                              <div className="relative w-28 ml-auto">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={p.valorVenta || 0}
-                                  onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)}
-                                  className="pl-5 pr-2 h-8 text-right"
-                                />
-                              </div>
-                            ) : (
-                              formatearNumeroArgentino(p.valorVenta || 0)
-                            )}
-                          </td>
-                          
-                          <td className="p-2 text-center">
+                          <td className="px-3 py-3 text-center">
+                            {requiereLargo ? (
                               <Input
                                 type="number"
                                 min={0}
-                                max={100}
-                                value={p.descuento}
-                              onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)}
-                                className="w-20 mx-auto"
+                                step="0.01"
+                                value={p.largo ?? p.largoNum ?? ""}
+                                onChange={(e) => actualizarCampo(p.id, "largo", e.target.value)}
+                                className="h-9 w-24 mx-auto text-center"
                               />
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </td>
-                          
-                          <td className="p-2 text-right font-semibold">
-                            {formatearNumeroArgentino(Math.round(sub))}
+
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
                           </td>
-                          
-                            <td className="p-2 text-center">
-                              <div className="flex items-center gap-1 justify-center">
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => duplicarProducto(p)} 
-                                  size="sm"
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="Duplicar producto"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => quitarProducto(p.id)} 
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </td>
+
+                          <td className="px-3 py-3 text-right">
+                            <div className="relative ml-auto w-32">
+                              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={p.valorVenta ?? ""}
+                                onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)}
+                                className="h-9 pl-6 pr-2 text-right font-medium tabular-nums"
+                                aria-label={`Precio unitario de ${p.nombre || "producto"}`}
+                              />
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={p.descuento}
+                              onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)}
+                              className="h-9 w-20 mx-auto text-center"
+                            />
+                          </td>
+
+                          <td className="px-4 py-3 text-right font-bold tabular-nums text-slate-900">
+                            $ {formatearNumeroArgentino(Math.round(sub))}
+                          </td>
+
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center gap-1 justify-center">
+                              <Button
+                                variant="outline"
+                                onClick={() => duplicarProducto(p)}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                title="Duplicar producto"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => quitarProducto(p.id)}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                         {/* Fila adicional para descripción del producto */}
-                        <tr className="border-b bg-gray-50">
-                          <td colSpan={10} className="p-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
-                                <Textarea
-                                  placeholder="Escribe una descripción específica para este producto..."
-                                  value={p.descripcion || ""}
+                        <tr className="border-b border-slate-100 bg-slate-50/60">
+                          <td colSpan={10} className="px-4 py-3">
+                            <div className="flex items-start gap-3">
+                              <span className="w-20 shrink-0 pt-2 text-xs font-semibold text-slate-500">Descripción</span>
+                              <Textarea
+                                placeholder="Escribe una descripción específica para este producto..."
+                                value={p.descripcion || ""}
                                 onChange={(e) => actualizarCampo(p.id, "descripcion", e.target.value)}
-                                  className="flex-1 min-h-[60px] resize-none"
-                                  rows={2}
-                                />
+                                className="min-h-10 flex-1 resize-y bg-white"
+                                rows={1}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -1479,25 +1792,7 @@ const PresupuestoDetalle = ({
           </CardContent>
         </Card>
       )}
-
-      {/* Descripción general removida: se usa descripción por bloque */}
-
-      {editando && (
-        <div className="flex justify-end">
-          <Button
-            onClick={() => {
-              console.log("🔘 Botón Guardar Cambios clickeado");
-              if (onRequestSave) onRequestSave();
-              else guardarCambios();
-            }}
-            className="flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Guardar Cambios
-          </Button>
-        </div>
-      )}
-            </div>
+    </div>
   );
 };
 

@@ -10,16 +10,71 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Search, RefreshCw, Plus, X, Edit3, Trash2 } from "lucide-react";
+import { Filter, Search, RefreshCw, Plus, X, Edit3, Trash2, Check, Loader2, Save } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
+import { detalleMedidaProducto } from "@/lib/obra-utils";
 
 // Formateo regional simple
 function formatARNumber(value) {
   const num = Number(value || 0);
   if (Number.isNaN(num)) return "0";
   return num.toLocaleString("es-AR", { minimumFractionDigits: 0 });
+}
+
+function capitalizarInicial(value, fallback = "") {
+  const texto = String(value || fallback).trim();
+  return texto.replace(
+    /^[a-záéíóúüñ]/i,
+    (letra) => letra.toLocaleUpperCase("es-AR")
+  );
+}
+
+function normalizarPorcentaje(value, fallback) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const numero = Number(String(value).replace(",", "."));
+  return Number.isFinite(numero) ? Math.max(0, numero) : fallback;
+}
+
+function calcularTotalesBloque(bloque = {}) {
+  const items = Array.isArray(bloque.items) ? bloque.items : [];
+  const subtotal = items.reduce(
+    (acumulado, producto) => acumulado + (Number(producto.precio) || 0),
+    0
+  );
+  const descuentoTotal = items.reduce((acumulado, producto) => {
+    const descuento = Math.min(
+      100,
+      Math.max(0, Number(producto.descuento) || 0)
+    );
+    return acumulado + (Number(producto.precio) || 0) * (descuento / 100);
+  }, 0);
+  const base = Math.max(0, subtotal - descuentoTotal);
+  const aplicarIva = Boolean(bloque.aplicarIva);
+  const ivaPorcentaje = normalizarPorcentaje(bloque.ivaPorcentaje, 21);
+  const ivaMonto = aplicarIva ? Math.round(base * (ivaPorcentaje / 100)) : 0;
+  const aplicarTransferencia = Boolean(bloque.aplicarTransferencia);
+  const transferenciaPorcentaje = normalizarPorcentaje(
+    bloque.transferenciaPorcentaje,
+    10
+  );
+  const transferenciaMonto = aplicarTransferencia
+    ? Math.round(base * (transferenciaPorcentaje / 100))
+    : 0;
+
+  return {
+    subtotal: Math.round(subtotal),
+    descuentoTotal: Math.round(descuentoTotal),
+    base: Math.round(base),
+    aplicarIva,
+    ivaPorcentaje,
+    ivaMonto,
+    aplicarTransferencia,
+    transferenciaPorcentaje,
+    transferenciaMonto,
+    total: Math.round(base + ivaMonto + transferenciaMonto),
+  };
 }
 
 // Cálculo para productos de obras
@@ -99,7 +154,11 @@ export default function CrearPresupuestoObraPage() {
       id: `presupuesto-${Date.now()}`,
       nombre: "Presupuesto 1",
       items: [],
-      descripcion: ""
+      descripcion: "",
+      aplicarIva: false,
+      ivaPorcentaje: 21,
+      aplicarTransferencia: false,
+      transferenciaPorcentaje: 10,
     }
   ]);
   const [bloqueActivo, setBloqueActivo] = useState(0);
@@ -157,6 +216,16 @@ export default function CrearPresupuestoObraPage() {
     return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
   }, []);
 
+  const productosSeleccionadosPorId = useMemo(() => {
+    const items = bloques[bloqueActivo]?.items || [];
+    return items.reduce((conteo, producto) => {
+      if (producto._esManual) return conteo;
+      const productoId = producto.originalId || producto.id;
+      conteo.set(productoId, (conteo.get(productoId) || 0) + 1);
+      return conteo;
+    }, new Map());
+  }, [bloques, bloqueActivo]);
+
   // Filtro catálogo con deferred value
   const productosFiltrados = useMemo(() => {
     let fuente;
@@ -174,7 +243,7 @@ export default function CrearPresupuestoObraPage() {
     if (!fuente) fuente = productos;
 
     const busq = normalizarTexto(busquedaDefer);
-    return fuente
+    const filtrados = fuente
       .filter((prod) => {
         const nombre = normalizarTexto(prod.nombre);
         const unidad = normalizarTexto(prod.unidadMedida || "");
@@ -185,7 +254,24 @@ export default function CrearPresupuestoObraPage() {
         }
         return nombre.includes(busq) || unidad.includes(busq);
       });
-  }, [productos, productosPorCategoria, categoriaId, busquedaDefer, normalizarTexto]);
+
+    return filtrados
+      .map((producto, indice) => ({ producto, indice }))
+      .sort((a, b) => {
+        const seleccionadoA = productosSeleccionadosPorId.has(a.producto.id);
+        const seleccionadoB = productosSeleccionadosPorId.has(b.producto.id);
+        if (seleccionadoA === seleccionadoB) return a.indice - b.indice;
+        return seleccionadoA ? -1 : 1;
+      })
+      .map(({ producto }) => producto);
+  }, [
+    productos,
+    productosPorCategoria,
+    categoriaId,
+    busquedaDefer,
+    normalizarTexto,
+    productosSeleccionadosPorId,
+  ]);
 
   // Paginación derivada
   const totalProductos = productosFiltrados.length;
@@ -199,7 +285,7 @@ export default function CrearPresupuestoObraPage() {
   // Reset al cambiar filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaId, busquedaDefer]);
+  }, [categoriaId, busquedaDefer, bloqueActivo]);
 
   // Acciones de bloques
   const agregarBloque = useCallback(() => {
@@ -207,7 +293,11 @@ export default function CrearPresupuestoObraPage() {
       id: `presupuesto-${Date.now()}`,
       nombre: `Presupuesto ${bloques.length + 1}`,
       items: [],
-      descripcion: ""
+      descripcion: "",
+      aplicarIva: false,
+      ivaPorcentaje: 21,
+      aplicarTransferencia: false,
+      transferenciaPorcentaje: 10,
     };
     setBloques(prev => [...prev, nuevoBloque]);
     setBloqueActivo(bloques.length);
@@ -235,6 +325,14 @@ export default function CrearPresupuestoObraPage() {
       index === bloqueIndex ? { ...bloque, descripcion } : bloque
     ));
   }, []);
+
+  const actualizarConfiguracionBloque = useCallback((campo, valor) => {
+    setBloques((prev) =>
+      prev.map((bloque, index) =>
+        index === bloqueActivo ? { ...bloque, [campo]: valor } : bloque
+      )
+    );
+  }, [bloqueActivo]);
 
   // Acciones selección de productos
   const agregarProducto = useCallback((prod) => {
@@ -275,6 +373,7 @@ export default function CrearPresupuestoObraPage() {
         ? { ...bloque, items: [...bloque.items, nuevo] }
         : bloque
     ));
+    setPaginaActual(1);
   }, [bloques, bloqueActivo]);
 
   const agregarProductoManual = useCallback(() => {
@@ -319,6 +418,28 @@ export default function CrearPresupuestoObraPage() {
     ));
   }, [bloqueActivo]);
 
+  const quitarProductoDesdeCatalogo = useCallback((productoCatalogoId) => {
+    setBloques((prev) =>
+      prev.map((bloque, index) => {
+        if (index !== bloqueActivo) return bloque;
+
+        const indiceProducto = bloque.items.findIndex(
+          (producto) =>
+            (producto.originalId || producto.id) === productoCatalogoId
+        );
+        if (indiceProducto === -1) return bloque;
+
+        return {
+          ...bloque,
+          items: bloque.items.filter(
+            (_, productoIndex) => productoIndex !== indiceProducto
+          ),
+        };
+      })
+    );
+    setPaginaActual(1);
+  }, [bloqueActivo]);
+
   const duplicarProducto = useCallback((producto) => {
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
@@ -355,7 +476,7 @@ export default function CrearPresupuestoObraPage() {
       if (campo === "unidadMedida") {
         actualizado.unidadMedida = valor;
       } else if (campo === "descuento") {
-        actualizado[campo] = Number(valor) || 0;
+        actualizado[campo] = Math.min(100, Math.max(0, Number(valor) || 0));
       } else if (campo === "valorVenta") {
         actualizado[campo] = valor === "" ? "" : Number(valor);
       } else if (campo === "descripcion") {
@@ -400,31 +521,8 @@ export default function CrearPresupuestoObraPage() {
 
   // Cálculos de totales por bloque
   const totalesPorBloque = useMemo(() => {
-    return bloques.map(bloque => {
-      const subtotal = bloque.items.reduce((acc, p) => acc + Number(p.precio || 0), 0);
-      const descuentoTotal = bloque.items.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0);
-      const total = subtotal - descuentoTotal;
-      return { subtotal, descuentoTotal, total };
-    });
+    return bloques.map(calcularTotalesBloque);
   }, [bloques]);
-
-  // IVA y Transferencia (a nivel general)
-  const [aplicarIva, setAplicarIva] = useState(false);
-  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
-  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
-  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
-
-  const subtotalGeneral = totalesPorBloque.reduce((acc, t) => acc + t.subtotal, 0);
-  const descuentoGeneral = totalesPorBloque.reduce((acc, t) => acc + t.descuentoTotal, 0);
-  const totalGeneral = totalesPorBloque.reduce((acc, t) => acc + t.total, 0);
-
-  const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
-  const ivaMonto = aplicarIva ? totalGeneral * (ivaPorcentajeNumerico / 100) : 0;
-  const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
-  const transferenciaMonto = aplicarTransferencia ? totalGeneral * (transferenciaPorcentajeNumerico / 100) : 0;
-  const totalConIvaTransf = totalGeneral + ivaMonto + transferenciaMonto;
-
-  // Totales generales removidos: se trabaja solo por bloque
 
   // Bloque actual
   const bloqueActual = bloques[bloqueActivo];
@@ -432,14 +530,30 @@ export default function CrearPresupuestoObraPage() {
 
   // Guardar
   const [guardando, setGuardando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [errorAccion, setErrorAccion] = useState("");
+
+  const cancelarCreacion = () => {
+    if (guardando || cancelando) return;
+    setErrorAccion("");
+    setCancelando(true);
+    router.push(`/${lang}/obras`);
+  };
+
   const guardarPresupuesto = async () => {
+    if (guardando || cancelando) return;
     const finalClienteId = clienteId || DEFAULT_CLIENTE_ID;
     const clienteSel = clientes.find((c) => c.id === finalClienteId) || null;
-    if (bloques.every(bloque => bloque.items.length === 0)) return;
+    if (bloques.every(bloque => bloque.items.length === 0)) {
+      setErrorAccion("Agregá al menos un producto antes de guardar.");
+      return;
+    }
     
+    setErrorAccion("");
     setGuardando(true);
     try {
       const numeroPedido = await getNextObraPresupuestoNumber();
+      const totalesBloqueUnico = bloques.length === 1 ? totalesPorBloque[0] : null;
       
       const presupuestoData = {
         tipo: "presupuesto",
@@ -466,13 +580,16 @@ export default function CrearPresupuestoObraPage() {
                 nombre: p.nombre,
                 categoria: p.categoria,
                 subCategoria: p.subCategoria,
+                subcategoria: p.subCategoria,
                 unidadMedida: p.unidadMedida,
                 valorVenta: p.valorVenta,
                 alto: altoNum,
+                largo: largoNum,
                 largoNum: largoNum,
                 cantidad: cantNum,
-                descuento: Number(p.descuento) || 0,
+                descuento: Math.min(100, Math.max(0, Number(p.descuento) || 0)),
                 precio: Number(p.precio) || 0,
+                precioIncluyeCantidad: true,
                 descripcion: p.descripcion || "",
                 m2,
                 ml,
@@ -480,23 +597,42 @@ export default function CrearPresupuestoObraPage() {
             }),
             subtotal: totales.subtotal,
             descuentoTotal: totales.descuentoTotal,
+            baseImponible: totales.base,
+            aplicarIva: totales.aplicarIva,
+            aplicaIva: totales.aplicarIva,
+            ivaPorcentaje: totales.ivaPorcentaje,
+            ivaMonto: totales.ivaMonto,
+            aplicarTransferencia: totales.aplicarTransferencia,
+            aplicaTransferencia: totales.aplicarTransferencia,
+            transferenciaPorcentaje: totales.transferenciaPorcentaje,
+            transferenciaMonto: totales.transferenciaMonto,
             total: totales.total,
           };
         }),
-        aplicarIva: aplicarIva,
-        ivaPorcentaje: ivaPorcentajeNumerico,
-        ivaMonto: Math.round(ivaMonto),
-        aplicarTransferencia: aplicarTransferencia,
-        transferenciaPorcentaje: transferenciaPorcentajeNumerico,
-        transferenciaMonto: Math.round(transferenciaMonto),
-        total: Math.round(totalConIvaTransf),
+        totalesPorBloque: true,
+        aplicarIva: totalesBloqueUnico?.aplicarIva || false,
+        aplicaIva: totalesBloqueUnico?.aplicarIva || false,
+        ivaPorcentaje: totalesBloqueUnico?.ivaPorcentaje || 0,
+        ivaMonto: totalesBloqueUnico?.ivaMonto || 0,
+        aplicarTransferencia:
+          totalesBloqueUnico?.aplicarTransferencia || false,
+        aplicaTransferencia:
+          totalesBloqueUnico?.aplicarTransferencia || false,
+        transferenciaPorcentaje:
+          totalesBloqueUnico?.transferenciaPorcentaje || 0,
+        transferenciaMonto: totalesBloqueUnico?.transferenciaMonto || 0,
+        subtotal: totalesBloqueUnico?.subtotal || 0,
+        descuentoTotal: totalesBloqueUnico?.descuentoTotal || 0,
+        total: totalesBloqueUnico?.total || 0,
         fechaCreacion: new Date().toISOString(),
         estado: "Activo",
       };
       
-      await addDoc(collection(db, "obras"), presupuestoData);
-      router.push(`/${lang}/obras`);
-    } finally {
+      const presupuestoCreado = await addDoc(collection(db, "obras"), presupuestoData);
+      router.push(`/${lang}/obras/presupuesto/${presupuestoCreado.id}`);
+    } catch (error) {
+      console.error("Error al guardar el presupuesto de obra:", error);
+      setErrorAccion("No se pudo guardar el presupuesto. Revisá la conexión e intentá nuevamente.");
       setGuardando(false);
     }
   };
@@ -584,6 +720,7 @@ export default function CrearPresupuestoObraPage() {
                             setDropdownClientesOpen(false);
                           }}
                           role="option"
+                          aria-selected={c.id === clienteId}
                           tabIndex={0}
                         >
                           {c.nombre} - {c.telefono || ""}
@@ -598,452 +735,621 @@ export default function CrearPresupuestoObraPage() {
       </Card>
 
       {/* Catálogo */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Filter className="w-5 h-5" /> 
-              Catálogo de productos (obras)
-              {bloqueActual && (
-                <Badge variant="outline" className="ml-2">
-                  {bloqueActual.nombre}
-                </Badge>
-              )}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                onClick={agregarProductoManual}
-              >
-                Agregar ítem manual
-              </Button>
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Filter className="h-5 w-5 text-primary" />
+                Catálogo de productos
+                {bloqueActual && (
+                  <Badge variant="outline" className="ml-1 bg-white">
+                    {bloqueActual.nombre}
+                  </Badge>
+                )}
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elegí los productos que querés agregar al presupuesto.
+              </p>
             </div>
-          </CardTitle>
+            <Button onClick={agregarProductoManual} variant="outline" size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar ítem manual
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
-                {categorias.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`rounded-full px-4 py-1 text-sm mr-2 ${categoriaId === cat ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                    onClick={() => setCategoriaId((prev) => (prev === cat ? "" : cat))}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex flex-1 flex-wrap gap-2">
+              {categorias.map((categoria) => (
+                <button
+                  key={categoria}
+                  type="button"
+                  onClick={() =>
+                    setCategoriaId((actual) =>
+                      actual === categoria ? "" : categoria
+                    )
+                  }
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${categoriaId === categoria
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-primary/40 hover:text-primary"
+                    }`}
+                >
+                  {capitalizarInicial(categoria)}
+                </button>
+              ))}
             </div>
-            <div className="flex-1 relative flex items-center gap-2">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
+            <div className="relative w-full lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
                 placeholder="Buscar productos..."
                 value={busquedaProducto}
-                onChange={(e) => setBusquedaProducto(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                onChange={(event) => setBusquedaProducto(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
+                className="pl-9"
               />
             </div>
           </div>
-          {/* Lista de productos con paginación, estilo ventas */}
-          <div className="max-h-150 overflow-y-auto">
+
+          <div className="min-h-56 rounded-xl border border-slate-200 bg-slate-50/40 p-4">
             {categorias.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No hay categorías disponibles</div>
-            ) : !categoriaId && (!busquedaDefer || busquedaDefer.trim() === "") ? (
-              <div className="p-8 text-center">
-                <h3 className="text-lg font-medium mb-2">Selecciona una categoría</h3>
-                <p className="text-gray-500">Elige una categoría para ver los productos disponibles</p>
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <Icon icon="heroicons:cube-transparent" className="mb-2 h-9 w-9 text-slate-300" />
+                <p className="font-medium text-slate-700">No hay productos disponibles</p>
               </div>
             ) : productosFiltrados.length === 0 ? (
-              <div className="p-8 text-center">
-                <h3 className="text-lg font-medium mb-2">No se encontraron productos</h3>
-                <p className="text-gray-500">Intenta cambiar los filtros o la búsqueda</p>
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <Search className="mb-2 h-8 w-8 text-slate-300" />
+                <p className="font-medium text-slate-700">No encontramos productos</p>
+                <p className="mt-1 text-sm text-slate-500">Probá con otra búsqueda o categoría.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
-                  {isPending && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-                      <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        <span className="text-sm font-medium text-gray-700">Cargando productos...</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {productosPaginados.map((prod) => {
-                    // Contar cuántas veces está agregado este producto
-                    const vecesAgregado = itemsSeleccionados.filter((p) => p.originalId === prod.id || p.id === prod.id).length;
-                    const precio = Number(prod.valorVenta) || 0;
-                    return (
-                      <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${vecesAgregado > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-blue-300"}`}>
-                        <div className="p-4 flex flex-col h-full">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700`}>
-                                  🏗️
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-semibold truncate">{prod.nombre}</h4>
-                                  {prod.subCategoria && (
-                                    <div className="text-xs text-blue-600 mt-1">{prod.subCategoria}</div>
-                                  )}
-                                </div>
-                                {vecesAgregado > 0 && (
-                                  <div className="flex items-center gap-1 text-blue-600">
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                                    <span className="text-xs font-medium">Agregado ({vecesAgregado})</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500">Precio:</span>
-                              <span className="text-sm font-semibold">$ {formatARNumber(precio)}</span>
-                            </div>
-                            {prod.unidadMedida && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Unidad:</span>
-                                <span className="text-xs text-gray-700">{prod.unidadMedida}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-4">
-                            <button
-                              onClick={() => agregarProducto(prod)}
-                              className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
-                            >
-                              {vecesAgregado > 0 ? `Agregar otra (${vecesAgregado + 1})` : "Agregar"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Paginación */}
-                {totalPaginas > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-                    <div className="text-sm text-gray-700 flex items-center gap-2">
-                      {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
-                      <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startTransition(() => setPaginaActual(1))} disabled={paginaActual === 1 || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Primera página">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
-                      </button>
-                      <button onClick={() => startTransition(() => setPaginaActual(Math.max(1, paginaActual - 1)))} disabled={paginaActual === 1 || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Página anterior">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
-                      </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                          let pageNum;
-                          if (totalPaginas <= 5) pageNum = i + 1;
-                          else if (paginaActual <= 3) pageNum = i + 1;
-                          else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                          else pageNum = paginaActual - 2 + i;
-                          return (
-                            <button key={pageNum} onClick={() => startTransition(() => setPaginaActual(pageNum))} disabled={isPending} className={`px-3 py-1 rounded-md text-sm font-medium ${paginaActual === pageNum ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-900"}`}>
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <button onClick={() => startTransition(() => setPaginaActual(Math.min(totalPaginas, paginaActual + 1)))} disabled={paginaActual === totalPaginas || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Página siguiente">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
-                      </button>
-                      <button onClick={() => startTransition(() => setPaginaActual(totalPaginas))} disabled={paginaActual === totalPaginas || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Última página">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
-                      </button>
-                    </div>
+              <div className="relative grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {isPending && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-sm">
+                    <span className="text-sm font-medium text-slate-600">Actualizando catálogo…</span>
                   </div>
                 )}
+                {productosPaginados.map((prod) => {
+                  const vecesAgregado = productosSeleccionadosPorId.get(prod.id) || 0;
+                  const precio = Number(prod.valorVenta) || 0;
+
+                  return (
+                    <div
+                      key={prod.id}
+                      className={`group relative flex h-full flex-col rounded-xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md ${vecesAgregado > 0
+                        ? "border-primary/40 ring-1 ring-primary/10"
+                        : "border-slate-200 hover:border-primary/30"
+                        }`}
+                    >
+                      <div className="flex h-full flex-col p-4">
+                        <div className="mb-3 flex items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm">
+                            🏗️
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4
+                              className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-slate-900"
+                              title={prod.nombre}
+                            >
+                              {capitalizarInicial(prod.nombre, "Producto sin nombre")}
+                            </h4>
+                            {vecesAgregado > 0 && (
+                              <Badge className="mt-1 bg-primary/10 text-[10px] text-primary hover:bg-primary/10">
+                                Agregado {vecesAgregado}×
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-1 items-end justify-between gap-3 border-t border-slate-100 pt-3">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Valor unitario</p>
+                            <p className="mt-1 font-bold tabular-nums text-slate-900">$ {formatARNumber(precio)}</p>
+                          </div>
+                          <Badge variant="outline" className="bg-slate-50 text-[10px] text-slate-600">
+                            {String(prod.unidadMedida || "UN").toUpperCase()}
+                          </Badge>
+                        </div>
+                        <div className={`mt-3 grid gap-2 ${vecesAgregado > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+                          {vecesAgregado > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => quitarProductoDesdeCatalogo(prod.id)}
+                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              aria-label={`Quitar ${prod.nombre || "producto"} del bloque`}
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              {vecesAgregado > 1 ? "Quitar uno" : "Quitar"}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            onClick={() => agregarProducto(prod)}
+                            size="sm"
+                            className="w-full"
+                          >
+                            {vecesAgregado > 0 ? "Agregar otro" : "Agregar"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
+
+          {productosFiltrados.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                Mostrando {(paginaActual - 1) * productosPorPagina + 1}–{Math.min(paginaActual * productosPorPagina, totalProductos)} de {totalProductos}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === 1 || isPending}
+                  onClick={() => startTransition(() => setPaginaActual(1))}
+                >
+                  «
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === 1 || isPending}
+                  onClick={() => startTransition(() => setPaginaActual((pagina) => Math.max(1, pagina - 1)))}
+                >
+                  Anterior
+                </Button>
+                <span className="min-w-20 px-2 text-center text-sm font-medium text-slate-600">
+                  {paginaActual} / {totalPaginas}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === totalPaginas || isPending}
+                  onClick={() => startTransition(() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1)))}
+                >
+                  Siguiente
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paginaActual === totalPaginas || isPending}
+                  onClick={() => startTransition(() => setPaginaActual(totalPaginas))}
+                >
+                  »
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Gestión de Bloques */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Presupuestos
-            </span>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={agregarBloque}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Agregar Presupuesto
-              </Button>
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Icon icon="heroicons:squares-2x2" className="h-5 w-5 text-primary" />
+                Resumen del presupuesto
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Creá y organizá las opciones de este presupuesto.
+              </p>
             </div>
-          </CardTitle>
+            <Button onClick={agregarBloque} size="sm" className="shrink-0">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo bloque
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          {/* Tabs de bloques */}
-          <div className="flex flex-wrap gap-2 mb-4">
+        <CardContent className="space-y-5 p-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {bloques.map((bloque, index) => (
               <div
                 key={bloque.id}
-                className={`relative group flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-                  bloqueActivo === index
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-200 hover:border-gray-300 bg-white"
-                }`}
+                role="button"
+                tabIndex={0}
+                className={`group rounded-xl border p-3 transition-all ${index === bloqueActivo
+                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                  : "border-slate-200 bg-white hover:border-primary/40 hover:shadow-sm"
+                  }`}
                 onClick={() => setBloqueActivo(index)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setBloqueActivo(index);
+                  }
+                }}
               >
-                <span className="font-medium">
-                  {editandoNombreBloque === index ? (
+                {editandoNombreBloque === index ? (
+                  <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
                     <Input
                       value={nuevoNombreBloque}
-                      onChange={(e) => setNuevoNombreBloque(e.target.value)}
-                      onBlur={() => {
-                        if (nuevoNombreBloque.trim()) {
-                          actualizarNombreBloque(index, nuevoNombreBloque.trim());
+                      onChange={(event) => setNuevoNombreBloque(event.target.value)}
+                      className="h-9 flex-1"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          actualizarNombreBloque(index, nuevoNombreBloque);
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
                         }
+                        if (event.key === "Escape") {
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => {
+                        actualizarNombreBloque(index, nuevoNombreBloque);
                         setEditandoNombreBloque(null);
                         setNuevoNombreBloque("");
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (nuevoNombreBloque.trim()) {
-                            actualizarNombreBloque(index, nuevoNombreBloque.trim());
-                          }
-                          setEditandoNombreBloque(null);
-                          setNuevoNombreBloque("");
-                        }
-                        if (e.key === "Escape") {
-                          setEditandoNombreBloque(null);
-                          setNuevoNombreBloque("");
-                        }
-                      }}
-                      className="h-6 text-sm font-medium"
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      onDoubleClick={() => {
-                        setEditandoNombreBloque(index);
-                        setNuevoNombreBloque(bloque.nombre);
-                      }}
                     >
-                      {bloque.nombre}
-                    </span>
-                  )}
-                </span>
-                
-                {/* Totales del bloque */}
-                <div className="text-xs text-gray-500">
-                  ${formatARNumber(totalesPorBloque[index]?.total || 0)}
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {bloques.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        eliminarBloque(index);
-                      }}
-                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      title="Eliminar bloque"
-                    >
-                      <Trash2 className="w-3 h-3" />
+                      <Check className="h-3 w-3" />
                     </Button>
-                  )}
-                </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-9 p-0"
+                      onClick={() => {
+                        setEditandoNombreBloque(null);
+                        setNuevoNombreBloque("");
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${index === bloqueActivo ? "bg-primary text-primary-foreground" : "bg-slate-100 text-slate-600"}`}>
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">{bloque.nombre}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {bloque.items.length} {bloque.items.length === 1 ? "producto" : "productos"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-slate-500"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditandoNombreBloque(index);
+                              setNuevoNombreBloque(bloque.nombre);
+                            }}
+                            title="Renombrar bloque"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          {bloques.length > 1 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                eliminarBloque(index);
+                              }}
+                              title="Eliminar bloque"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="bg-white text-[10px]">
+                          {bloque.aplicarIva ? `IVA ${normalizarPorcentaje(bloque.ivaPorcentaje, 21)}%` : "Sin IVA"}
+                        </Badge>
+                        <Badge variant="outline" className="bg-white text-[10px]">
+                          {bloque.aplicarTransferencia ? `Transferencia ${normalizarPorcentaje(bloque.transferenciaPorcentaje, 10)}%` : "Sin transferencia"}
+                        </Badge>
+                      </div>
+                      <p className="mt-3 text-base font-bold tabular-nums text-emerald-600">
+                        $ {formatARNumber(totalesPorBloque[index]?.total || 0)}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
+          {bloqueActual && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bloque activo</p>
+                  <h3 className="mt-1 text-lg font-semibold text-slate-900">{bloqueActual.nombre}</h3>
+                </div>
+                <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:max-w-2xl">
+                  <div className={`rounded-lg border p-3 ${bloqueActual.aplicarIva ? "border-amber-200 bg-amber-50/60" : "border-slate-200"}`}>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Aplicar IVA</span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(bloqueActual.aplicarIva)}
+                        onChange={(event) => actualizarConfiguracionBloque("aplicarIva", event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </label>
+                    <div className="mt-2 flex items-center justify-self-end gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={bloqueActual.ivaPorcentaje ?? 21}
+                        onChange={(event) => actualizarConfiguracionBloque("ivaPorcentaje", event.target.value)}
+                        disabled={!bloqueActual.aplicarIva}
+                        className="h-8 text-right"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border p-3 ${bloqueActual.aplicarTransferencia ? "border-blue-200 bg-blue-50/60" : "border-slate-200"}`}>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Transferencia</span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(bloqueActual.aplicarTransferencia)}
+                        onChange={(event) => actualizarConfiguracionBloque("aplicarTransferencia", event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                    </label>
+                    <div className="mt-2 flex items-center justify-self-end gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={bloqueActual.transferenciaPorcentaje ?? 10}
+                        onChange={(event) => actualizarConfiguracionBloque("transferenciaPorcentaje", event.target.value)}
+                        disabled={!bloqueActual.aplicarTransferencia}
+                        className="h-8 text-right"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-3 lg:grid-cols-5">
+                {[
+                  ["Subtotal", totalesPorBloque[bloqueActivo]?.subtotal, "text-slate-900"],
+                  ["Descuentos", totalesPorBloque[bloqueActivo]?.descuentoTotal, "text-amber-600"],
+                  [`IVA ${totalesPorBloque[bloqueActivo]?.aplicarIva ? `(${totalesPorBloque[bloqueActivo]?.ivaPorcentaje}%)` : ""}`, totalesPorBloque[bloqueActivo]?.ivaMonto, "text-amber-600"],
+                  [`Transferencia ${totalesPorBloque[bloqueActivo]?.aplicarTransferencia ? `(${totalesPorBloque[bloqueActivo]?.transferenciaPorcentaje}%)` : ""}`, totalesPorBloque[bloqueActivo]?.transferenciaMonto, "text-blue-600"],
+                  ["Total del bloque", totalesPorBloque[bloqueActivo]?.total, "text-emerald-600"],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="bg-white px-3 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                    <p className={`mt-1 text-sm font-bold tabular-nums ${color}`}>$ {formatARNumber(value || 0)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Seleccionados */}
       {itemsSeleccionados.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span>Productos seleccionados</span>
-                <Badge variant="outline" className="text-blue-600">
-                  {bloqueActual?.nombre}
-                </Badge>
-                <span className="text-sm text-gray-500">
-                  ({itemsSeleccionados.length} producto{itemsSeleccionados.length !== 1 ? 's' : ''})
-                </span>
-                <div className="flex items-center gap-1 text-xs text-gray-400" title="Puedes agregar el mismo producto múltiples veces con diferentes cantidades o medidas">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
-                  </svg>
-                  <span>Duplicados permitidos</span>
-                </div>
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Icon icon="heroicons:clipboard-document-list" className="h-5 w-5 text-primary" />
+                  Productos del bloque
+                  <Badge variant="outline" className="bg-white">{bloqueActual?.nombre}</Badge>
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Revisá y ajustá los productos agregados.
+                </p>
               </div>
-            </CardTitle>
+              <div className="text-left sm:text-right">
+                <p className="text-xs text-slate-500">{itemsSeleccionados.length} {itemsSeleccionados.length === 1 ? "producto" : "productos"}</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-600">
+                  $ {formatARNumber(totalesPorBloque[bloqueActivo]?.total || 0)}
+                </p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="p-2 text-left">Producto</th>
-                  <th className="p-2 text-center">Cant.</th>
-                  <th className="p-2 text-center">Unidad</th>
-                  <th className="p-2 text-center">Ancho</th>
-                  <th className="p-2 text-center">Largo</th>
-                  <th className="p-2 text-right">
-                    <div className="flex flex-col items-end">
-                      <span>Valor Unit.</span>
-                      {/* <span className="text-xs text-gray-500 font-normal">(Editable)</span> */}
-                    </div>
-                  </th>
-                  <th className="p-2 text-center">Desc. %</th>
-                  <th className="p-2 text-right">Subtotal</th>
-                  <th className="p-2 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemsSeleccionados.map((p) => {
-                  const sub = Number(p.precio || 0) * (1 - Number(p.descuento || 0) / 100);
-                  const u = String(p.unidadMedida || "UN").toUpperCase();
-                  const requiereAlto = u === "M2"; // Para m2 pedimos alto y largo. Para ml solo largo.
-                  const requiereLargo = u === "M2" || u === "ML";
-                  return (
-                    <React.Fragment key={p.id}>
-                      <tr className="border-b">
-                        <td className="p-2">
-                          <div className="font-medium">
-                            {p._esManual ? (
-                              <Input value={p.nombre} onChange={(e) => actualizarNombreManual(p.id, e.target.value)} className="h-8" />
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span>{p.nombre}</span>
-                                {itemsSeleccionados.filter(item => (item.originalId || item.id) === (p.originalId || p.id)).length > 1 && (
-                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
-                                    Duplicado
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          {/* <div className="text-xs text-gray-500">{p.categoria}</div> */}
-                        </td>
-                        <td className="p-2 text-center">
-                          <Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampo(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" />
-                        </td>
-                        <td className="p-2 text-center">
-                          {p._esManual ? (
-                            <Select value={u} onValueChange={(v) => actualizarCampo(p.id, "unidadMedida", v)}>
-                              <SelectTrigger className="w-24 mx-auto h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="UN">UN</SelectItem>
-                                <SelectItem value="M2">M2</SelectItem>
-                                <SelectItem value="ML">ML</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Badge variant="outline">{u}</Badge>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {requiereAlto ? (
-                            <Input type="number" min={0} step="0.01" value={p.alto} onChange={(e) => actualizarCampo(p.id, "alto", e.target.value)} className="w-24 mx-auto" />
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {requiereLargo ? (
-                            <Input type="number" min={0} step="0.01" value={p.largo} onChange={(e) => actualizarCampo(p.id, "largo", e.target.value)} className="w-24 mx-auto" />
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-right">
-                          <div className="relative w-28 ml-auto">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
-                            <Input 
-                              type="number" 
-                              min={0} 
-                              step="0.01" 
-                              value={p.valorVenta} 
-                              onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)} 
-                              className="pl-5 pr-2 h-8 text-right" 
-                              title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
-                            />
-                          </div>
-                          {/* <div className="text-xs text-gray-500 mt-1 text-center">
-                            {p.unidadMedida === "M2" && `(${p.alto || 0} × ${p.largo || 0} × ${p.cantidad || 1})`}
-                            {p.unidadMedida === "ML" && `(${p.largo || 0} × ${p.cantidad || 1})`}
-                            {p.unidadMedida === "UN" && `(${p.cantidad || 1})`}
-                          </div> */}
-                        </td>
-                        <td className="p-2 text-center">
-                          <Input type="number" min={0} max={100} value={p.descuento} onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)} className="w-20 mx-auto" />
-                        </td>
-                        <td className="p-2 text-right font-semibold">$ {formatARNumber(sub)}</td>
-                        <td className="p-2 text-center">
-                          <div className="flex items-center gap-1 justify-center">
-                            <Button 
-                              variant="outline" 
-                              onClick={() => duplicarProducto(p)} 
-                              size="sm"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              title="Duplicar producto"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              onClick={() => quitarProducto(p.id)} 
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                      {/* Fila adicional para descripción del producto */}
-                      <tr className="border-b bg-gray-50">
-                        <td colSpan={9} className="p-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
-                            <Textarea
-                              placeholder="Escribe una descripción específica para este producto..."
-                              value={p.descripcion || ""}
-                              onChange={(e) => actualizarCampo(p.id, "descripcion", e.target.value)}
-                              className="flex-1 min-h-[60px] resize-none"
-                              rows={2}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1100px] w-full text-sm">
+                <thead className="bg-slate-800">
+                  <tr className="border-b border-slate-700">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">Producto</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Cant.</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Unidad</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Alto</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Largo</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Medida</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-100">Precio unitario</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Desc. %</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-100">Total línea</th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-100">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemsSeleccionados.map((p) => {
+                    const medida = detalleMedidaProducto(p);
+                    const u = medida.unidad;
+                    const descuento = Math.min(100, Math.max(0, Number(p.descuento) || 0));
+                    const sub = (Number(p.precio) || 0) * (1 - descuento / 100);
+                    const requiereAlto = u === "M2";
+                    const requiereLargo = u === "M2" || u === "ML";
 
+                    return (
+                      <React.Fragment key={p.id}>
+                        <tr className="border-b border-slate-100 bg-white hover:bg-slate-50/60">
+                          <td className="px-4 py-3">
+                            <div className="font-medium">
+                              {p._esManual ? (
+                                <Input
+                                  value={p.nombre}
+                                  onChange={(event) => actualizarNombreManual(p.id, event.target.value)}
+                                  className="h-8"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span>{capitalizarInicial(p.nombre, "Producto sin nombre")}</span>
+                                  {itemsSeleccionados.filter((item) => (item.originalId || item.id) === (p.originalId || p.id)).length > 1 && (
+                                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-xs text-blue-600">
+                                      Duplicado
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={p.cantidad}
+                              onChange={(event) => actualizarCampo(p.id, "cantidad", event.target.value)}
+                              className="mx-auto h-9 w-20 text-center"
+                            />
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {p._esManual ? (
+                              <Select value={u} onValueChange={(value) => actualizarCampo(p.id, "unidadMedida", value)}>
+                                <SelectTrigger className="mx-auto h-8 w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="UN">UN</SelectItem>
+                                  <SelectItem value="M2">M2</SelectItem>
+                                  <SelectItem value="ML">ML</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge variant="outline">{u}</Badge>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {requiereAlto ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={p.alto}
+                                onChange={(event) => actualizarCampo(p.id, "alto", event.target.value)}
+                                className="mx-auto h-9 w-24 text-center"
+                              />
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {requiereLargo ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={p.largo ?? p.largoNum ?? ""}
+                                onChange={(event) => actualizarCampo(p.id, "largo", event.target.value)}
+                                className="mx-auto h-9 w-24 text-center"
+                              />
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            <div className="relative ml-auto w-32">
+                              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={p.valorVenta ?? ""}
+                                onChange={(event) => actualizarCampo(p.id, "valorVenta", event.target.value)}
+                                className="h-9 pl-6 pr-2 text-right font-medium tabular-nums"
+                                aria-label={`Precio unitario de ${p.nombre || "producto"}`}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={p.descuento}
+                              onChange={(event) => actualizarCampo(p.id, "descuento", event.target.value)}
+                              className="mx-auto h-9 w-20 text-center"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold tabular-nums text-slate-900">
+                            $ {formatARNumber(Math.round(sub))}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="outline"
+                                onClick={() => duplicarProducto(p)}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                title="Duplicar producto"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => quitarProducto(p.id)}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                title="Quitar producto"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className="border-b border-slate-100 bg-slate-50/60">
+                          <td colSpan={10} className="px-4 py-3">
+                            <div className="flex items-start gap-3">
+                              <span className="w-20 shrink-0 pt-2 text-xs font-semibold text-slate-500">Descripción</span>
+                              <Textarea
+                                placeholder="Escribe una descripción específica para este producto..."
+                                value={p.descripcion || ""}
+                                onChange={(event) => actualizarCampo(p.id, "descripcion", event.target.value)}
+                                className="min-h-10 flex-1 resize-y bg-white"
+                                rows={1}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1069,142 +1375,45 @@ export default function CrearPresupuestoObraPage() {
         </Card>
       )}
 
-      {/* Resumen Visual de Bloques */}
-      {bloques.some(bloque => bloque.items.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Resumen del Presupuesto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {bloques.map((bloque, index) => {
-                if (bloque.items.length === 0) return null;
-                const totales = totalesPorBloque[index];
-                return (
-                  <div key={bloque.id} className={`p-4 rounded-lg border-2 transition-all ${
-                    bloqueActivo === index
-                      ? "border-blue-200 bg-blue-50"
-                      : "border-gray-200 bg-white"
-                  }`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{bloque.nombre}</h3>
-                      <Badge variant="outline" className="text-xs">
-                        {bloque.items.length} productos
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Productos:</span>
-                        <span className="font-medium">{bloque.items.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium">${formatARNumber(totales.subtotal)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Descuento:</span>
-                        <span className="font-medium text-orange-600">${formatARNumber(totales.descuentoTotal)}</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-gray-600 font-semibold">Total:</span>
-                        <span className="font-bold text-green-600">${formatARNumber(totales.total)}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Totales generales y descripción general removidos: solo totales/descripcion por bloque */}
-
       {/* Acciones */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push(`/${lang}/obras`)}>
-          Cancelar
-        </Button>
-        <Button onClick={guardarPresupuesto} disabled={guardando || bloques.every(bloque => bloque.items.length === 0)}>
-          {guardando ? "Guardando..." : "Guardar Presupuesto"}
-        </Button>
-      </div>
-
-      {/* IVA y Transferencia */}
-      <div className="flex flex-wrap items-center justify-end gap-3 w-full">
-        <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
-          <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={aplicarIva}
-              onChange={(e) => setAplicarIva(e.target.checked)}
-              disabled={guardando}
-              className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-            />
-            Aplicar IVA
-          </label>
-          <div className="flex items-center gap-1.5 text-sm">
-            <label htmlFor="ivaPorcentajeObraPres" className="text-xs text-muted-foreground">
-              Porcentaje:
-            </label>
-            <div className="relative w-20">
-              <input
-                id="ivaPorcentajeObraPres"
-                type="number"
-                min="0"
-                step="0.01"
-                value={ivaPorcentaje}
-                onChange={(e) => setIvaPorcentaje(e.target.value)}
-                disabled={guardando || !aplicarIva}
-                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
-          <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={aplicarTransferencia}
-              onChange={(e) => setAplicarTransferencia(e.target.checked)}
-              disabled={guardando}
-              className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-            />
-            Pago con Transferencia
-          </label>
-          <div className="flex items-center gap-1.5 text-sm">
-            <label htmlFor="transferenciaPorcentajeObraPres" className="text-xs text-muted-foreground">
-              Porcentaje:
-            </label>
-            <div className="relative w-20">
-              <input
-                id="transferenciaPorcentajeObraPres"
-                type="number"
-                min="0"
-                step="0.01"
-                value={transferenciaPorcentaje}
-                onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
-                disabled={guardando || !aplicarTransferencia}
-                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-2">
-        <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-          <div>Subtotal: <span className="font-bold">${formatARNumber(totalGeneral)}</span></div>
-          {aplicarIva && ivaMonto > 0 && (
-            <div>IVA ({ivaPorcentajeNumerico}%): <span className="font-bold">${formatARNumber(ivaMonto)}</span></div>
+      <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-h-5 text-sm">
+          {errorAccion ? (
+            <p className="font-medium text-red-600" role="alert">{errorAccion}</p>
+          ) : bloques.every((bloque) => bloque.items.length === 0) ? (
+            <p className="text-slate-500">Agregá al menos un producto para guardar.</p>
+          ) : (
+            <p className="text-slate-500">Al guardar, vas a ver el detalle del presupuesto.</p>
           )}
-          {aplicarTransferencia && transferenciaMonto > 0 && (
-            <div>Transferencia ({transferenciaPorcentajeNumerico}%): <span className="font-bold">${formatARNumber(transferenciaMonto)}</span></div>
-          )}
-          <div>Total: <span className="font-bold text-green-600">${formatARNumber(totalConIvaTransf)}</span></div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={cancelarCreacion}
+            disabled={guardando || cancelando}
+            className="min-w-28"
+          >
+            {cancelando ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <X className="mr-2 h-4 w-4" />
+            )}
+            {cancelando ? "Cancelando…" : "Cancelar"}
+          </Button>
+          <Button
+            type="button"
+            onClick={guardarPresupuesto}
+            disabled={guardando || cancelando || bloques.every((bloque) => bloque.items.length === 0)}
+            className="min-w-48"
+          >
+            {guardando ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {guardando ? "Guardando presupuesto…" : "Guardar presupuesto"}
+          </Button>
         </div>
       </div>
 

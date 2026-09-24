@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
- 
+
 import { Printer, Edit, User, MapPin, Calendar, ChevronUp, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
@@ -31,12 +31,20 @@ import ObraHeader from "@/components/obras/ObraHeader";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
- 
+
 import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
+
+const capitalizarInicial = (value, fallback = "") => {
+  const texto = String(value || fallback).trim();
+  return texto.replace(
+    /^[a-záéíóúüñ]/i,
+    (letra) => letra.toLocaleUpperCase("es-AR")
+  );
+};
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -58,6 +66,7 @@ const ObraDetallePage = () => {
   const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
   const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
   const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   const {
     obra,
@@ -73,8 +82,10 @@ const ObraDetallePage = () => {
     productosPorCategoria,
     categorias,
     itemsCatalogo,
+    itemsPresupuesto,
     gastoObraManual,
     modoCosto,
+    presupuestoBloqueSeleccionadoId,
     setEditando,
     setDocLinks,
     setMovimientos,
@@ -85,6 +96,8 @@ const ObraDetallePage = () => {
     cliente,
     setItemsCatalogo,
     guardarEdicion,
+    cambiarBloquePresupuesto,
+    cancelarEdicion,
   } = useObra(id);
 
   // Cuando cambia la obra, inicializar estados de pago/comprobantes con los datos existentes
@@ -152,12 +165,12 @@ const ObraDetallePage = () => {
             try {
               iframe.contentWindow?.focus();
               iframe.contentWindow?.print();
-            } catch {}
+            } catch { }
             printingRef.current = false;
             setTimeout(() => {
               try {
                 if (iframe.parentNode) document.body.removeChild(iframe);
-              } catch {}
+              } catch { }
             }, 2000);
           };
 
@@ -181,17 +194,67 @@ const ObraDetallePage = () => {
 
   const handleToggleEdit = async () => {
     if (editando) {
+      setGuardandoEdicion(true);
       try {
-        await guardarEdicion();
-        // Guardar también la sección de pago/comprobantes cuando se finaliza la edición
-        await handleGuardarDocPago();
+        await guardarEdicion({
+          pagoEnDolares,
+          valorOficialDolar,
+          comprobantesPago,
+          notasObra,
+          aplicarIva,
+          ivaPorcentaje,
+          aplicarTransferencia,
+          transferenciaPorcentaje,
+        });
       } catch (err) {
         console.error("Error al guardar edición completa:", err);
         alert("Error al guardar cambios de la obra y documentación: " + err.message);
+      } finally {
+        setGuardandoEdicion(false);
       }
     } else {
       setEditando(true);
     }
+  };
+
+  const handleCancelarEdicion = () => {
+    if (guardandoEdicion) return;
+    setPagoEnDolares(!!obra?.pagoEnDolares);
+    setValorOficialDolar(obra?.valorOficialDolar ?? null);
+    setComprobantesPago(
+      Array.isArray(obra?.comprobantesPago) ? obra.comprobantesPago : []
+    );
+    setNotasObra(
+      Array.isArray(obra?.notasObra)
+        ? obra.notasObra
+        : Array.isArray(obra?.notas)
+          ? obra.notas
+          : []
+    );
+    setAplicarIva(obra?.aplicarIva === true || obra?.aplicaIva === true);
+    setIvaPorcentaje(
+      obra?.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21"
+    );
+    setAplicarTransferencia(
+      obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true
+    );
+    setTransferenciaPorcentaje(
+      obra?.transferenciaPorcentaje != null
+        ? String(obra.transferenciaPorcentaje)
+        : "10"
+    );
+    cancelarEdicion();
+  };
+
+  const handleSeleccionarBloque = (bloqueId) => {
+    const seleccion = cambiarBloquePresupuesto(bloqueId);
+    if (!seleccion) return;
+    setAplicarIva(seleccion.aplicarIva);
+    setIvaPorcentaje(String(seleccion.ivaPorcentaje || 0));
+    setAplicarTransferencia(seleccion.aplicarTransferencia);
+    setTransferenciaPorcentaje(
+      String(seleccion.transferenciaPorcentaje || 0)
+    );
   };
 
   // Handler para cuando se selecciona un cliente (existente o nuevo)
@@ -200,7 +263,7 @@ const ObraDetallePage = () => {
       console.error("No se puede actualizar: obra no disponible");
       return;
     }
-    
+
     try {
       // Actualizar la obra en Firestore
       await updateDoc(doc(db, "obras", obra.id), {
@@ -608,22 +671,22 @@ const ObraDetallePage = () => {
         setFechasEdit((prev) => ({ ...prev, inicio: hoy }));
         // Si no estamos editando, guardar directamente
         if (!editando) {
-            try {
-                await updateDoc(doc(db, "obras", obra.id), {
-                    estado: nuevoEstado,
-                    "fechas.inicio": hoy,
-                    fechaModificacion: new Date().toISOString()
-                });
-                setEstadoObra(nuevoEstado);
-                // Actualizar localmente la fecha de inicio en el objeto obra para reflejar el cambio
-                if(obra && obra.fechas) {
-                    obra.fechas.inicio = hoy;
-                }
-            } catch (error) {
-                console.error("Error al actualizar estado y fecha:", error);
-                alert("Error al actualizar el estado de la obra");
+          try {
+            await updateDoc(doc(db, "obras", obra.id), {
+              estado: nuevoEstado,
+              "fechas.inicio": hoy,
+              fechaModificacion: new Date().toISOString()
+            });
+            setEstadoObra(nuevoEstado);
+            // Actualizar localmente la fecha de inicio en el objeto obra para reflejar el cambio
+            if (obra && obra.fechas) {
+              obra.fechas.inicio = hoy;
             }
-            return;
+          } catch (error) {
+            console.error("Error al actualizar estado y fecha:", error);
+            alert("Error al actualizar el estado de la obra");
+          }
+          return;
         }
       }
     }
@@ -682,7 +745,9 @@ const ObraDetallePage = () => {
     ? presupuesto.bloques
     : [];
 
-  const bloqueSeleccionado = presupuestoBloques.find((bloque) => {
+  // En edición la selección local del hook es la fuente de verdad.
+  // Fuera de edición se usa el bloque persistido en la obra.
+  const bloquePersistido = presupuestoBloques.find((bloque) => {
     if (
       obra?.presupuestoInicialBloqueId &&
       String(bloque?.id) === String(obra.presupuestoInicialBloqueId)
@@ -692,15 +757,29 @@ const ObraDetallePage = () => {
     if (
       obra?.presupuestoInicialBloqueNombre &&
       String(bloque?.nombre || "").trim().toLowerCase() ===
-        String(obra.presupuestoInicialBloqueNombre).trim().toLowerCase()
+      String(obra.presupuestoInicialBloqueNombre).trim().toLowerCase()
     ) {
       return true;
     }
     return false;
   });
 
-  const bloquePreview =
-    bloqueSeleccionado || (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null);
+  const bloqueSeleccionadoEdicion = presupuestoBloques.find(
+    (bloque) =>
+      presupuestoBloqueSeleccionadoId != null &&
+      String(bloque?.id) === String(presupuestoBloqueSeleccionadoId)
+  );
+
+  const bloquePreview = editando
+    ? (bloqueSeleccionadoEdicion || bloquePersistido ||
+        (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null))
+    : (bloquePersistido ||
+        (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null));
+
+  const bloquePreviewId = bloquePreview?.id != null ? String(bloquePreview.id) : "";
+  const bloquePersistidoId = bloquePersistido?.id != null ? String(bloquePersistido.id) : "";
+  const bloqueCambioPendiente =
+    editando && bloquePreviewId && bloquePreviewId !== bloquePersistidoId;
 
   const productosPreview = bloquePreview
     ? (Array.isArray(bloquePreview.productos) ? bloquePreview.productos : [])
@@ -806,95 +885,95 @@ const ObraDetallePage = () => {
               <section className="rounded-xl border border-border/60 p-4">
                 <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seguimiento</div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {/* Estado */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado de la obra</label>
-                  {editando ? (
-                    <Select
-                      value={estadoObra}
-                      onValueChange={handleEstadoChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendiente_inicio">Pendiente Inicio</SelectItem>
-                        <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
-                        <SelectItem value="pausada">Pausada</SelectItem>
-                        <SelectItem value="completada">Completada</SelectItem>
-                        <SelectItem value="cancelada">Cancelada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge
-                      className={
-                        estadoObra === "pendiente_inicio"
-                          ? "bg-yellow-100 text-yellow-800"
+                  {/* Estado */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado de la obra</label>
+                    {editando ? (
+                      <Select
+                        value={estadoObra}
+                        onValueChange={handleEstadoChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente_inicio">Pendiente Inicio</SelectItem>
+                          <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
+                          <SelectItem value="pausada">Pausada</SelectItem>
+                          <SelectItem value="completada">Completada</SelectItem>
+                          <SelectItem value="cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge
+                        className={
+                          estadoObra === "pendiente_inicio"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : estadoObra === "en_ejecucion"
+                              ? "bg-blue-100 text-blue-800"
+                              : estadoObra === "pausada"
+                                ? "bg-gray-100 text-gray-800"
+                                : estadoObra === "completada"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                        }
+                      >
+                        {estadoObra === "pendiente_inicio"
+                          ? "Pendiente Inicio"
                           : estadoObra === "en_ejecucion"
-                          ? "bg-blue-100 text-blue-800"
-                          : estadoObra === "pausada"
-                          ? "bg-gray-100 text-gray-800"
-                          : estadoObra === "completada"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }
-                    >
-                      {estadoObra === "pendiente_inicio"
-                        ? "Pendiente Inicio"
-                        : estadoObra === "en_ejecucion"
-                        ? "En Ejecución"
-                        : estadoObra === "pausada"
-                        ? "Pausada"
-                        : estadoObra === "completada"
-                        ? "Completada"
-                        : "Cancelada"}
-                    </Badge>
-                  )}
-                </div>
+                            ? "En Ejecución"
+                            : estadoObra === "pausada"
+                              ? "Pausada"
+                              : estadoObra === "completada"
+                                ? "Completada"
+                                : "Cancelada"}
+                      </Badge>
+                    )}
+                  </div>
 
-                {/* Fecha Inicio */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Fecha Inicio
-                  </label>
-                  {editando ? (
-                    <DateInput
-                      value={fechasEdit?.inicio || ""}
-                      onChange={(v) => setFechasEdit({ ...fechasEdit, inicio: v })}
-                      buttonClassName="w-full justify-start"
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-900">
-                      {fechasEdit?.inicio || obra?.fechas?.inicio
-                        ? formatearFecha(fechasEdit?.inicio || obra.fechas.inicio)
-                        : "No especificada"}
-                    </p>
-                  )}
-                </div>
+                  {/* Fecha Inicio */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Fecha Inicio
+                    </label>
+                    {editando ? (
+                      <DateInput
+                        value={fechasEdit?.inicio || ""}
+                        onChange={(v) => setFechasEdit({ ...fechasEdit, inicio: v })}
+                        buttonClassName="w-full justify-start"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">
+                        {fechasEdit?.inicio || obra?.fechas?.inicio
+                          ? formatearFecha(fechasEdit?.inicio || obra.fechas.inicio)
+                          : "No especificada"}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Fecha Fin (opcional) */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Fecha fin <span className="font-normal normal-case tracking-normal">(opcional)</span>
-                  </label>
-                  {editando ? (
-                    <DateInput
-                      value={fechasEdit?.fin || ""}
-                      min={fechasEdit?.inicio || obra?.fechas?.inicio || undefined}
-                      onChange={(v) =>
-                        setFechasEdit({ ...fechasEdit, fin: v || null })
-                      }
-                      buttonClassName="w-full justify-start"
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-900">
-                      {fechasEdit?.fin || obra?.fechas?.fin
-                        ? formatearFecha(fechasEdit?.fin || obra.fechas.fin)
-                        : "No especificada"}
-                    </p>
-                  )}
-                </div>
+                  {/* Fecha Fin (opcional) */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Fecha fin <span className="font-normal normal-case tracking-normal">(opcional)</span>
+                    </label>
+                    {editando ? (
+                      <DateInput
+                        value={fechasEdit?.fin || ""}
+                        min={fechasEdit?.inicio || obra?.fechas?.inicio || undefined}
+                        onChange={(v) =>
+                          setFechasEdit({ ...fechasEdit, fin: v || null })
+                        }
+                        buttonClassName="w-full justify-start"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">
+                        {fechasEdit?.fin || obra?.fechas?.fin
+                          ? formatearFecha(fechasEdit?.fin || obra.fechas.fin)
+                          : "No especificada"}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </section>
             </CardContent>
@@ -907,9 +986,16 @@ const ObraDetallePage = () => {
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
             totalObra={(() => {
-              const fuente = modoCosto === "presupuesto" && presupuesto ? presupuesto : obra;
+              // Si la obra usa presupuesto, cobranza debe seguir el bloque actualmente
+              // aplicado/seleccionado y no el total global del presupuesto.
+              const fuente =
+                modoCosto === "presupuesto" && presupuesto
+                  ? (bloquePreview || presupuesto)
+                  : obra;
               const totalNum = Number(fuente?.total);
-              return Number.isFinite(totalNum) && totalNum > 0 ? Math.round(totalNum) : 0;
+              return Number.isFinite(totalNum) && totalNum > 0
+                ? Math.round(totalNum)
+                : 0;
             })()}
             totalAbonado={movimientos.reduce(
               (acc, m) =>
@@ -929,17 +1015,57 @@ const ObraDetallePage = () => {
             {presupuesto && (
               <div className="space-y-4">
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-gray-900">
-                        {bloquePreview?.nombre || obra?.presupuestoInicialBloqueNombre || "Bloque del presupuesto"}
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-gray-900">
+                          {bloquePreview?.nombre || obra?.presupuestoInicialBloqueNombre || "Bloque del presupuesto"}
+                        </p>
+                        {bloqueCambioPendiente && (
+                          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                            Cambio sin guardar
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {productosPreview.length} productos
+                        {presupuesto?.numeroPedido ? ` · Vinculado a ${presupuesto.numeroPedido}` : ""}
                       </p>
-                      <p className="text-sm text-gray-600">{productosPreview.length} productos</p>
-                      {presupuesto?.numeroPedido && (
-                        <p className="text-xs text-gray-500">Vinculado a {presupuesto.numeroPedido}</p>
-                      )}
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      {editando && presupuestoBloques.length > 0 && (
+                        <div className="min-w-[280px]">
+                          <Select
+                            value={bloquePreviewId}
+                            onValueChange={handleSeleccionarBloque}
+                            disabled={guardandoEdicion}
+                          >
+                            <SelectTrigger className="h-9 bg-white">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/60" aria-hidden="true" />
+                                <SelectValue placeholder="Seleccionar bloque" />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {presupuestoBloques.map((bloque, index) => (
+                                <SelectItem
+                                  key={bloque?.id || `${bloque?.nombre || "bloque"}-${index}`}
+                                  value={String(bloque?.id)}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{bloque?.nombre || `Bloque ${index + 1}`}</span>
+                                    {String(bloque?.id) === bloquePersistidoId && (
+                                      <span className="text-xs text-muted-foreground">Actual</span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -949,6 +1075,30 @@ const ObraDetallePage = () => {
                       </Button>
                     </div>
                   </div>
+
+                  {editando && presupuestoBloques.length > 1 && (
+                    <div
+                      className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+                        bloqueCambioPendiente
+                          ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      }`}
+                    >
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                          bloqueCambioPendiente ? "bg-amber-500" : "bg-emerald-500"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <p className="font-medium">
+                          {bloqueCambioPendiente
+                            ? `Se aplicará “${bloquePreview?.nombre || "el bloque seleccionado"}” al guardar.`
+                            : "Este es el bloque actualmente aplicado a la obra."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div className="group relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                       <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-blue-700">Total del Bloque</div>
@@ -1005,12 +1155,11 @@ const ObraDetallePage = () => {
                               >
                                 <td className="p-2">
                                   <div className="font-medium text-gray-900">
-                                    {producto?.nombre || "Producto sin nombre"}
+                                    {capitalizarInicial(
+                                      producto?.nombre,
+                                      "Producto sin nombre"
+                                    )}
                                   </div>
-                                  <div className="text-xs text-gray-500">{origen}</div>
-                                  {medida.sub && (
-                                    <div className="text-[11px] text-gray-500">{medida.sub}</div>
-                                  )}
                                 </td>
                                 <td className="p-2 text-center">{normalizarNumero(producto?.cantidad) || 1}</td>
                                 <td className="p-2 text-center">{unidad}</td>
@@ -1161,7 +1310,7 @@ const ObraDetallePage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle 
+              <CardTitle
                 className="flex items-center justify-between"
               >
                 <span>Información Adicional</span>
@@ -1169,284 +1318,284 @@ const ObraDetallePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-                <ObraDocumentacion
-                  obraId={obra?.id || id}
-                  lang={lang}
-                  docLinks={docLinks}
-                  onDocLinksChange={setDocLinks}
-                  editando={editando}
-                />
+              <ObraDocumentacion
+                obraId={obra?.id || id}
+                lang={lang}
+                docLinks={docLinks}
+                onDocLinksChange={setDocLinks}
+                editando={editando}
+              />
 
-                <div className="space-y-3">
-                  {editando ? (
-                    <>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <Switch
-                          checked={!!pagoEnDolares}
-                          onCheckedChange={(checked) => {
-                            setPagoEnDolares(checked);
-                            if (!checked) setValorOficialDolar(null);
-                          }}
-                          color="warning"
-                        />
-                        <span className="text-sm font-medium">Pago en dólares (USD)</span>
-                      </label>
-
-                      {pagoEnDolares && (
-                        <div className="space-y-2">
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
-                              value={valorOficialDolar ?? ""}
-                              onChange={(e) =>
-                                setValorOficialDolar(
-                                  e.target.value ? Number(e.target.value) : null
-                                )
-                              }
-                              placeholder="Ej: 1440"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={fetchDolarBlue}
-                              disabled={loadingDolar}
-                              className="shrink-0 h-9"
-                            >
-                              {loadingDolar ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Actualizar"
-                              )}
-                            </Button>
-                          </div>
-                          {ultimaActualizacionDolar && (
-                            <p className="text-xs text-gray-500">
-                              Última cotización:{" "}
-                              {ultimaActualizacionDolar.toLocaleString("es-AR", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              })}{" "}
-                              (se actualiza cada 5 min)
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <ComprobantesPagoSection
-                        comprobantes={comprobantesPago}
-                        onComprobantesChange={setComprobantesPago}
-                        disabled={loadingDolar}
-                        maxFiles={8}
+              <div className="space-y-3">
+                {editando ? (
+                  <>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <Switch
+                        checked={!!pagoEnDolares}
+                        onCheckedChange={(checked) => {
+                          setPagoEnDolares(checked);
+                          if (!checked) setValorOficialDolar(null);
+                        }}
+                        color="warning"
                       />
+                      <span className="text-sm font-medium">Pago en dólares (USD)</span>
+                    </label>
 
-                      <div className="space-y-3 pt-2">
-                        {(() => {
-                          const ivaPct = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
-                          const transfPct = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
-                          const basePrev = Math.max(0, Number(obra?.total) || 0) > 0 && (Number(obra?.ivaMonto) || 0) > 0
-                            ? Math.max(0, Number(obra.total) - Number(obra.ivaMonto) - Number(obra.transferenciaMonto || 0))
-                            : Math.max(0, Number(obra?.total) || 0);
-                          const ivaPrev = aplicarIva ? Math.round(basePrev * (ivaPct / 100)) : 0;
-                          const transfPrev = aplicarTransferencia ? Math.round(basePrev * (transfPct / 100)) : 0;
-                          const totalPrev = Math.round(basePrev + ivaPrev + transfPrev);
-                          return (
-                            <>
-                        <label className="flex items-center gap-3 cursor-pointer">
+                    {pagoEnDolares && (
+                      <div className="space-y-2">
+                        <div className="flex gap-2 items-center">
                           <input
-                            type="checkbox"
-                            checked={aplicarIva}
-                            onChange={(e) => setAplicarIva(e.target.checked)}
-                            disabled={editando}
-                            className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                            value={valorOficialDolar ?? ""}
+                            onChange={(e) =>
+                              setValorOficialDolar(
+                                e.target.value ? Number(e.target.value) : null
+                              )
+                            }
+                            placeholder="Ej: 1440"
                           />
-                          <span className="text-sm font-medium">Aplicar IVA</span>
-                        </label>
-                        {aplicarIva && (
-                          <div className="flex items-center gap-1.5 text-sm ml-7">
-                            <label htmlFor="ivaPorcentajeObra" className="text-xs text-muted-foreground">
-                              Porcentaje:
-                            </label>
-                            <div className="relative w-20">
-                              <input
-                                id="ivaPorcentajeObra"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={ivaPorcentaje}
-                                onChange={(e) => setIvaPorcentaje(e.target.value)}
-                                disabled={!aplicarIva}
-                                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                              />
-                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchDolarBlue}
+                            disabled={loadingDolar}
+                            className="shrink-0 h-9"
+                          >
+                            {loadingDolar ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              "Actualizar"
+                            )}
+                          </Button>
+                        </div>
+                        {ultimaActualizacionDolar && (
+                          <p className="text-xs text-gray-500">
+                            Última cotización:{" "}
+                            {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}{" "}
+                            (se actualiza cada 5 min)
+                          </p>
                         )}
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={aplicarTransferencia}
-                            onChange={(e) => setAplicarTransferencia(e.target.checked)}
-                            disabled={editando}
-                            className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm font-medium">Pago con Transferencia</span>
-                        </label>
-                        {aplicarTransferencia && (
-                          <div className="flex items-center gap-1.5 text-sm ml-7">
-                            <label htmlFor="transferenciaPorcentajeObra" className="text-xs text-muted-foreground">
-                              Porcentaje:
-                            </label>
-                            <div className="relative w-20">
+                      </div>
+                    )}
+
+                    <ComprobantesPagoSection
+                      comprobantes={comprobantesPago}
+                      onComprobantesChange={setComprobantesPago}
+                      disabled={loadingDolar}
+                      maxFiles={8}
+                    />
+
+                    <div className="space-y-3 pt-2">
+                      {(() => {
+                        const ivaPct = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+                        const transfPct = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+                        const basePrev = Math.max(0, Number(obra?.total) || 0) > 0 && (Number(obra?.ivaMonto) || 0) > 0
+                          ? Math.max(0, Number(obra.total) - Number(obra.ivaMonto) - Number(obra.transferenciaMonto || 0))
+                          : Math.max(0, Number(obra?.total) || 0);
+                        const ivaPrev = aplicarIva ? Math.round(basePrev * (ivaPct / 100)) : 0;
+                        const transfPrev = aplicarTransferencia ? Math.round(basePrev * (transfPct / 100)) : 0;
+                        const totalPrev = Math.round(basePrev + ivaPrev + transfPrev);
+                        return (
+                          <>
+                            <label className="flex items-center gap-3 cursor-pointer">
                               <input
-                                id="transferenciaPorcentajeObra"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={transferenciaPorcentaje}
-                                onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
-                                disabled={!aplicarTransferencia}
-                                className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                type="checkbox"
+                                checked={aplicarIva}
+                                onChange={(e) => setAplicarIva(e.target.checked)}
+                                disabled={guardandoEdicion}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
                               />
-                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
-                        )}
-                              {(aplicarIva || aplicarTransferencia) && (
-                                <div className="ml-7 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold space-y-1">
-                                  <div>Base: <span className="font-bold">$ {formatearNumeroArgentino(basePrev)}</span></div>
-                                  {aplicarIva && (
-                                    <div>IVA ({ivaPct}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaPrev)}</span></div>
-                                  )}
-                                  {aplicarTransferencia && (
-                                    <div>Transferencia ({transfPct}%): <span className="font-bold">$ {formatearNumeroArgentino(transfPrev)}</span></div>
-                                  )}
-                                  <div>Total Final: <span className="font-bold text-green-600">$ {formatearNumeroArgentino(totalPrev)}</span></div>
+                              <span className="text-sm font-medium">Aplicar IVA</span>
+                            </label>
+                            {aplicarIva && (
+                              <div className="flex items-center gap-1.5 text-sm ml-7">
+                                <label htmlFor="ivaPorcentajeObra" className="text-xs text-muted-foreground">
+                                  Porcentaje:
+                                </label>
+                                <div className="relative w-20">
+                                  <input
+                                    id="ivaPorcentajeObra"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={ivaPorcentaje}
+                                    onChange={(e) => setIvaPorcentaje(e.target.value)}
+                                    disabled={!aplicarIva}
+                                    className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                  <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                                 </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setPagoEnDolares(false);
-                            setComprobantesPago([]);
-                            setValorOficialDolar(null);
-                            setAplicarIva(false);
-                            setAplicarTransferencia(false);
-                          }}
-                        >
-                          Limpiar
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div className="flex justify-between gap-3">
-                        <span>Pago en dólares</span>
-                        <span className="font-medium">
-                          {obra?.pagoEnDolares ? "Sí" : "No"}
-                        </span>
-                      </div>
-                      {!!obra?.pagoEnDolares && (
-                        <div className="flex justify-between gap-3">
-                          <span>Cotización usada</span>
-                          <span className="font-medium">
-                            {obra?.valorOficialDolar != null
-                              ? String(obra.valorOficialDolar)
-                              : "-"}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between gap-3">
-                        <span>IVA</span>
-                        <span className="font-medium">
-                          {obra?.aplicarIva ? `Sí (${obra?.ivaPorcentaje}%)` : "No"}
-                        </span>
-                      </div>
-                      {obra?.aplicarIva && (
-                        <div className="flex justify-between gap-3">
-                          <span>Monto IVA</span>
-                          <span className="font-medium">
-                            {formatearNumeroArgentino(obra?.ivaMonto || 0)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between gap-3">
-                        <span>Transferencia</span>
-                        <span className="font-medium">
-                          {obra?.aplicarTransferencia ? `Sí (${obra?.transferenciaPorcentaje}%)` : "No"}
-                        </span>
-                      </div>
-                      {obra?.aplicarTransferencia && (
-                        <div className="flex justify-between gap-3">
-                          <span>Monto Transferencia</span>
-                          <span className="font-medium">
-                            {formatearNumeroArgentino(obra?.transferenciaMonto || 0)}
-                          </span>
-                        </div>
-                      )}
-                      {(obra?.aplicarIva || obra?.aplicarTransferencia) && (
-                        <div className="flex justify-between gap-3 border-t pt-2 font-bold">
-                          <span>Total Final</span>
-                          <span className="text-green-600">
-                            {formatearNumeroArgentino(obra?.total || 0)}
-                          </span>
-                        </div>
-                      )}
+                              </div>
+                            )}
+                            <label className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={aplicarTransferencia}
+                                onChange={(e) => setAplicarTransferencia(e.target.checked)}
+                                disabled={guardandoEdicion}
+                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm font-medium">Pago con Transferencia</span>
+                            </label>
+                            {aplicarTransferencia && (
+                              <div className="flex items-center gap-1.5 text-sm ml-7">
+                                <label htmlFor="transferenciaPorcentajeObra" className="text-xs text-muted-foreground">
+                                  Porcentaje:
+                                </label>
+                                <div className="relative w-20">
+                                  <input
+                                    id="transferenciaPorcentajeObra"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={transferenciaPorcentaje}
+                                    onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                                    disabled={!aplicarTransferencia}
+                                    className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-5 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                  <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                                </div>
+                              </div>
+                            )}
+                            {(aplicarIva || aplicarTransferencia) && (
+                              <div className="ml-7 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold space-y-1">
+                                <div>Base: <span className="font-bold">$ {formatearNumeroArgentino(basePrev)}</span></div>
+                                {aplicarIva && (
+                                  <div>IVA ({ivaPct}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaPrev)}</span></div>
+                                )}
+                                {aplicarTransferencia && (
+                                  <div>Transferencia ({transfPct}%): <span className="font-bold">$ {formatearNumeroArgentino(transfPrev)}</span></div>
+                                )}
+                                <div>Total Final: <span className="font-bold text-green-600">$ {formatearNumeroArgentino(totalPrev)}</span></div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
-                  )}
-                </div>
 
-
-                {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Información de Envío</h4>
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                      <div>
-                        <p className="text-sm text-gray-500">Tipo de Envío</p>
-                        <p className="font-medium">{obra.tipoEnvio}</p>
-                      </div>
-                      {obra.direccionEnvio && (
-                        <div>
-                          <p className="text-sm text-gray-500">Dirección de Envío</p>
-                          <p className="font-medium">{obra.direccionEnvio}</p>
-                        </div>
-                      )}
-                      {obra.localidadEnvio && (
-                        <div>
-                          <p className="text-sm text-gray-500">Localidad</p>
-                          <p className="font-medium">{obra.localidadEnvio}</p>
-                        </div>
-                      )}
-                      {obra.transportista && (
-                        <div>
-                          <p className="text-sm text-gray-500">Transportista</p>
-                          <p className="font-medium">{obra.transportista}</p>
-                        </div>
-                      )}
-                      {obra.fechaEntrega && (
-                        <div>
-                          <p className="text-sm text-gray-500">Fecha de Entrega</p>
-                          <p className="font-medium">{formatearFecha(obra.fechaEntrega)}</p>
-                        </div>
-                      )}
-                      {obra.rangoHorario && (
-                        <div>
-                          <p className="text-sm text-gray-500">Rango Horario</p>
-                          <p className="font-medium">{obra.rangoHorario}</p>
-                        </div>
-                      )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setPagoEnDolares(false);
+                          setComprobantesPago([]);
+                          setValorOficialDolar(null);
+                          setAplicarIva(false);
+                          setAplicarTransferencia(false);
+                        }}
+                      >
+                        Limpiar
+                      </Button>
                     </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div className="flex justify-between gap-3">
+                      <span>Pago en dólares</span>
+                      <span className="font-medium">
+                        {obra?.pagoEnDolares ? "Sí" : "No"}
+                      </span>
+                    </div>
+                    {!!obra?.pagoEnDolares && (
+                      <div className="flex justify-between gap-3">
+                        <span>Cotización usada</span>
+                        <span className="font-medium">
+                          {obra?.valorOficialDolar != null
+                            ? String(obra.valorOficialDolar)
+                            : "-"}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <span>IVA</span>
+                      <span className="font-medium">
+                        {obra?.aplicarIva ? `Sí (${obra?.ivaPorcentaje}%)` : "No"}
+                      </span>
+                    </div>
+                    {obra?.aplicarIva && (
+                      <div className="flex justify-between gap-3">
+                        <span>Monto IVA</span>
+                        <span className="font-medium">
+                          {formatearNumeroArgentino(obra?.ivaMonto || 0)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <span>Transferencia</span>
+                      <span className="font-medium">
+                        {obra?.aplicarTransferencia ? `Sí (${obra?.transferenciaPorcentaje}%)` : "No"}
+                      </span>
+                    </div>
+                    {obra?.aplicarTransferencia && (
+                      <div className="flex justify-between gap-3">
+                        <span>Monto Transferencia</span>
+                        <span className="font-medium">
+                          {formatearNumeroArgentino(obra?.transferenciaMonto || 0)}
+                        </span>
+                      </div>
+                    )}
+                    {(obra?.aplicarIva || obra?.aplicarTransferencia) && (
+                      <div className="flex justify-between gap-3 border-t pt-2 font-bold">
+                        <span>Total Final</span>
+                        <span className="text-green-600">
+                          {formatearNumeroArgentino(obra?.total || 0)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
+              </div>
+
+
+              {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">Información de Envío</h4>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                    <div>
+                      <p className="text-sm text-gray-500">Tipo de Envío</p>
+                      <p className="font-medium">{obra.tipoEnvio}</p>
+                    </div>
+                    {obra.direccionEnvio && (
+                      <div>
+                        <p className="text-sm text-gray-500">Dirección de Envío</p>
+                        <p className="font-medium">{obra.direccionEnvio}</p>
+                      </div>
+                    )}
+                    {obra.localidadEnvio && (
+                      <div>
+                        <p className="text-sm text-gray-500">Localidad</p>
+                        <p className="font-medium">{obra.localidadEnvio}</p>
+                      </div>
+                    )}
+                    {obra.transportista && (
+                      <div>
+                        <p className="text-sm text-gray-500">Transportista</p>
+                        <p className="font-medium">{obra.transportista}</p>
+                      </div>
+                    )}
+                    {obra.fechaEntrega && (
+                      <div>
+                        <p className="text-sm text-gray-500">Fecha de Entrega</p>
+                        <p className="font-medium">{formatearFecha(obra.fechaEntrega)}</p>
+                      </div>
+                    )}
+                    {obra.rangoHorario && (
+                      <div>
+                        <p className="text-sm text-gray-500">Rango Horario</p>
+                        <p className="font-medium">{obra.rangoHorario}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -1494,7 +1643,7 @@ const ObraDetallePage = () => {
           </div> */}
         </div>
       </div>
- 
+
 
       {/* Selector de Cliente */}
       <SelectorClienteObras

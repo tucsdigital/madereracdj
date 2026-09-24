@@ -1,10 +1,96 @@
 "use client";
+
 import { useState, useEffect } from "react";
+
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import { useAuth } from "@/provider/auth.provider";
+
 import { useRouter } from "next/navigation";
-import { getNextObraNumber, getNextObraPresupuestoNumber } from "@/lib/obra-numbering";
+
+import {
+  getNextObraNumber,
+  getNextObraPresupuestoNumber,
+} from "@/lib/obra-numbering";
+
+const opcionActiva = (valor) =>
+  valor === true || valor === 1 || valor === "1" || valor === "true";
+
+const limitarDescuento = (valor) =>
+  Math.min(100, Math.max(0, Number(valor) || 0));
+
+const precioLineaPresupuesto = (producto = {}) => {
+  const precio = Math.max(0, Number(producto.precio) || 0);
+  const cantidad = Math.max(1, Number(producto.cantidad) || 1);
+
+  return producto.precioIncluyeCantidad === false
+    ? precio * cantidad
+    : precio;
+};
+
+const sanitizarProductoPresupuesto = (producto = {}) => {
+  const cantidad = Math.max(1, Number(producto.cantidad) || 1);
+  const descuento = limitarDescuento(producto.descuento);
+  const precio = precioLineaPresupuesto(producto);
+  const largo = Number(producto.largo ?? producto.largoNum) || 0;
+
+  return {
+    ...producto,
+    id: producto.id,
+    originalId: producto.originalId || producto.id,
+    nombre: producto.nombre || "",
+    categoria: producto.categoria || "",
+    subCategoria: producto.subCategoria || producto.subcategoria || "",
+    subcategoria: producto.subcategoria || producto.subCategoria || "",
+    unidad: producto.unidad || producto.unidadMedida || "UN",
+    unidadMedida: producto.unidadMedida || producto.unidad || "UN",
+    cantidad,
+    descuento,
+    precio,
+    valorVenta: Number(producto.valorVenta) || 0,
+    alto: Number(producto.alto) || 0,
+    ancho: Number(producto.ancho) || 0,
+    largo,
+    largoNum: largo,
+    descripcion: producto.descripcion || producto.description || "",
+    precioIncluyeCantidad: true,
+    subtotal: Math.round(precio * (1 - descuento / 100)),
+  };
+};
+
+const calcularResumenProductosPresupuesto = (productos = []) => {
+  const lista = Array.isArray(productos) ? productos : [];
+
+  const subtotal = lista.reduce(
+    (acumulado, producto) =>
+      acumulado + precioLineaPresupuesto(producto),
+    0
+  );
+
+  const descuentoTotal = lista.reduce(
+    (acumulado, producto) =>
+      acumulado +
+      precioLineaPresupuesto(producto) *
+        (limitarDescuento(producto.descuento) / 100),
+    0
+  );
+
+  return {
+    subtotal: Math.round(subtotal),
+    descuentoTotal: Math.round(descuentoTotal),
+    base: Math.max(0, Math.round(subtotal - descuentoTotal)),
+  };
+};
 
 export const useObra = (id) => {
   const [obra, setObra] = useState(null);
@@ -14,14 +100,15 @@ export const useObra = (id) => {
   const [editando, setEditando] = useState(false);
   const [docLinks, setDocLinks] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
-  
-  // Estados de edición de Datos Generales (solo para tipo "obra")
+
   const [nombreObra, setNombreObra] = useState("");
   const [estadoObra, setEstadoObra] = useState("pendiente_inicio");
+
   const [fechasEdit, setFechasEdit] = useState({
     inicio: "",
     fin: "",
   });
+
   const [ubicacionEdit, setUbicacionEdit] = useState({
     direccion: "",
     localidad: "",
@@ -30,14 +117,12 @@ export const useObra = (id) => {
     area: "",
     lote: "",
   });
-  
-  // Estados para información del cliente
+
   const [clienteId, setClienteId] = useState("");
   const [cliente, setCliente] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
 
-  // Catálogo para Materiales (colección: productos)
   const [productosCatalogo, setProductosCatalogo] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categorias, setCategorias] = useState([]);
@@ -48,70 +133,83 @@ export const useObra = (id) => {
   const [isPendingCat, setIsPendingCat] = useState(false);
   const [catalogoCargado, setCatalogoCargado] = useState(false);
 
-  // Catálogo para Presupuesto inicial (colección: productos_obras)
   const [productosObraCatalogo, setProductosObraCatalogo] = useState([]);
-  const [productosObraPorCategoria, setProductosObraPorCategoria] = useState({});
+  const [productosObraPorCategoria, setProductosObraPorCategoria] =
+    useState({});
   const [categoriasObra, setCategoriasObra] = useState([]);
   const [categoriaObraId, setCategoriaObraId] = useState("");
   const [busquedaProductoObra, setBusquedaProductoObra] = useState("");
-  const [busquedaDebouncedObra, setBusquedaDebouncedObra] = useState("");
+  const [busquedaDebouncedObra, setBusquedaDebouncedObra] =
+    useState("");
   const [itemsPresupuesto, setItemsPresupuesto] = useState([]);
   const [isPendingObra, setIsPendingObra] = useState(false);
-  
-  // Gasto manual de obra (cuando no hay presupuesto inicial)
+
   const [gastoObraManual, setGastoObraManual] = useState(0);
-  
-  // Vinculación de presupuesto inicial
-  const [presupuestosDisponibles, setPresupuestosDisponibles] = useState([]);
-  const [presupuestoSeleccionadoId, setPresupuestoSeleccionadoId] = useState("");
-  
-  // Modo de costo para resumen (presupuesto | gasto)
+
+  const [presupuestosDisponibles, setPresupuestosDisponibles] =
+    useState([]);
+  const [presupuestoSeleccionadoId, setPresupuestoSeleccionadoId] =
+    useState("");
+
+  const [
+    presupuestoBloqueSeleccionadoId,
+    setPresupuestoBloqueSeleccionadoId,
+  ] = useState("");
+
   const [modoCosto, setModoCosto] = useState("gasto");
   const [descripcionGeneral, setDescripcionGeneral] = useState("");
+
   const getNextPresupuestoNumber = getNextObraPresupuestoNumber;
 
-  // Cargar clientes
   useEffect(() => {
     const fetchClientes = async () => {
       try {
         const snapClientes = await getDocs(collection(db, "clientes"));
+
         setClientes(
-          snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+          snapClientes.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
         );
       } catch (error) {
         console.error("Error al cargar clientes:", error);
       }
     };
-    
+
     fetchClientes();
   }, []);
 
-  // Cargar obra principal
   useEffect(() => {
     const fetchObra = async () => {
       try {
         setLoading(true);
+
         const obraDoc = await getDoc(doc(db, "obras", id));
 
         if (obraDoc.exists()) {
-          const data = { id: obraDoc.id, ...obraDoc.data() };
+          const data = {
+            id: obraDoc.id,
+            ...obraDoc.data(),
+          };
+
           setObra(data);
-          
-          // Cargar descripción general si existe
+
           setDescripcionGeneral(data.descripcionGeneral || "");
-          
-          // Inicializar estados de edición de datos generales (si es obra)
+
           if (data.tipo === "obra") {
             setEstadoObra(data.estado || "pendiente_inicio");
-            
+
             const f = data.fechas || {};
             const today = new Date().toISOString().split("T")[0];
+
             setFechasEdit({
               inicio: f.inicio || today,
               fin: f.fin || today,
             });
-            
+
             const u = data.ubicacion || {};
+
             setUbicacionEdit({
               direccion: u.direccion || "",
               localidad: u.localidad || "",
@@ -120,61 +218,90 @@ export const useObra = (id) => {
               area: u.area || "",
               lote: u.lote || "",
             });
-            
-            // Inicializar información del cliente para obras y presupuestos
+
             setClienteId(data.clienteId || data.cliente?.id || "");
             setCliente(data.cliente || null);
             setUsarDireccionCliente(data.usarDireccionCliente !== false);
 
-            setItemsCatalogo(Array.isArray(data.materialesCatalogo) ? data.materialesCatalogo : []);
+            setItemsCatalogo(
+              Array.isArray(data.materialesCatalogo)
+                ? data.materialesCatalogo
+                : []
+            );
+
             setGastoObraManual(Number(data.gastoObraManual) || 0);
-            setModoCosto(data.presupuestoInicialId ? "presupuesto" : "gasto");
-            // Cargar productos del bloque seleccionado (copiados a la obra)
-            setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
+
+            setModoCosto(
+              data.presupuestoInicialId ? "presupuesto" : "gasto"
+            );
+
+            setItemsPresupuesto(
+              Array.isArray(data.productos) ? data.productos : []
+            );
+
+            setPresupuestoBloqueSeleccionadoId(
+              data.presupuestoInicialBloqueId || ""
+            );
           } else if (data.tipo === "presupuesto") {
             setEstadoObra(data.estado || "Activo");
             setClienteId(data.clienteId || data.cliente?.id || "");
             setCliente(data.cliente || null);
             setUsarDireccionCliente(data.usarDireccionCliente !== false);
-            setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
+
+            setItemsPresupuesto(
+              Array.isArray(data.productos) ? data.productos : []
+            );
+
             setDescripcionGeneral(data.descripcionGeneral || "");
           }
-          
-          // Si tiene presupuesto inicial, cargarlo
+
           if (data.presupuestoInicialId) {
-            const presSnap = await getDoc(doc(db, "obras", data.presupuestoInicialId));
+            const presSnap = await getDoc(
+              doc(db, "obras", data.presupuestoInicialId)
+            );
+
             if (presSnap.exists()) {
-              setPresupuesto({ id: presSnap.id, ...presSnap.data() });
+              setPresupuesto({
+                id: presSnap.id,
+                ...presSnap.data(),
+              });
             }
           }
-          
-          // Inicializar estados de edición si existen
+
           const d = data.documentacion || {};
           setDocLinks(Array.isArray(d.links) ? d.links : []);
 
           const c = data.cobranzas || {};
           const inicial = [];
+
           const forma = c.formaPago || "efectivo";
           const sen = Number(c.senia) || 0;
           const mon = Number(c.monto) || 0;
-          
-          if (sen > 0) inicial.push({ 
-            fecha: c.fechaSenia || "", 
-            tipo: "seña", 
-            metodo: forma, 
-            monto: sen, 
-            nota: "Seña" 
-          });
-          
-          if (mon > 0) inicial.push({ 
-            fecha: c.fechaMonto || "", 
-            tipo: "pago", 
-            metodo: forma, 
-            monto: mon, 
-            nota: "Pago" 
-          });
-          
-          const hist = Array.isArray(c.historialPagos) ? c.historialPagos : [];
+
+          if (sen > 0) {
+            inicial.push({
+              fecha: c.fechaSenia || "",
+              tipo: "seña",
+              metodo: forma,
+              monto: sen,
+              nota: "Seña",
+            });
+          }
+
+          if (mon > 0) {
+            inicial.push({
+              fecha: c.fechaMonto || "",
+              tipo: "pago",
+              metodo: forma,
+              monto: mon,
+              nota: "Pago",
+            });
+          }
+
+          const hist = Array.isArray(c.historialPagos)
+            ? c.historialPagos
+            : [];
+
           hist.forEach((p) => {
             inicial.push({
               fecha: p.fecha || "",
@@ -184,6 +311,7 @@ export const useObra = (id) => {
               nota: p.nota || "",
             });
           });
+
           setMovimientos(inicial);
         } else {
           setError("Obra no encontrada");
@@ -201,149 +329,250 @@ export const useObra = (id) => {
     }
   }, [id]);
 
-  // Completar el cliente cuando el documento sólo guarda clienteId.
   useEffect(() => {
-    if (!obra || cliente || !clienteId || clientes.length === 0) return;
-    const clienteEncontrado = clientes.find((item) => String(item.id) === String(clienteId));
-    if (clienteEncontrado) setCliente(clienteEncontrado);
+    if (!obra || cliente || !clienteId || clientes.length === 0)
+      return;
+
+    const clienteEncontrado = clientes.find(
+      (item) => String(item.id) === String(clienteId)
+    );
+
+    if (clienteEncontrado) {
+      setCliente(clienteEncontrado);
+    }
   }, [obra, cliente, clienteId, clientes]);
 
-  // Inicializar edición de presupuesto cuando se carga
-  // Importante: no sobrescribir itemsPresupuesto en páginas de OBRA
   useEffect(() => {
     if (!presupuesto) return;
+
     if (obra?.tipo === "presupuesto") {
-      const prods = Array.isArray(presupuesto.productos) ? presupuesto.productos : [];
+      const prods = Array.isArray(presupuesto.productos)
+        ? presupuesto.productos
+        : [];
+
       setItemsPresupuesto(prods);
       setDescripcionGeneral(presupuesto.descripcionGeneral || "");
     }
   }, [presupuesto, obra?.tipo]);
 
-  // Auto-hidratar productos desde el bloque seleccionado si la obra aún no los tiene
   useEffect(() => {
     try {
       if (!obra || obra.tipo !== "obra") return;
-      if (!obra.presupuestoInicialId || !obra.presupuestoInicialBloqueId) return;
-      const tieneProductos = Array.isArray(obra.productos) && obra.productos.length > 0;
-      if (tieneProductos) return;
-      if (!presupuesto || !Array.isArray(presupuesto.bloques)) return;
-      const existeBloque = presupuesto.bloques.some(b => b.id === obra.presupuestoInicialBloqueId);
-      if (!existeBloque) return;
-      // Ejecutar rutina de cambio de bloque para hidratar y persistir
-      cambiarBloquePresupuesto(obra.presupuestoInicialBloqueId);
-    } catch (e) {
-      console.error("Auto-hidratación de productos del bloque falló:", e);
-    }
-  }, [obra?.id, obra?.tipo, obra?.presupuestoInicialBloqueId, obra?.productos?.length, presupuesto]);
 
-  // Debounce búsquedas
+      if (
+        !obra.presupuestoInicialId ||
+        !obra.presupuestoInicialBloqueId
+      ) {
+        return;
+      }
+
+      const tieneProductos =
+        Array.isArray(obra.productos) && obra.productos.length > 0;
+
+      if (tieneProductos) return;
+
+      if (!presupuesto || !Array.isArray(presupuesto.bloques)) {
+        return;
+      }
+
+      const existeBloque = presupuesto.bloques.some(
+        (b) =>
+          String(b.id) ===
+          String(obra.presupuestoInicialBloqueId)
+      );
+
+      if (!existeBloque) return;
+
+      cambiarBloquePresupuesto(
+        obra.presupuestoInicialBloqueId
+      );
+    } catch (e) {
+      console.error(
+        "Auto-hidratación de productos del bloque falló:",
+        e
+      );
+    }
+  }, [
+    obra?.id,
+    obra?.tipo,
+    obra?.presupuestoInicialBloqueId,
+    obra?.productos?.length,
+    presupuesto,
+  ]);
+
   useEffect(() => {
-    const t = setTimeout(() => setBusquedaDebounced(busquedaProducto), 150);
+    const t = setTimeout(
+      () => setBusquedaDebounced(busquedaProducto),
+      150
+    );
+
     return () => clearTimeout(t);
   }, [busquedaProducto]);
-  
+
   useEffect(() => {
-    const t = setTimeout(() => setBusquedaDebouncedObra(busquedaProductoObra), 150);
+    const t = setTimeout(
+      () => setBusquedaDebouncedObra(busquedaProductoObra),
+      150
+    );
+
     return () => clearTimeout(t);
   }, [busquedaProductoObra]);
 
-  // Cargar catálogos al entrar en modo edición
   useEffect(() => {
     async function cargarCatalogos() {
       if (!editando) return;
-      
-      // productos
+
       if (productosCatalogo.length === 0) {
         const snap = await getDocs(collection(db, "productos"));
-        const prods = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const prods = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
         setProductosCatalogo(prods);
+
         const agrup = {};
+
         prods.forEach((p) => {
           const cat = p.categoria || "Sin categoría";
           (agrup[cat] = agrup[cat] || []).push(p);
         });
+
         setProductosPorCategoria(agrup);
         setCategorias(Object.keys(agrup));
         setCatalogoCargado(true);
       }
-      
-      // productos_obras
+
       if (productosObraCatalogo.length === 0) {
-        const snap2 = await getDocs(collection(db, "productos_obras"));
-        const prods2 = snap2.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const snap2 = await getDocs(
+          collection(db, "productos_obras")
+        );
+
+        const prods2 = snap2.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
         setProductosObraCatalogo(prods2);
+
         const agrup2 = {};
+
         prods2.forEach((p) => {
           const cat = p.categoria || "Sin categoría";
           (agrup2[cat] = agrup2[cat] || []).push(p);
         });
+
         setProductosObraPorCategoria(agrup2);
         setCategoriasObra(Object.keys(agrup2));
       }
-      
-      // presupuestos disponibles (obras tipo presupuesto)
+
       const snapObras = await getDocs(collection(db, "obras"));
+
       const lista = snapObras.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }))
         .filter((x) => x.tipo === "presupuesto");
+
       setPresupuestosDisponibles(lista);
     }
+
     cargarCatalogos();
   }, [editando]);
 
-  // Función para cargar catálogo de productos normales manualmente
   const cargarCatalogoProductos = async () => {
     if (catalogoCargado) return;
-    
+
     try {
-      console.log("Cargando catálogo de productos...");
       const snap = await getDocs(collection(db, "productos"));
-      const prods = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      console.log("Productos cargados:", prods.length);
-      
+
+      const prods = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
       setProductosCatalogo(prods);
-      
-      // Agrupar por categoría
+
       const agrup = {};
+
       prods.forEach((p) => {
         const cat = p.categoria || "Sin categoría";
-        if (!agrup[cat]) agrup[cat] = [];
+
+        if (!agrup[cat]) {
+          agrup[cat] = [];
+        }
+
         agrup[cat].push(p);
       });
-      
+
       setProductosPorCategoria(agrup);
       setCategorias(Object.keys(agrup));
       setCatalogoCargado(true);
-      
-      console.log("Catálogo cargado exitosamente:", {
-        totalProductos: prods.length,
-        categorias: Object.keys(agrup),
-        productosPorCategoria: agrup
-      });
     } catch (error) {
-      console.error("Error al cargar catálogo de productos:", error);
+      console.error(
+        "Error al cargar catálogo de productos:",
+        error
+      );
+
       setCatalogoCargado(false);
     }
   };
 
   const handleDesvincularPresupuesto = async () => {
     if (!obra) return;
-    await updateDoc(doc(db, "obras", obra.id), { presupuestoInicialId: null });
+
+    await updateDoc(doc(db, "obras", obra.id), {
+      presupuestoInicialId: null,
+    });
+
     setPresupuesto(null);
-    setObra((prev) => (prev ? { ...prev, presupuestoInicialId: null } : prev));
+
+    setObra((prev) =>
+      prev
+        ? {
+            ...prev,
+            presupuestoInicialId: null,
+          }
+        : prev
+    );
   };
 
   const handleVincularPresupuesto = async () => {
     if (!obra || !presupuestoSeleccionadoId) return;
-    await updateDoc(doc(db, "obras", obra.id), { presupuestoInicialId: presupuestoSeleccionadoId });
-    const presSnap = await getDoc(doc(db, "obras", presupuestoSeleccionadoId));
-    if (presSnap.exists()) setPresupuesto({ id: presSnap.id, ...presSnap.data() });
-    setObra((prev) => (prev ? { ...prev, presupuestoInicialId: presupuestoSeleccionadoId } : prev));
+
+    await updateDoc(doc(db, "obras", obra.id), {
+      presupuestoInicialId: presupuestoSeleccionadoId,
+    });
+
+    const presSnap = await getDoc(
+      doc(db, "obras", presupuestoSeleccionadoId)
+    );
+
+    if (presSnap.exists()) {
+      setPresupuesto({
+        id: presSnap.id,
+        ...presSnap.data(),
+      });
+    }
+
+    setObra((prev) =>
+      prev
+        ? {
+            ...prev,
+            presupuestoInicialId: presupuestoSeleccionadoId,
+          }
+        : prev
+    );
   };
 
   const handleCrearPresupuestoDesdeAqui = async () => {
     if (!obra) return;
-    const numeroPedido = await getNextObraPresupuestoNumber();
+
+    const numeroPedido =
+      await getNextObraPresupuestoNumber();
+
     const nuevo = {
       tipo: "presupuesto",
       numeroPedido,
@@ -358,139 +587,282 @@ export const useObra = (id) => {
       fechaCreacion: new Date().toISOString(),
       estado: "Activo",
     };
-    const created = await addDoc(collection(db, "obras"), nuevo);
-    await updateDoc(doc(db, "obras", obra.id), { presupuestoInicialId: created.id });
-    const presSnap = await getDoc(doc(db, "obras", created.id));
-    if (presSnap.exists()) setPresupuesto({ id: presSnap.id, ...presSnap.data() });
-    setObra((prev) => (prev ? { ...prev, presupuestoInicialId: created.id } : prev));
-    // refrescar lista disponibles
-    setPresupuestosDisponibles((prev) => [{ id: created.id, ...nuevo }, ...prev]);
+
+    const created = await addDoc(
+      collection(db, "obras"),
+      nuevo
+    );
+
+    await updateDoc(doc(db, "obras", obra.id), {
+      presupuestoInicialId: created.id,
+    });
+
+    const presSnap = await getDoc(
+      doc(db, "obras", created.id)
+    );
+
+    if (presSnap.exists()) {
+      setPresupuesto({
+        id: presSnap.id,
+        ...presSnap.data(),
+      });
+    }
+
+    setObra((prev) =>
+      prev
+        ? {
+            ...prev,
+            presupuestoInicialId: created.id,
+          }
+        : prev
+    );
+
+    setPresupuestosDisponibles((prev) => [
+      {
+        id: created.id,
+        ...nuevo,
+      },
+      ...prev,
+    ]);
   };
 
-  const convertirPresupuestoToObra = async (datosConversion = {}, user = null) => {
-    console.log("convertirPresupuestoToObra llamada con:", { datosConversion, user });
+  const convertirPresupuestoToObra = async (
+    datosConversion = {},
+    user = null
+  ) => {
     if (!obra || obra.tipo !== "presupuesto") return;
 
     try {
       const numeroPedido = await getNextObraNumber();
-      
-      // Utilidades de sanitización y cálculo
+
       const sanitizarProductos = (lista) =>
         (Array.isArray(lista) ? lista : []).map((p) => {
-          const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-          const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+          const esMadera =
+            String(p.categoria || "").toLowerCase() ===
+            "maderas";
+
+          const isMachDeck =
+            esMadera &&
+            (p.subcategoria === "machimbre" ||
+              p.subcategoria === "deck");
+
           const precio = Number(p.precio) || 0;
           const cantidad = Number(p.cantidad) || 1;
           const descuento = Number(p.descuento) || 0;
-          const base = isMachDeck ? precio : precio * cantidad;
-          const subtotal = Math.round(base * (1 - descuento / 100));
+
+          const base = isMachDeck
+            ? precio
+            : precio * cantidad;
+
+          const subtotal = Math.round(
+            base * (1 - descuento / 100)
+          );
+
           const item = {
             id: p.id,
             nombre: p.nombre || "",
             categoria: p.categoria || "",
             subcategoria: p.subcategoria || "",
             unidad: p.unidad || p.unidadMedida || "",
-            unidadMedida: p.unidadMedida || p.unidad || "",
+            unidadMedida:
+              p.unidadMedida || p.unidad || "",
             cantidad,
             descuento,
             precio,
             subtotal,
           };
-          // Conservar dimensiones y precioPorPie si existen (para cualquier categoría)
-          if (p.alto !== undefined) item.alto = Number(p.alto) || 0;
-          if (p.ancho !== undefined) item.ancho = Number(p.ancho) || 0;
-          if (p.largo !== undefined) item.largo = Number(p.largo) || 0;
-          if (p.precioPorPie !== undefined) item.precioPorPie = Number(p.precioPorPie) || 0;
-          if (p.cepilladoAplicado !== undefined) item.cepilladoAplicado = !!p.cepilladoAplicado;
+
+          if (p.alto !== undefined) {
+            item.alto = Number(p.alto) || 0;
+          }
+
+          if (p.ancho !== undefined) {
+            item.ancho = Number(p.ancho) || 0;
+          }
+
+          if (p.largo !== undefined) {
+            item.largo = Number(p.largo) || 0;
+          }
+
+          if (p.precioPorPie !== undefined) {
+            item.precioPorPie =
+              Number(p.precioPorPie) || 0;
+          }
+
+          if (p.cepilladoAplicado !== undefined) {
+            item.cepilladoAplicado =
+              !!p.cepilladoAplicado;
+          }
+
           return item;
         });
 
       const calcularSubtotal = (lista) =>
-        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
-          const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-          const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-          const precio = Number(p.precio) || 0;
-          const cantidad = Number(p.cantidad) || 1;
-          const base = isMachDeck ? precio : precio * cantidad;
-          return acc + base;
-        }, 0);
+        (Array.isArray(lista) ? lista : []).reduce(
+          (acc, p) => {
+            const esMadera =
+              String(p.categoria || "").toLowerCase() ===
+              "maderas";
+
+            const isMachDeck =
+              esMadera &&
+              (p.subcategoria === "machimbre" ||
+                p.subcategoria === "deck");
+
+            const precio = Number(p.precio) || 0;
+            const cantidad = Number(p.cantidad) || 1;
+
+            const base = isMachDeck
+              ? precio
+              : precio * cantidad;
+
+            return acc + base;
+          },
+          0
+        );
 
       const calcularDescuento = (lista) =>
-        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
-          const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-          const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-          const precio = Number(p.precio) || 0;
-          const cantidad = Number(p.cantidad) || 1;
-          const base = isMachDeck ? precio : precio * cantidad;
-          const desc = Number(p.descuento) || 0;
-          return acc + Math.round(base * desc / 100);
-        }, 0);
+        (Array.isArray(lista) ? lista : []).reduce(
+          (acc, p) => {
+            const esMadera =
+              String(p.categoria || "").toLowerCase() ===
+              "maderas";
+
+            const isMachDeck =
+              esMadera &&
+              (p.subcategoria === "machimbre" ||
+                p.subcategoria === "deck");
+
+            const precio = Number(p.precio) || 0;
+            const cantidad = Number(p.cantidad) || 1;
+
+            const base = isMachDeck
+              ? precio
+              : precio * cantidad;
+
+            const desc = Number(p.descuento) || 0;
+
+            return (
+              acc +
+              Math.round((base * desc) / 100)
+            );
+          },
+          0
+        );
 
       let productosObraSanitizados = [];
       let bloqueSeleccionadoNombre = null;
 
-      // Si hay bloques y se seleccionó uno específico
-      if (obra.bloques && obra.bloques.length > 0 && datosConversion.bloqueSeleccionado) {
-        const bloqueSeleccionado = obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado);
+      if (
+        obra.bloques &&
+        obra.bloques.length > 0 &&
+        datosConversion.bloqueSeleccionado
+      ) {
+        const bloqueSeleccionado = obra.bloques.find(
+          (b) =>
+            String(b.id) ===
+            String(datosConversion.bloqueSeleccionado)
+        );
+
         if (bloqueSeleccionado) {
-          productosObraSanitizados = sanitizarProductos(bloqueSeleccionado.productos || []);
-          bloqueSeleccionadoNombre = bloqueSeleccionado.nombre || null;
+          productosObraSanitizados =
+            sanitizarProductos(
+              bloqueSeleccionado.productos || []
+            );
+
+          bloqueSeleccionadoNombre =
+            bloqueSeleccionado.nombre || null;
         }
       } else {
-        // Fallback para presupuestos sin bloques (estructura antigua)
-        productosObraSanitizados = sanitizarProductos(itemsPresupuesto || []);
+        productosObraSanitizados =
+          sanitizarProductos(itemsPresupuesto || []);
       }
 
-      const materialesAdicionalesRaw = datosConversion.materialesAdicionales || [];
-      const materialesSanitizados = sanitizarProductos(materialesAdicionalesRaw);
+      const materialesAdicionalesRaw =
+        datosConversion.materialesAdicionales || [];
 
-      // Calcular totales combinados desde listas sanitizadas
-      const productosObraSubtotal = calcularSubtotal(productosObraSanitizados);
-      const productosObraDescuento = calcularDescuento(productosObraSanitizados);
-      const materialesSubtotal = calcularSubtotal(materialesSanitizados);
-      const materialesDescuento = calcularDescuento(materialesSanitizados);
-      const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
-      const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
-      const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
-      
+      const materialesSanitizados =
+        sanitizarProductos(materialesAdicionalesRaw);
+
+      const productosObraSubtotal =
+        calcularSubtotal(productosObraSanitizados);
+
+      const productosObraDescuento =
+        calcularDescuento(productosObraSanitizados);
+
+      const materialesSubtotal =
+        calcularSubtotal(materialesSanitizados);
+
+      const materialesDescuento =
+        calcularDescuento(materialesSanitizados);
+
+      const subtotalCombinado =
+        productosObraSubtotal + materialesSubtotal;
+
+      const descuentoTotalCombinado =
+        productosObraDescuento + materialesDescuento;
+
+      const totalCombinado =
+        subtotalCombinado - descuentoTotalCombinado;
+
       const nuevaObra = {
         tipo: "obra",
         numeroPedido,
         fecha: new Date().toISOString().split("T")[0],
-        clienteId: obra.clienteId || obra.cliente?.id || null,
+        clienteId:
+          obra.clienteId || obra.cliente?.id || null,
         cliente: obra.cliente || null,
-        // PRODUCTOS del bloque seleccionado o lista de presupuesto (sanitizados)
+
         productos: productosObraSanitizados,
-        // MATERIALES adicionales seleccionados (sanitizados)
         materialesCatalogo: materialesSanitizados,
+
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
         total: totalCombinado,
-        descripcionGeneral: datosConversion.descripcionGeneral || descripcionGeneral || obra.descripcionGeneral || "",
+
+        descripcionGeneral:
+          datosConversion.descripcionGeneral ||
+          descripcionGeneral ||
+          obra.descripcionGeneral ||
+          "",
+
         fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
+
         presupuestoInicialId: obra.id,
-        presupuestoInicialBloqueId: datosConversion.bloqueSeleccionado || null,
-        presupuestoInicialBloqueNombre: bloqueSeleccionadoNombre,
-        
-        // Ubicación de la obra
-        ubicacion: datosConversion.ubicacionTipo === "cliente" ? {
-          direccion: obra.cliente?.direccion || "",
-          localidad: obra.cliente?.localidad || "",
-          provincia: obra.cliente?.provincia || "",
-          barrio: obra.cliente?.barrio || "",
-          area: obra.cliente?.area || "",
-          lote: obra.cliente?.lote || "",
-        } : {
-          direccion: datosConversion.direccion || "",
-          localidad: datosConversion.localidad || "",
-          provincia: datosConversion.provincia || "",
-          barrio: datosConversion.barrio || "",
-          area: datosConversion.area || "",
-          lote: datosConversion.lote || "",
-        },
-        
-        // Información de envío si existe
+
+        presupuestoInicialBloqueId:
+          datosConversion.bloqueSeleccionado || null,
+
+        presupuestoInicialBloqueNombre:
+          bloqueSeleccionadoNombre,
+
+        ubicacion:
+          datosConversion.ubicacionTipo === "cliente"
+            ? {
+                direccion:
+                  obra.cliente?.direccion || "",
+                localidad:
+                  obra.cliente?.localidad || "",
+                provincia:
+                  obra.cliente?.provincia || "",
+                barrio: obra.cliente?.barrio || "",
+                area: obra.cliente?.area || "",
+                lote: obra.cliente?.lote || "",
+              }
+            : {
+                direccion:
+                  datosConversion.direccion || "",
+                localidad:
+                  datosConversion.localidad || "",
+                provincia:
+                  datosConversion.provincia || "",
+                barrio:
+                  datosConversion.barrio || "",
+                area: datosConversion.area || "",
+                lote: datosConversion.lote || "",
+              },
+
         tipoEnvio: obra.tipoEnvio || null,
         costoEnvio: obra.costoEnvio || 0,
         direccionEnvio: obra.direccionEnvio || null,
@@ -498,207 +870,371 @@ export const useObra = (id) => {
         transportista: obra.transportista || null,
         fechaEntrega: obra.fechaEntrega || null,
         rangoHorario: obra.rangoHorario || null,
-        
 
-        
-        // Fechas (estructura obligatoria)
         fechas: {
-          inicio: new Date().toISOString().split("T")[0],
-          fin: new Date().toISOString().split("T")[0]
+          inicio: new Date()
+            .toISOString()
+            .split("T")[0],
+          fin: new Date()
+            .toISOString()
+            .split("T")[0],
         },
-        
-        // Campos adicionales obligatorios
+
         gastoObraManual: 0,
-        // Totales de materiales (nuevo esquema)
-        materialesSubtotal: materialesSubtotal,
-        materialesDescuento: materialesDescuento,
-        materialesTotal: materialesSubtotal - materialesDescuento,
-        // Mantener compatibilidad temporal escribiendo los campos antiguos
+
+        materialesSubtotal,
+        materialesDescuento,
+        materialesTotal:
+          materialesSubtotal - materialesDescuento,
+
         productosSubtotal: materialesSubtotal,
         productosDescuento: materialesDescuento,
-        productosTotal: materialesSubtotal - materialesDescuento,
+        productosTotal:
+          materialesSubtotal - materialesDescuento,
       };
 
-      console.log("Nueva obra a crear:", nuevaObra);
+      const created = await addDoc(
+        collection(db, "obras"),
+        nuevaObra
+      );
 
-      const created = await addDoc(collection(db, "obras"), nuevaObra);
-      
-      // Crear registro de auditoría de conversión
       const auditoriaData = {
-        accion: 'CONVERSION_PRESUPUESTO_A_OBRA',
-        coleccion: 'obras',
+        accion: "CONVERSION_PRESUPUESTO_A_OBRA",
+        coleccion: "obras",
         documentoId: created.id,
         presupuestoOriginalId: obra.id,
         datosPresupuesto: obra,
         datosObra: nuevaObra,
-        usuarioId: user?.uid || 'sistema',
-        usuarioEmail: user?.email || 'sistema@audit.com',
+        usuarioId: user?.uid || "sistema",
+        usuarioEmail:
+          user?.email || "sistema@audit.com",
         fechaConversion: serverTimestamp(),
-        tipo: 'conversion_presupuesto_obra'
+        tipo: "conversion_presupuesto_obra",
       };
 
-      await addDoc(collection(db, "auditoria"), auditoriaData);
-      
-      // Redirigir a la nueva obra
+      await addDoc(
+        collection(db, "auditoria"),
+        auditoriaData
+      );
+
       window.location.href = `/obras/${created.id}`;
-      
     } catch (error) {
-      console.error("Error al convertir presupuesto a obra:", error);
+      console.error(
+        "Error al convertir presupuesto a obra:",
+        error
+      );
+
       throw error;
     }
   };
 
-  const guardarEdicion = async () => {
+  const guardarEdicion = async (opciones = {}) => {
     if (!obra) return;
-    
+
     const target = doc(db, "obras", obra.id);
-    const documentacion = { links: (docLinks || []).filter(Boolean) };
-    
-    // Persistimos cobranza como ledger
-    const movimientosSan = (movimientos || []).map((m) => ({
-      fecha: m.fecha || "",
-      tipo: m.tipo || "pago",
-      metodo: m.metodo || "efectivo",
-      monto: Number(m.monto) || 0,
-      nota: m.nota || "",
-    }));
 
-    // Recalcular totales de materiales si es obra y estamos editando itemsCatalogo
-    let materialesSanitizados = Array.isArray(itemsCatalogo) ? itemsCatalogo.map((p) => {
-      const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-      const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-      const precio = Number(p.precio) || 0;
-      const cantidad = Number(p.cantidad) || 1;
-      const descuento = Number(p.descuento) || 0;
-      const base = isMachDeck ? precio : precio * cantidad;
-      const subtotal = Math.round(base * (1 - descuento / 100));
-      const item = {
-        id: p.id,
-        nombre: p.nombre || "",
-        categoria: p.categoria || "",
-        subcategoria: p.subcategoria || "",
-        unidad: p.unidad || "",
-        cantidad,
-        descuento,
-        precio,
-        subtotal,
-      };
-      if (esMadera) {
-        item.alto = Number(p.alto) || 0;
-        item.ancho = Number(p.ancho) || 0;
-        item.largo = Number(p.largo) || 0;
-        item.precioPorPie = Number(p.precioPorPie) || 0;
-        item.cepilladoAplicado = !!p.cepilladoAplicado;
-      }
-      return item;
-    }) : [];
+    const documentacion = {
+      links: (docLinks || []).filter(Boolean),
+    };
 
-    const productosSubtotalEdit = materialesSanitizados.reduce((acc, p) => {
-      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-      return acc + base;
-    }, 0);
-    
-    const productosDescuentoEdit = materialesSanitizados.reduce((acc, p) => {
-      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-      return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-    }, 0);
+    const movimientosSan = (movimientos || []).map(
+      (m) => ({
+        fecha: m.fecha || "",
+        tipo: m.tipo || "pago",
+        metodo: m.metodo || "efectivo",
+        monto: Number(m.monto) || 0,
+        nota: m.nota || "",
+      })
+    );
 
-    // Sanitizar productos del bloque (productos de la obra)
-    const productosObraSanitizados = Array.isArray(itemsPresupuesto) ? itemsPresupuesto.map((p) => {
-      const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-      const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-      const precio = Number(p.precio) || 0;
-      const cantidad = Number(p.cantidad) || 1;
-      const descuento = Number(p.descuento) || 0;
-      const base = isMachDeck ? precio : precio * cantidad;
-      const subtotal = Math.round(base * (1 - descuento / 100));
-      const item = {
-        id: p.id,
-        nombre: p.nombre || "",
-        categoria: p.categoria || "",
-        subcategoria: p.subcategoria || "",
-        unidad: p.unidad || "",
-        cantidad,
-        descuento,
-        precio,
-        subtotal,
-      };
-      if (esMadera) {
-        item.alto = Number(p.alto) || 0;
-        item.ancho = Number(p.ancho) || 0;
-        item.largo = Number(p.largo) || 0;
-        item.precioPorPie = Number(p.precioPorPie) || 0;
-        item.cepilladoAplicado = !!p.cepilladoAplicado;
-      }
-      return item;
-    }) : [];
+    const materialesSanitizados = Array.isArray(
+      itemsCatalogo
+    )
+      ? itemsCatalogo.map((p) => {
+          const esMadera =
+            String(p.categoria || "").toLowerCase() ===
+            "maderas";
 
-    const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
-      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-      return acc + base;
-    }, 0);
+          const isMachDeck =
+            esMadera &&
+            (p.subcategoria === "machimbre" ||
+              p.subcategoria === "deck");
 
-    const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
-      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-      return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-    }, 0);
+          const precio = Number(p.precio) || 0;
+          const cantidad = Number(p.cantidad) || 1;
+          const descuento = Number(p.descuento) || 0;
+
+          const base = isMachDeck
+            ? precio
+            : precio * cantidad;
+
+          const subtotal = Math.round(
+            base * (1 - descuento / 100)
+          );
+
+          const item = {
+            id: p.id,
+            nombre: p.nombre || "",
+            categoria: p.categoria || "",
+            subcategoria: p.subcategoria || "",
+            unidad: p.unidad || "",
+            cantidad,
+            descuento,
+            precio,
+            subtotal,
+          };
+
+          if (esMadera) {
+            item.alto = Number(p.alto) || 0;
+            item.ancho = Number(p.ancho) || 0;
+            item.largo = Number(p.largo) || 0;
+            item.precioPorPie =
+              Number(p.precioPorPie) || 0;
+            item.cepilladoAplicado =
+              !!p.cepilladoAplicado;
+          }
+
+          return item;
+        })
+      : [];
+
+    const productosSubtotalEdit =
+      materialesSanitizados.reduce((acc, p) => {
+        const esMadera =
+          String(p.categoria || "").toLowerCase() ===
+          "maderas";
+
+        const isMachDeck =
+          esMadera &&
+          (p.subcategoria === "machimbre" ||
+            p.subcategoria === "deck");
+
+        const base = isMachDeck
+          ? Number(p.precio) || 0
+          : (Number(p.precio) || 0) *
+            (Number(p.cantidad) || 0);
+
+        return acc + base;
+      }, 0);
+
+    const productosDescuentoEdit =
+      materialesSanitizados.reduce((acc, p) => {
+        const esMadera =
+          String(p.categoria || "").toLowerCase() ===
+          "maderas";
+
+        const isMachDeck =
+          esMadera &&
+          (p.subcategoria === "machimbre" ||
+            p.subcategoria === "deck");
+
+        const base = isMachDeck
+          ? Number(p.precio) || 0
+          : (Number(p.precio) || 0) *
+            (Number(p.cantidad) || 0);
+
+        return (
+          acc +
+          Math.round(
+            (base * (Number(p.descuento) || 0)) /
+              100
+          )
+        );
+      }, 0);
+
+    const productosObraSanitizados =
+      Array.isArray(itemsPresupuesto)
+        ? itemsPresupuesto.map(
+            sanitizarProductoPresupuesto
+          )
+        : [];
+
+    const resumenProductosObra =
+      calcularResumenProductosPresupuesto(
+        productosObraSanitizados
+      );
+
+    const productosObraSubtotal =
+      resumenProductosObra.subtotal;
+
+    const productosObraDescuento =
+      resumenProductosObra.descuentoTotal;
 
     const updateData = {
       documentacion,
+
       cobranzas: {
         historialPagos: movimientosSan,
       },
+
+      pagoEnDolares: !!opciones.pagoEnDolares,
+
+      valorOficialDolar: opciones.pagoEnDolares
+        ? opciones.valorOficialDolar ?? null
+        : null,
+
+      comprobantesPago: Array.isArray(
+        opciones.comprobantesPago
+      )
+        ? opciones.comprobantesPago
+        : [],
+
+      notasObra: Array.isArray(opciones.notasObra)
+        ? opciones.notasObra
+        : [],
+
+      fechaModificacion: new Date().toISOString(),
     };
 
     if (obra.tipo === "obra") {
-      updateData.materialesCatalogo = materialesSanitizados;
-      // Totales de materiales (nuevo y compat)
-      updateData.materialesSubtotal = productosSubtotalEdit;
-      updateData.materialesDescuento = productosDescuentoEdit;
-      updateData.materialesTotal = productosSubtotalEdit - productosDescuentoEdit;
-      updateData.productosSubtotal = productosSubtotalEdit;
-      updateData.productosDescuento = productosDescuentoEdit;
-      updateData.productosTotal = productosSubtotalEdit - productosDescuentoEdit;
-      updateData.gastoObraManual = Number(gastoObraManual) || 0;
-      updateData.descripcionGeneral = descripcionGeneral;
-      // Actualizar productos (bloque elegido) y totales combinados
-      updateData.productos = productosObraSanitizados;
-      const subtotalCombinado = productosObraSubtotal + productosSubtotalEdit;
-      const descuentoCombinado = productosObraDescuento + productosDescuentoEdit;
-      const descuentoEfectivoObra = Math.max(0, Number(obra?.descuentoEfectivo) || 0);
-      const baseCombinada = Math.max(0, subtotalCombinado - descuentoCombinado - descuentoEfectivoObra);
-      // Mantener IVA/Transferencia heredados del presupuesto al editar la obra
-      const aplicaIvaObra = obra?.aplicarIva === true || obra?.aplicaIva === true;
-      const ivaPctObra = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
+      updateData.materialesCatalogo =
+        materialesSanitizados;
+
+      updateData.materialesSubtotal =
+        productosSubtotalEdit;
+
+      updateData.materialesDescuento =
+        productosDescuentoEdit;
+
+      updateData.materialesTotal =
+        productosSubtotalEdit -
+        productosDescuentoEdit;
+
+      updateData.productosSubtotal =
+        productosSubtotalEdit;
+
+      updateData.productosDescuento =
+        productosDescuentoEdit;
+
+      updateData.productosTotal =
+        productosSubtotalEdit -
+        productosDescuentoEdit;
+
+      updateData.gastoObraManual =
+        Number(gastoObraManual) || 0;
+
+      updateData.descripcionGeneral =
+        descripcionGeneral;
+
+      updateData.productos =
+        productosObraSanitizados;
+
+      const subtotalCombinado =
+        productosObraSubtotal +
+        productosSubtotalEdit;
+
+      const descuentoCombinado =
+        productosObraDescuento +
+        productosDescuentoEdit;
+
+      const descuentoEfectivoObra = Math.max(
+        0,
+        Number(obra?.descuentoEfectivo) || 0
+      );
+
+      const baseCombinada = Math.max(
+        0,
+        subtotalCombinado -
+          descuentoCombinado -
+          descuentoEfectivoObra
+      );
+
+      const aplicaIvaObra = opcionActiva(
+        opciones.aplicarIva ??
+          obra?.aplicarIva ??
+          obra?.aplicaIva
+      );
+
+      const ivaPctObra = Math.max(
+        0,
+        Number(
+          opciones.ivaPorcentaje ??
+            obra?.ivaPorcentaje
+        ) || 0
+      );
+
       const ivaMontoObra = aplicaIvaObra
-        ? Math.max(0, Math.round(Number(obra?.ivaMonto) || baseCombinada * (ivaPctObra / 100)))
+        ? Math.round(
+            baseCombinada * (ivaPctObra / 100)
+          )
         : 0;
-      const aplicaTransfObra = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-      const transfPctObra = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
+
+      const aplicaTransfObra = opcionActiva(
+        opciones.aplicarTransferencia ??
+          obra?.aplicarTransferencia ??
+          obra?.aplicaTransferencia
+      );
+
+      const transfPctObra = Math.max(
+        0,
+        Number(
+          opciones.transferenciaPorcentaje ??
+            obra?.transferenciaPorcentaje
+        ) || 0
+      );
+
       const transfMontoObra = aplicaTransfObra
-        ? Math.max(0, Math.round(Number(obra?.transferenciaMonto) || baseCombinada * (transfPctObra / 100)))
+        ? Math.round(
+            baseCombinada *
+              (transfPctObra / 100)
+          )
         : 0;
+
       updateData.subtotal = subtotalCombinado;
-      updateData.descuentoTotal = descuentoCombinado;
-      updateData.descuentoEfectivo = descuentoEfectivoObra;
+      updateData.descuentoTotal =
+        descuentoCombinado;
+      updateData.descuentoEfectivo =
+        descuentoEfectivoObra;
+
       updateData.aplicarIva = aplicaIvaObra;
       updateData.ivaPorcentaje = ivaPctObra;
       updateData.ivaMonto = ivaMontoObra;
-      updateData.aplicarTransferencia = aplicaTransfObra;
-      updateData.transferenciaPorcentaje = transfPctObra;
-      updateData.transferenciaMonto = transfMontoObra;
-      updateData.total = Math.round(baseCombinada + ivaMontoObra + transfMontoObra);
-      
-      if (estadoObra) updateData.estado = estadoObra;
-      if (fechasEdit.inicio || fechasEdit.fin) updateData.fechas = fechasEdit;
+
+      updateData.aplicarTransferencia =
+        aplicaTransfObra;
+
+      updateData.transferenciaPorcentaje =
+        transfPctObra;
+
+      updateData.transferenciaMonto =
+        transfMontoObra;
+
+      updateData.total = Math.round(
+        baseCombinada +
+          ivaMontoObra +
+          transfMontoObra
+      );
+
+      const bloqueIdGuardar =
+        presupuestoBloqueSeleccionadoId ||
+        obra.presupuestoInicialBloqueId ||
+        "";
+
+      updateData.presupuestoInicialBloqueId =
+        bloqueIdGuardar || null;
+
+      const bloqueSeleccionadoGuardar =
+        Array.isArray(presupuesto?.bloques)
+          ? presupuesto.bloques.find(
+              (bloque) =>
+                String(bloque.id) ===
+                String(bloqueIdGuardar)
+            )
+          : null;
+
+      updateData.presupuestoInicialBloqueNombre =
+        bloqueSeleccionadoGuardar?.nombre ||
+        obra.presupuestoInicialBloqueNombre ||
+        null;
+
+      if (estadoObra) {
+        updateData.estado = estadoObra;
+      }
+
+      if (fechasEdit.inicio || fechasEdit.fin) {
+        updateData.fechas = fechasEdit;
+      }
+
       if (
         ubicacionEdit.direccion ||
         ubicacionEdit.localidad ||
@@ -709,326 +1245,290 @@ export const useObra = (id) => {
       ) {
         updateData.ubicacion = ubicacionEdit;
       }
-      
-      // Guardar información del cliente
-      if (clienteId) updateData.clienteId = clienteId;
-      if (cliente) updateData.cliente = cliente;
-      updateData.usarDireccionCliente = usarDireccionCliente;
+
+      if (clienteId) {
+        updateData.clienteId = clienteId;
+      }
+
+      if (cliente) {
+        updateData.cliente = cliente;
+      }
+
+      updateData.usarDireccionCliente =
+        usarDireccionCliente;
     } else if (obra.tipo === "presupuesto") {
       updateData.productos = itemsPresupuesto;
-      updateData.subtotal = itemsPresupuesto.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
-      updateData.descuentoTotal = itemsPresupuesto.reduce((acc, p) => {
-        const base = Number(p.precio) || 0;
-        const desc = Number(p.descuento) || 0;
-        return acc + Math.round(base * desc / 100);
-      }, 0);
-      updateData.total = updateData.subtotal - updateData.descuentoTotal;
-      updateData.descripcionGeneral = descripcionGeneral || "";
+
+      updateData.subtotal =
+        itemsPresupuesto.reduce(
+          (acc, p) =>
+            acc + (Number(p.precio) || 0),
+          0
+        );
+
+      updateData.descuentoTotal =
+        itemsPresupuesto.reduce((acc, p) => {
+          const base = Number(p.precio) || 0;
+          const desc = Number(p.descuento) || 0;
+
+          return (
+            acc +
+            Math.round((base * desc) / 100)
+          );
+        }, 0);
+
+      updateData.total =
+        updateData.subtotal -
+        updateData.descuentoTotal;
+
+      updateData.descripcionGeneral =
+        descripcionGeneral || "";
     }
 
     try {
       await updateDoc(target, updateData);
-      
-      // SINCRONIZACIÓN BIDIRECCIONAL: Si es una obra con presupuesto enlazado, actualizar el presupuesto
-      if (obra.tipo === "obra" && obra.presupuestoInicialId && productosObraSanitizados.length > 0) {
-        try {
-          const presupuestoRef = doc(db, "obras", obra.presupuestoInicialId);
-          const presupuestoSnap = await getDoc(presupuestoRef);
-          
-          if (presupuestoSnap.exists()) {
-            const presupuestoData = presupuestoSnap.data();
-            
-            // Si hay bloques y se especificó un bloque
-            if (obra.presupuestoInicialBloqueId && Array.isArray(presupuestoData.bloques)) {
-              const bloquesActualizados = presupuestoData.bloques.map((bloque) => {
-                if (bloque.id === obra.presupuestoInicialBloqueId) {
-                  // Actualizar productos del bloque
-                  const productosSubtotal = productosObraSanitizados.reduce((acc, p) => {
-                    const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                    const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                    const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                    return acc + base;
-                  }, 0);
-                  
-                  const productosDescuento = productosObraSanitizados.reduce((acc, p) => {
-                    const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                    const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                    const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                    return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-                  }, 0);
-                  
-                  return {
-                    ...bloque,
-                    productos: productosObraSanitizados,
-                    subtotal: productosSubtotal,
-                    descuentoTotal: productosDescuento,
-                    total: productosSubtotal - productosDescuento,
-                  };
-                }
-                return bloque;
-              });
-              
-              // Recalcular totales del presupuesto
-              const presupuestoSubtotal = bloquesActualizados.reduce((acc, b) => acc + (Number(b.subtotal) || 0), 0);
-              const presupuestoDescuento = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoTotal) || 0), 0);
-              // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
-              const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
-              const descuentoEfectivo = pagoEnEfectivo ? presupuestoSubtotal * 0.1 : 0;
-              const basePresupuesto = Math.max(0, presupuestoSubtotal - presupuestoDescuento - descuentoEfectivo);
-              const aplicaIvaSync = presupuestoData?.aplicarIva === true || presupuestoData?.aplicaIva === true;
-              const ivaPctSync = Math.max(0, Number(presupuestoData?.ivaPorcentaje) || 0);
-              const ivaMontoSync = aplicaIvaSync
-                ? Math.max(0, Math.round(Number(presupuestoData?.ivaMonto) || basePresupuesto * (ivaPctSync / 100)))
-                : 0;
-              const aplicaTransfSync = presupuestoData?.aplicarTransferencia === true || presupuestoData?.aplicaTransferencia === true;
-              const transfPctSync = Math.max(0, Number(presupuestoData?.transferenciaPorcentaje) || 0);
-              const transfMontoSync = aplicaTransfSync
-                ? Math.max(0, Math.round(Number(presupuestoData?.transferenciaMonto) || basePresupuesto * (transfPctSync / 100)))
-                : 0;
-              const presupuestoTotal = Math.round(basePresupuesto + ivaMontoSync + transfMontoSync);
-              
-              await updateDoc(presupuestoRef, {
-                bloques: bloquesActualizados,
-                subtotal: presupuestoSubtotal,
-                descuentoTotal: presupuestoDescuento,
-                descuentoEfectivo: descuentoEfectivo,
-                aplicarIva: aplicaIvaSync,
-                ivaPorcentaje: ivaPctSync,
-                ivaMonto: ivaMontoSync,
-                aplicarTransferencia: aplicaTransfSync,
-                transferenciaPorcentaje: transfPctSync,
-                transferenciaMonto: transfMontoSync,
-                total: presupuestoTotal,
-                fechaModificacion: new Date().toISOString(),
-              });
-            } else {
-              // Sin bloques: actualizar productos directamente
-              const productosSubtotal = productosObraSanitizados.reduce((acc, p) => {
-                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                return acc + base;
-              }, 0);
-              
-              const productosDescuento = productosObraSanitizados.reduce((acc, p) => {
-                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-              }, 0);
-              
-              // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
-              const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
-              const descuentoEfectivo = pagoEnEfectivo ? productosSubtotal * 0.1 : 0;
-              const basePresupuestoSinBloques = Math.max(0, productosSubtotal - productosDescuento - descuentoEfectivo);
-              const aplicaIvaSyncNB = presupuestoData?.aplicarIva === true || presupuestoData?.aplicaIva === true;
-              const ivaPctSyncNB = Math.max(0, Number(presupuestoData?.ivaPorcentaje) || 0);
-              const ivaMontoSyncNB = aplicaIvaSyncNB
-                ? Math.max(0, Math.round(Number(presupuestoData?.ivaMonto) || basePresupuestoSinBloques * (ivaPctSyncNB / 100)))
-                : 0;
-              const aplicaTransfSyncNB = presupuestoData?.aplicarTransferencia === true || presupuestoData?.aplicaTransferencia === true;
-              const transfPctSyncNB = Math.max(0, Number(presupuestoData?.transferenciaPorcentaje) || 0);
-              const transfMontoSyncNB = aplicaTransfSyncNB
-                ? Math.max(0, Math.round(Number(presupuestoData?.transferenciaMonto) || basePresupuestoSinBloques * (transfPctSyncNB / 100)))
-                : 0;
-              const presupuestoTotal = Math.round(basePresupuestoSinBloques + ivaMontoSyncNB + transfMontoSyncNB);
-              
-              await updateDoc(presupuestoRef, {
-                productos: productosObraSanitizados,
-                subtotal: productosSubtotal,
-                descuentoTotal: productosDescuento,
-                descuentoEfectivo: descuentoEfectivo,
-                aplicarIva: aplicaIvaSyncNB,
-                ivaPorcentaje: ivaPctSyncNB,
-                ivaMonto: ivaMontoSyncNB,
-                aplicarTransferencia: aplicaTransfSyncNB,
-                transferenciaPorcentaje: transfPctSyncNB,
-                transferenciaMonto: transfMontoSyncNB,
-                total: presupuestoTotal,
-                fechaModificacion: new Date().toISOString(),
-              });
-            }
-          }
-        } catch (syncError) {
-          console.error("Error al sincronizar con presupuesto:", syncError);
-          // No bloquear el guardado si falla la sincronización
-        }
-      }
-      
+
+      // IMPORTANTE:
+      // La obra mantiene una copia independiente del bloque.
+      // No se reescribe automáticamente el presupuesto original.
+      //
+      // Esto evita que una edición de obra altere bloques,
+      // precios, productos o descuentos del presupuesto comercial.
+
       setEditando(false);
-      // Recargar la obra para reflejar cambios
-      const obraDoc = await getDoc(doc(db, "obras", id));
+
+      const obraDoc = await getDoc(
+        doc(db, "obras", id)
+      );
+
       if (obraDoc.exists()) {
-        setObra({ id: obraDoc.id, ...obraDoc.data() });
+        const obraActualizada = {
+          id: obraDoc.id,
+          ...obraDoc.data(),
+        };
+
+        setObra(obraActualizada);
+
+        setItemsCatalogo(
+          Array.isArray(
+            obraActualizada.materialesCatalogo
+          )
+            ? obraActualizada.materialesCatalogo
+            : []
+        );
+
+        setItemsPresupuesto(
+          Array.isArray(obraActualizada.productos)
+            ? obraActualizada.productos
+            : []
+        );
+
+        setPresupuestoBloqueSeleccionadoId(
+          obraActualizada.presupuestoInicialBloqueId ||
+            ""
+        );
+
+        setDescripcionGeneral(
+          obraActualizada.descripcionGeneral || ""
+        );
+
+        setEstadoObra(
+          obraActualizada.estado ||
+            "pendiente_inicio"
+        );
+
+        setFechasEdit({
+          inicio:
+            obraActualizada.fechas?.inicio || "",
+          fin: obraActualizada.fechas?.fin || "",
+        });
       }
+
+      return true;
     } catch (error) {
       console.error("Error al guardar:", error);
-      alert("Error al guardar los cambios");
-    }
-  };
-
-  // Cambiar el bloque seleccionado del presupuesto inicial y actualizar productos/totales de la obra
-  const cambiarBloquePresupuesto = async (bloqueId) => {
-    if (!obra || !obra.presupuestoInicialId) return;
-    try {
-      // Asegurar que tenemos el presupuesto cargado
-      let presupuestoFuente = presupuesto;
-      if (!presupuestoFuente) {
-        const presSnap = await getDoc(doc(db, "obras", obra.presupuestoInicialId));
-        if (presSnap.exists()) presupuestoFuente = { id: presSnap.id, ...presSnap.data() };
-      }
-      if (!presupuestoFuente || !Array.isArray(presupuestoFuente.bloques)) return;
-
-      const bloque = presupuestoFuente.bloques.find((b) => b.id === bloqueId);
-      if (!bloque) return;
-
-      // Sanitizar productos del bloque
-      const productosObraSanitizados = Array.isArray(bloque.productos) ? bloque.productos.map((p) => {
-        const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-        const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-        const precio = Number(p.precio) || 0;
-        const cantidad = Number(p.cantidad) || 1;
-        const descuento = Number(p.descuento) || 0;
-        const base = isMachDeck ? precio : precio * cantidad;
-        const subtotal = Math.round(base * (1 - descuento / 100));
-        const item = {
-          id: p.id,
-          nombre: p.nombre || "",
-          categoria: p.categoria || "",
-          subcategoria: p.subcategoria || "",
-          unidad: p.unidad || p.unidadMedida || "",
-          cantidad,
-          descuento,
-          precio,
-          subtotal,
-        };
-        if (esMadera) {
-          item.alto = Number(p.alto) || 0;
-          item.ancho = Number(p.ancho) || 0;
-          item.largo = Number(p.largo) || 0;
-          item.precioPorPie = Number(p.precioPorPie) || 0;
-          item.cepilladoAplicado = !!p.cepilladoAplicado;
-        }
-        return item;
-      }) : [];
-
-      // Recalcular totales combinados con materiales existentes
-      const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
-        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-        return acc + base;
-      }, 0);
-      const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
-        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-        return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-      }, 0);
-
-      const materialesSanitizados = Array.isArray(itemsCatalogo) ? itemsCatalogo.map((p) => {
-        const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-        const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-        const precio = Number(p.precio) || 0;
-        const cantidad = Number(p.cantidad) || 1;
-        const descuento = Number(p.descuento) || 0;
-        const base = isMachDeck ? precio : precio * cantidad;
-        const subtotal = Math.round(base * (1 - descuento / 100));
-        const item = {
-          id: p.id,
-          nombre: p.nombre || "",
-          categoria: p.categoria || "",
-          subcategoria: p.subcategoria || "",
-          unidad: p.unidad || "",
-          unidadMedida: p.unidadMedida || p.unidad || "",
-          cantidad,
-          descuento,
-          precio,
-          subtotal,
-        };
-        if (esMadera) {
-          item.alto = Number(p.alto) || 0;
-          item.ancho = Number(p.ancho) || 0;
-          item.largo = Number(p.largo) || 0;
-          item.precioPorPie = Number(p.precioPorPie) || 0;
-          item.cepilladoAplicado = !!p.cepilladoAplicado;
-        }
-        return item;
-      }) : [];
-
-      const materialesSubtotal = materialesSanitizados.reduce((acc, p) => {
-        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-        return acc + base;
-      }, 0);
-      const materialesDescuento = materialesSanitizados.reduce((acc, p) => {
-        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-        return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-      }, 0);
-
-      const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
-      const descuentoCombinado = productosObraDescuento + materialesDescuento;
-      const descuentoEfectivoCambio = Math.max(0, Number(obra?.descuentoEfectivo) || 0);
-      const baseCombinadaCambio = Math.max(0, subtotalCombinado - descuentoCombinado - descuentoEfectivoCambio);
-      const aplicaIvaCambio = obra?.aplicarIva === true || obra?.aplicaIva === true;
-      const ivaPctCambio = Math.max(0, Number(obra?.ivaPorcentaje) || 0);
-      const ivaMontoCambio = aplicaIvaCambio
-        ? Math.max(0, Math.round(Number(obra?.ivaMonto) || baseCombinadaCambio * (ivaPctCambio / 100)))
-        : 0;
-      const aplicaTransfCambio = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-      const transfPctCambio = Math.max(0, Number(obra?.transferenciaPorcentaje) || 0);
-      const transfMontoCambio = aplicaTransfCambio
-        ? Math.max(0, Math.round(Number(obra?.transferenciaMonto) || baseCombinadaCambio * (transfPctCambio / 100)))
-        : 0;
-      const totalCombinado = Math.round(baseCombinadaCambio + ivaMontoCambio + transfMontoCambio);
-
-      // Persistir cambios (incluyendo nuevos totales de materiales)
-      await updateDoc(doc(db, "obras", obra.id), {
-        productos: productosObraSanitizados,
-        presupuestoInicialBloqueId: bloque.id,
-        presupuestoInicialBloqueNombre: bloque.nombre || null,
-        subtotal: subtotalCombinado,
-        descuentoTotal: descuentoCombinado,
-        descuentoEfectivo: descuentoEfectivoCambio,
-        aplicarIva: aplicaIvaCambio,
-        ivaPorcentaje: ivaPctCambio,
-        ivaMonto: ivaMontoCambio,
-        aplicarTransferencia: aplicaTransfCambio,
-        transferenciaPorcentaje: transfPctCambio,
-        transferenciaMonto: transfMontoCambio,
-        total: totalCombinado,
-        materialesSubtotal: materialesSubtotal,
-        materialesDescuento: materialesDescuento,
-        materialesTotal: materialesSubtotal - materialesDescuento,
-        // Compatibilidad
-        productosSubtotal: materialesSubtotal,
-        productosDescuento: materialesDescuento,
-        productosTotal: materialesSubtotal - materialesDescuento,
-      });
-
-      // Actualizar estados locales
-      setItemsPresupuesto(productosObraSanitizados);
-      setObra((prev) => prev ? {
-        ...prev,
-        productos: productosObraSanitizados,
-        presupuestoInicialBloqueId: bloque.id,
-        presupuestoInicialBloqueNombre: bloque.nombre || null,
-        subtotal: subtotalCombinado,
-        descuentoTotal: descuentoCombinado,
-        total: totalCombinado,
-      } : prev);
-
-    } catch (error) {
-      console.error("Error al cambiar el bloque del presupuesto inicial:", error);
       throw error;
     }
   };
 
+  // El cambio de bloque es únicamente local.
+  // Firestore se actualiza cuando se guarda la obra.
+  const cambiarBloquePresupuesto = (bloqueId) => {
+    if (
+      !presupuesto ||
+      !Array.isArray(presupuesto.bloques)
+    ) {
+      return null;
+    }
+
+    const bloque = presupuesto.bloques.find(
+      (item) =>
+        String(item.id) === String(bloqueId)
+    );
+
+    if (!bloque) return null;
+
+    const productos = Array.isArray(
+      bloque.productos
+    )
+      ? bloque.productos.map(
+          sanitizarProductoPresupuesto
+        )
+      : [];
+
+    const resumen =
+      calcularResumenProductosPresupuesto(
+        productos
+      );
+
+    const aplicarIvaBloque = opcionActiva(
+      bloque.aplicarIva ?? bloque.aplicaIva
+    );
+
+    const ivaPorcentajeBloque = Math.max(
+      0,
+      Number(bloque.ivaPorcentaje) || 0
+    );
+
+    const aplicarTransferenciaBloque =
+      opcionActiva(
+        bloque.aplicarTransferencia ??
+          bloque.aplicaTransferencia
+      );
+
+    const transferenciaPorcentajeBloque =
+      Math.max(
+        0,
+        Number(
+          bloque.transferenciaPorcentaje
+        ) || 0
+      );
+
+    const ivaMontoBloque = aplicarIvaBloque
+      ? Math.round(
+          resumen.base *
+            (ivaPorcentajeBloque / 100)
+        )
+      : 0;
+
+    const transferenciaMontoBloque =
+      aplicarTransferenciaBloque
+        ? Math.round(
+            resumen.base *
+              (transferenciaPorcentajeBloque /
+                100)
+          )
+        : 0;
+
+    setPresupuestoBloqueSeleccionadoId(
+      String(bloque.id)
+    );
+
+    setItemsPresupuesto(productos);
+
+    if (
+      typeof bloque.descripcion === "string" &&
+      bloque.descripcion.trim()
+    ) {
+      setDescripcionGeneral(
+        bloque.descripcion
+      );
+    }
+
+    return {
+      bloque,
+      productos,
+      resumen,
+
+      aplicarIva: aplicarIvaBloque,
+      ivaPorcentaje: ivaPorcentajeBloque,
+      ivaMonto: ivaMontoBloque,
+
+      aplicarTransferencia:
+        aplicarTransferenciaBloque,
+
+      transferenciaPorcentaje:
+        transferenciaPorcentajeBloque,
+
+      transferenciaMonto:
+        transferenciaMontoBloque,
+
+      total: Math.round(
+        resumen.base +
+          ivaMontoBloque +
+          transferenciaMontoBloque
+      ),
+    };
+  };
+
+  const cancelarEdicion = () => {
+    if (!obra) return;
+
+    setItemsCatalogo(
+      Array.isArray(obra.materialesCatalogo)
+        ? obra.materialesCatalogo
+        : []
+    );
+
+    setItemsPresupuesto(
+      Array.isArray(obra.productos)
+        ? obra.productos
+        : []
+    );
+
+    setPresupuestoBloqueSeleccionadoId(
+      obra.presupuestoInicialBloqueId || ""
+    );
+
+    setDescripcionGeneral(
+      obra.descripcionGeneral || ""
+    );
+
+    setEstadoObra(
+      obra.estado || "pendiente_inicio"
+    );
+
+    setFechasEdit({
+      inicio: obra.fechas?.inicio || "",
+      fin: obra.fechas?.fin || "",
+    });
+
+    setUbicacionEdit({
+      direccion:
+        obra.ubicacion?.direccion || "",
+      localidad:
+        obra.ubicacion?.localidad || "",
+      provincia:
+        obra.ubicacion?.provincia || "",
+      barrio: obra.ubicacion?.barrio || "",
+      area: obra.ubicacion?.area || "",
+      lote: obra.ubicacion?.lote || "",
+    });
+
+    setClienteId(
+      obra.clienteId || obra.cliente?.id || ""
+    );
+
+    setCliente(obra.cliente || null);
+
+    setUsarDireccionCliente(
+      obra.usarDireccionCliente !== false
+    );
+
+    setGastoObraManual(
+      Number(obra.gastoObraManual) || 0
+    );
+
+    setModoCosto(
+      obra.presupuestoInicialId
+        ? "presupuesto"
+        : "gasto"
+    );
+
+    setEditando(false);
+  };
+
   return {
-    // Estados
     obra,
     loading,
     error,
@@ -1062,11 +1562,11 @@ export const useObra = (id) => {
     gastoObraManual,
     presupuestosDisponibles,
     presupuestoSeleccionadoId,
+    presupuestoBloqueSeleccionadoId,
     modoCosto,
     descripcionGeneral,
     catalogoCargado,
-    
-    // Setters
+
     setObra,
     setEditando,
     setDocLinks,
@@ -1085,10 +1585,10 @@ export const useObra = (id) => {
     setItemsPresupuesto,
     setGastoObraManual,
     setPresupuestoSeleccionadoId,
+    setPresupuestoBloqueSeleccionadoId,
     setModoCosto,
     setDescripcionGeneral,
-    
-    // Funciones
+
     guardarEdicion,
     handleDesvincularPresupuesto,
     handleVincularPresupuesto,
@@ -1098,5 +1598,6 @@ export const useObra = (id) => {
     convertirPresupuestoToObra,
     cargarCatalogoProductos,
     cambiarBloquePresupuesto,
+    cancelarEdicion,
   };
 };

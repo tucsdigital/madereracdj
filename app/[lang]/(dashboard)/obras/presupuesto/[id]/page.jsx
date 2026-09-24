@@ -57,8 +57,7 @@ const PresupuestoPage = () => {
   const [showWizardConversion, setShowWizardConversion] = useState(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
-  // Estado para controlar cuándo guardar desde el componente PresupuestoDetalle
-  const [shouldSave, setShouldSave] = useState(false);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   const router = useRouter();
   const { user } = useAuth();
@@ -172,13 +171,19 @@ const PresupuestoPage = () => {
 
   const handleToggleEdit = async () => {
     if (editando) {
-      // Botón "Guardar": persistir cambios pendientes en PresupuestoDetalle
-      if (detalleRef.current?.guardar) {
-        detalleRef.current.guardar();
-      } else {
-        setShouldSave(true);
+      setGuardandoEdicion(true);
+      try {
+        // Esperar el guardado real antes de cerrar la edición.
+        if (detalleRef.current?.guardar) {
+          const guardado = await detalleRef.current.guardar();
+          if (guardado === false) return;
+        } else {
+          return;
+        }
+        setEditando(false);
+      } finally {
+        setGuardandoEdicion(false);
       }
-      setEditando(false);
     } else {
       setEditando(true);
     }
@@ -187,7 +192,6 @@ const PresupuestoPage = () => {
   const handleCancelEdit = () => {
     // Botón "Cancelar": descartar edición SIN guardar nada en Firestore.
     // Restaura el snapshot local (bloques, medidas, impuestos) sin mutar obra.
-    handleResetShouldSave();
     if (detalleRef.current?.cancelar) {
       detalleRef.current.cancelar();
     }
@@ -200,11 +204,6 @@ const PresupuestoPage = () => {
     // Actualizar el estado local sin refrescar la página
     setObra(obraActualizada);
     console.log("✅ Estado local actualizado exitosamente");
-  };
-
-  // Función para resetear el flag shouldSave
-  const handleResetShouldSave = () => {
-    setShouldSave(false);
   };
 
   // Handler para cuando se selecciona un cliente (existente o nuevo)
@@ -286,6 +285,7 @@ const PresupuestoPage = () => {
         onToggleEdit={handleToggleEdit}
         onCancel={handleCancelEdit}
         onPrint={handlePrint}
+        saving={guardandoEdicion}
         onConvertToObra={
           obra?.tipo === "presupuesto" ? () => setShowWizardConversion(true) : undefined
         }
@@ -350,8 +350,6 @@ const PresupuestoPage = () => {
             formatearNumeroArgentino={formatearNumeroArgentino}
             onObraUpdate={handleObraUpdate}
             onGuardarRef={detalleRef}
-            shouldSave={shouldSave}
-            onResetShouldSave={handleResetShouldSave}
           />
 
         </div>
@@ -359,102 +357,6 @@ const PresupuestoPage = () => {
         {/* Barra lateral */}
         <div className="space-y-6">
           <ObraInfoGeneral obra={obra} formatearFecha={formatearFecha} />
-
-          {/* Resumen Financiero por Bloques */}
-          {obra?.bloques && obra.bloques.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Icon icon="heroicons:calculator" className="w-5 h-5" />
-                  Resumen Financiero por Bloques
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {obra.bloques.map((bloque, index) => (
-                    <div key={bloque.id} className="p-4 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-lg">{bloque.nombre}</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="text-gray-500">Subtotal</div>
-                          <div className="font-semibold">${formatearNumeroArgentino(bloque.subtotal || 0)}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">Descuento</div>
-                          <div className="font-semibold text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">Total</div>
-                          <div className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {(() => {
-                    const baseGen = Math.max(
-                      0,
-                      (Number(obra?.subtotal) || 0) -
-                        (Number(obra?.descuentoTotal) || 0) -
-                        (Number(obra?.descuentoEfectivo) || 0)
-                    );
-                    const aplicaIvaGen = obra?.aplicarIva === true || obra?.aplicaIva === true;
-                    const aplicaTransfGen = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-                    const ivaGen = aplicaIvaGen ? Math.max(0, Number(obra?.ivaMonto) || Math.round(baseGen * (Math.max(0, Number(obra?.ivaPorcentaje) || 0) / 100))) : 0;
-                    const transfGen = aplicaTransfGen ? Math.max(0, Number(obra?.transferenciaMonto) || Math.round(baseGen * (Math.max(0, Number(obra?.transferenciaPorcentaje) || 0) / 100))) : 0;
-                    const totalGen = typeof obra?.total === "number" && !Number.isNaN(obra.total) && Number(obra.total) > 0
-                      ? Math.round(Number(obra.total))
-                      : Math.round(baseGen + ivaGen + transfGen);
-                    return (
-                      <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 text-sm">
-                          <div className="text-center">
-                            <div className="text-gray-500">Subtotal Gral.</div>
-                            <div className="font-semibold">${formatearNumeroArgentino(obra?.subtotal || 0)}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-gray-500">Descuento Gral.</div>
-                            <div className="font-semibold text-orange-600">${formatearNumeroArgentino(obra?.descuentoTotal || 0)}</div>
-                          </div>
-                          {(Number(obra?.descuentoEfectivo) || 0) > 0 && (
-                            <div className="text-center">
-                              <div className="text-gray-500">Desc. Efectivo</div>
-                              <div className="font-semibold text-green-600">${formatearNumeroArgentino(obra?.descuentoEfectivo || 0)}</div>
-                            </div>
-                          )}
-                          {aplicaIvaGen && (
-                            <div className="text-center">
-                              <div className="text-gray-500">IVA ({Number(obra?.ivaPorcentaje) || 0}%)</div>
-                              <div className="font-semibold text-blue-700">${formatearNumeroArgentino(ivaGen)}</div>
-                            </div>
-                          )}
-                          {aplicaTransfGen && (
-                            <div className="text-center">
-                              <div className="text-gray-500">Transferencia ({Number(obra?.transferenciaPorcentaje) || 0}%)</div>
-                              <div className="font-semibold text-purple-700">${formatearNumeroArgentino(transfGen)}</div>
-                            </div>
-                          )}
-                          <div className="text-center">
-                            <div className="text-gray-500">Total Final</div>
-                            <div className="font-bold text-green-700">${formatearNumeroArgentino(totalGen)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <ObraResumenFinanciero
-              obra={obra}
-              presupuesto={null}
-              modoCosto="presupuesto"
-              formatearNumeroArgentino={formatearNumeroArgentino}
-            />
-          )}
 
           {/* Información de envío si existe */}
           {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (

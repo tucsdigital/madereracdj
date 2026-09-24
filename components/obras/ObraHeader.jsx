@@ -13,6 +13,7 @@ const ObraHeader = ({
   onCancel,
   onConvertToObra,
   converting = false,
+  saving = false,
   showBackButton = true,
   backUrl = "/obras"
 }) => {
@@ -54,21 +55,26 @@ const ObraHeader = ({
         {editando ? (
           <>
             <Button
-              variant="default"
-              onClick={handleSave}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-            >
-              <Save className="w-4 h-4" />
-              Guardar
-            </Button>
-            
-            <Button
               variant="outline"
               onClick={handleCancel}
-              className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+              disabled={saving}
+              className="flex items-center gap-2"
             >
               <X className="w-4 h-4" />
               Cancelar
+            </Button>
+
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {saving ? "Guardando…" : "Guardar cambios"}
             </Button>
           </>
         ) : (
