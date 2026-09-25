@@ -1,36 +1,20 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/provider/auth.provider";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Icon } from "@iconify/react";
-import Link from "next/link";
-import { useLocalizedPath } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const ProfileInfo = () => {
   const { user, logout } = useAuth();
-  const localize = useLocalizedPath();
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [reportEmail, setReportEmail] = useState("");
   const [reportExports, setReportExports] = useState({ obras: true, ventas: false });
   const [sendingReport, setSendingReport] = useState(false);
   const [reportFeedback, setReportFeedback] = useState(null);
-  const isAdmin = user?.email?.toLowerCase() === "admin@admin.com";
   const isValidEmail = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reportEmail.trim()), [reportEmail]);
 
   const openReport = () => {
@@ -83,46 +67,17 @@ const ProfileInfo = () => {
             <div className="text-xs text-default-600">{user.email}</div>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuGroup>
-          {[
-            {
-              name: "Perfil",
-              icon: "heroicons:user",
-              href: "/dashboard",
-            },
-            {
-              name: "Configuración",
-              icon: "heroicons:paper-airplane",
-              href: "/dashboard",
-            },
-          ].map((item, index) => (
-            <Link
-              href={localize(item.href)}
-              key={`info-menu-${index}`}
-              className="cursor-pointer"
-            >
-              <DropdownMenuItem className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize px-3 py-1.5 dark:hover:bg-background cursor-pointer">
-                <Icon icon={item.icon} className="w-4 h-4" />
-                {item.name}
-              </DropdownMenuItem>
-            </Link>
-          ))}
-          </DropdownMenuGroup>
-          {isAdmin && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  openReport();
-                }}
-                className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize px-3 py-2 dark:hover:bg-background cursor-pointer"
-              >
-                <Icon icon="heroicons:document-chart-bar" className="w-4 h-4 text-primary" />
-                Reporte
-              </DropdownMenuItem>
-            </>
-          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              openReport();
+            }}
+            className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize px-3 py-2 dark:hover:bg-background cursor-pointer"
+          >
+            <Icon icon="heroicons:document-chart-bar" className="w-4 h-4 text-primary" />
+            Reporte
+          </DropdownMenuItem>
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
           <DropdownMenuItem
             onSelect={logout}
@@ -134,8 +89,7 @@ const ProfileInfo = () => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isAdmin && (
-        <Dialog
+      <Dialog
           open={reportOpen}
           onOpenChange={(open) => {
             if (!sendingReport) setReportOpen(open);
@@ -146,9 +100,9 @@ const ProfileInfo = () => {
               <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Icon icon="heroicons:document-chart-bar" className="h-5 w-5" />
               </div>
-              <DialogTitle className="text-xl font-bold">Enviar reporte de obras</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Enviar reporte</DialogTitle>
               <DialogDescription className="pt-1 leading-5">
-                Incluye las obras confirmadas, las pendientes de cobrar y la comisión del 2,5% sobre las confirmadas.
+                Elegí obras, ventas o ambas para generar un reporte claro y completo del mes seleccionado.
               </DialogDescription>
             </DialogHeader>
 
@@ -192,7 +146,6 @@ const ProfileInfo = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      )}
     </>
   );
 };
