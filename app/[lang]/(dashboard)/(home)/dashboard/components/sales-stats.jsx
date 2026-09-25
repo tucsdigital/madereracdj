@@ -19,10 +19,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import CajaDelDia from "./caja-del-dia";
+import { getObraReferenceDate } from "@/lib/obras-fechas";
 
 const SalesStats = () => {
   const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
-  const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, clientes: clientesData, loading } = useDashboardData();
+  const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, allObras, clientes: clientesData, loading } = useDashboardData();
 
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
@@ -75,12 +76,24 @@ const SalesStats = () => {
     return (obrasFromContext || []).filter((o) => o.tipo === "obra");
   }, [obrasFromContext]);
 
-  // Obras confirmadas: solo en_ejecucion y completada (para cálculo de comisiones)
+  const calcularTotalObra = (obra) => Number(obra?.total) || Number(obra?.subtotal) || (Number(obra?.productosTotal) || 0) + (Number(obra?.materialesTotal) || 0) + (Number(obra?.gastoObraManual) || 0) + (Number(obra?.costoEnvio) || 0) - (Number(obra?.descuentoTotal) || 0);
+  const obraPagada = (obra) => {
+    const cobranzas = obra?.cobranzas || {};
+    const abonado = (Number(cobranzas.senia) || 0) + (Number(cobranzas.monto) || 0) + (Array.isArray(cobranzas.historialPagos) ? cobranzas.historialPagos.reduce((sum, pago) => sum + (Number(pago?.monto) || 0), 0) : 0);
+    return calcularTotalObra(obra) > 0 && abonado >= calcularTotalObra(obra);
+  };
+  const fechaUltimoPagoObra = (obra) => (obra?.cobranzas?.historialPagos || []).map((pago) => pago?.fecha).filter(Boolean).sort().at(-1) || "";
+
+  // Misma regla del reporte: ejecución en el período o una obra completada/pagada en el período.
   const obrasConfirmadas = useMemo(() => {
-    return obrasFiltradas.filter(
-      (o) => o.estado === "en_ejecucion" || o.estado === "completada"
-    );
-  }, [obrasFiltradas]);
+    return (allObras || []).filter((obra) => {
+      const estado = String(obra?.estado || "").toLowerCase();
+      const enEjecucion = estado === "en_ejecucion" && isInRange(getObraReferenceDate(obra));
+      const finalizadaOPagada = (estado === "completada" || obraPagada(obra)) && isInRange(fechaUltimoPagoObra(obra) || obra?.fechaCompletada || obra?.fechaFinalizacion || obra?.fechaModificacion);
+      return enEjecucion || finalizadaOPagada;
+    });
+  }, [allObras, isInRange]);
+  const obrasComisionables = obrasConfirmadas;
 
   const kpis = useMemo(() => {
     const ventasCount = ventasFiltradas.length;
@@ -156,7 +169,8 @@ const SalesStats = () => {
           (Number(o.descuentoTotal) || 0);
       return acc + total;
     }, 0);
-    const obrasComision = obrasMontoConfirmadas * (OBRAS_COMMISSION_RATE / 100);
+    const obrasMontoComisionable = obrasComisionables.reduce((acc, obra) => acc + calcularTotalObra(obra), 0);
+    const obrasComision = obrasMontoComisionable * (OBRAS_COMMISSION_RATE / 100);
 
     const estados = ventasFiltradas.reduce(
       (acc, v) => {
@@ -250,6 +264,7 @@ const SalesStats = () => {
     presupuestosFiltrados,
     obrasFiltradas,
     obrasConfirmadas,
+    obrasComisionables,
     OBRAS_COMMISSION_RATE,
   ]);
 
@@ -366,9 +381,10 @@ const SalesStats = () => {
   const comisionesPorTipoCliente = useMemo(() => {
     const basePagada = Number(kpis.cobranzasPagadoTotal) || 0;
     const baseCobrosPeriodo = Number(kpis.cobranzasIngresadoPeriodo) || 0;
-    const comisionPagado = basePagada * (COMMISSION_RATE / 100);
-    const comisionCobrosPeriodo = baseCobrosPeriodo * (COMMISSION_RATE / 100);
-    return { comisionPagado, comisionCobrosPeriodo };
+    return {
+      comisionPagado: basePagada * (COMMISSION_RATE / 100),
+      comisionCobrosPeriodo: baseCobrosPeriodo * (COMMISSION_RATE / 100),
+    };
   }, [kpis.cobranzasPagadoTotal, kpis.cobranzasIngresadoPeriodo, COMMISSION_RATE]);
 
   // Eliminar cálculos anteriores que ya no se usan

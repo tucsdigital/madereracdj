@@ -9,6 +9,7 @@ import { useDateRange } from "./date-range-context";
 const DashboardDataContext = createContext({
   ventas: [],
   allVentas: [],
+  allObras: [],
   presupuestos: [],
   obras: [],
   productos: [],
@@ -25,6 +26,7 @@ export const DashboardDataProvider = ({ children }) => {
   const [data, setData] = useState({
     ventas: [],
     allVentas: [],
+    allObras: [],
     presupuestos: [],
     obras: [],
     productos: [],
@@ -77,20 +79,23 @@ export const DashboardDataProvider = ({ children }) => {
           return Array.from(documentsById.values());
         };
 
-        const [ventas, presupuestos, obras, productosSnap, clientesSnap] = await Promise.all([
-          readRange("ventas", ["fechaCreacion", "fecha"]),
+        const [ventasSnap, presupuestos, obrasSnap, productosSnap, clientesSnap] = await Promise.all([
+          getDocs(collection(db, "ventas")),
           readRange("presupuestos", ["fechaCreacion", "fecha"]),
-          readRange("obras", ["fechaCreacion", "fecha", "fechas.inicio"]),
+          getDocs(collection(db, "obras")),
           getDocs(collection(db, "productos")),
           getDocs(collection(db, "clientes")),
         ]);
 
+        const ventas = ventasSnap.docs.map((document) => ({ ...document.data(), id: document.id }));
+        const obras = obrasSnap.docs.map((document) => ({ ...document.data(), id: document.id }));
         const isVentaAnulada = (v) =>
           String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true;
         const allVentas = ventas.filter((v) => !isVentaAnulada(v));
         const nextData = {
           ventas: allVentas.filter((v) => isInRange(v.fechaCreacion || v.fecha)),
           allVentas,
+          allObras: obras,
           presupuestos: presupuestos.filter((p) => isInRange(p.fechaCreacion || p.fecha)),
           obras: obras.filter((o) => isInRange(getObraReferenceDate(o))),
           productos: productosSnap.docs.map((document) => ({ ...document.data(), id: document.id })),
@@ -113,7 +118,7 @@ export const DashboardDataProvider = ({ children }) => {
 
   const value = useMemo(
     () => ({ ...data, loading }),
-    [data.ventas, data.allVentas, data.presupuestos, data.obras, data.productos, data.clientes, loading]
+    [data.ventas, data.allVentas, data.allObras, data.presupuestos, data.obras, data.productos, data.clientes, loading]
   );
 
   return (

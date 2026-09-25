@@ -102,7 +102,7 @@ const ProfileInfo = () => {
               </div>
               <DialogTitle className="text-xl font-bold">Enviar reporte</DialogTitle>
               <DialogDescription className="pt-1 leading-5">
-                Elegí obras, ventas o ambas para generar un reporte claro y completo del mes seleccionado.
+                Elegí obras, ventas o ambas para generar un reporte completo del mes seleccionado.
               </DialogDescription>
             </DialogHeader>
 
@@ -128,7 +128,6 @@ const ProfileInfo = () => {
               <label className="block space-y-2">
                 <span className="text-sm font-semibold text-default-800">Enviar a</span>
                 <Input type="email" value={reportEmail} onChange={(event) => setReportEmail(event.target.value)} placeholder="nombre@empresa.com" autoComplete="email" disabled={sendingReport} />
-                <span className="block text-xs text-default-500">El PDF se genera al momento y se envía únicamente a esta dirección.</span>
               </label>
               {reportFeedback && (
                 <div className={`flex gap-2 rounded-lg border px-3 py-2.5 text-sm ${reportFeedback.type === "success" ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}`} role="status">
