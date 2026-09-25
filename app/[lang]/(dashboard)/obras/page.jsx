@@ -770,7 +770,7 @@ const ObrasPage = () => {
         const cliente = row.original.cliente;
         return (
           <div>
-            <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
+            <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
             <div className="text-xs text-gray-500">
               {getClienteSecondaryLabel(cliente)}
             </div>
@@ -953,7 +953,7 @@ const ObrasPage = () => {
         const cliente = row.original.cliente;
         return (
           <div>
-            <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
+            <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
             <div className="text-xs text-gray-500">
               {getClienteSecondaryLabel(cliente)}
             </div>
