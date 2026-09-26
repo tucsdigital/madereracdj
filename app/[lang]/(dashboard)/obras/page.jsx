@@ -365,7 +365,7 @@ const ObrasPage = () => {
   const [deleteType, setDeleteType] = useState("");
   
   // Estados para el nuevo header (deben ir antes de los useMemo que los usan)
-  const [vistaCalendario, setVistaCalendario] = useState("15dias");
+  const [vistaCalendario, setVistaCalendario] = useState("lista");
   const [busquedaGlobal, setBusquedaGlobal] = useState("");
   const [busquedaPresupuestos, setBusquedaPresupuestos] = useState("");
   const [busquedaObras, setBusquedaObras] = useState("");
@@ -382,7 +382,8 @@ const ObrasPage = () => {
     fechaHasta: "",
   });
   const [listaActiva, setListaActiva] = useState("presupuestos");
-  const [periodoLista, setPeriodoLista] = useState("30dias");
+  // Nunca limitar las listas históricas por defecto: la paginación debe recorrer todo el registro.
+  const [periodoLista, setPeriodoLista] = useState("todos");
   const [vistaPresupuestos, setVistaPresupuestos] = useState("todos");
   
   // Estados para el calendario
@@ -768,14 +769,11 @@ const ObrasPage = () => {
       header: "Cliente",
       cell: ({ row }) => {
         const cliente = row.original.cliente;
-        return (
-          <div>
-            <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
-            <div className="text-xs text-gray-500">
-              {getClienteSecondaryLabel(cliente)}
+          return (
+            <div>
+              <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
             </div>
-          </div>
-        );
+          );
       },
     },
     {
@@ -951,23 +949,19 @@ const ObrasPage = () => {
       header: "Cliente",
       cell: ({ row }) => {
         const cliente = row.original.cliente;
-        return (
-          <div>
-            <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
-            <div className="text-xs text-gray-500">
-              {getClienteSecondaryLabel(cliente)}
+          return (
+            <div>
+              <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
             </div>
-          </div>
-        );
+          );
       },
     },
     {
-      accessorFn: (row) => row?.fechas?.inicio || row?.fechaCreacion || "",
-      id: "fechaInicio",
-      header: "Fecha Inicio",
+      accessorKey: "fechaCreacion",
+      header: "Fecha",
       enableSorting: true,
       cell: ({ row }) => {
-        const fecha = formatDateLabel(row.getValue("fechaInicio"));
+        const fecha = formatDateLabel(row.getValue("fechaCreacion"));
         return (
           <div>
             <div className="font-medium text-foreground">{fecha.date}</div>
@@ -1338,11 +1332,6 @@ const ObrasPage = () => {
   const presupuestos = useMemo(() => {
     let filtered = [...presupuestosBase];
 
-    // Filtro por cliente
-    if (filtros.cliente) {
-      filtered = filtered.filter((p) => p.clienteId === filtros.cliente);
-    }
-
     // Filtro por rango de fechas
     if (filtros.fechaDesde) {
       filtered = filtered.filter((p) => {
@@ -1380,30 +1369,18 @@ const ObrasPage = () => {
       filtered = filtered.filter((o) => o.estado === filtros.estado);
     }
 
-    // Filtro por cliente
-    if (filtros.cliente) {
-      filtered = filtered.filter((o) => o.clienteId === filtros.cliente);
-    }
-
-    // Filtro por estado de pago
-    if (filtros.estadoPago) {
-      filtered = filtered.filter((o) => o.estadoPago === filtros.estadoPago);
-    }
-
     // Filtro por rango de fechas
     if (filtros.fechaDesde) {
       filtered = filtered.filter((o) => {
         const fechaCreacion = o.fechaCreacion || "";
-        const fechaInicio = o.fechas?.inicio || "";
-        return fechaCreacion >= filtros.fechaDesde || fechaInicio >= filtros.fechaDesde;
+        return fechaCreacion >= filtros.fechaDesde;
       });
     }
     if (filtros.fechaHasta) {
       filtered = filtered.filter((o) => {
         const fechaCreacion = o.fechaCreacion || "";
-        const fechaFin = o.fechas?.fin || "";
         const hasta = filtros.fechaHasta + "T23:59:59";
-        return fechaCreacion <= hasta || fechaFin <= filtros.fechaHasta;
+        return fechaCreacion <= hasta;
       });
     }
 
@@ -1472,18 +1449,14 @@ const ObrasPage = () => {
 
   const filtrosAvanzadosActivos = useMemo(() => {
     let count = 0;
-    if (filtros.cliente) count += 1;
     if (filtros.fechaDesde || filtros.fechaHasta) count += 1;
     if (listaActiva === "obras" && filtros.estado) count += 1;
-    if (listaActiva === "obras" && filtros.estadoPago) count += 1;
     return count;
   }, [filtros, listaActiva]);
 
   const limpiarFiltrosTabla = () => {
     setFiltros({
       estado: "",
-      cliente: "",
-      estadoPago: "",
       fechaDesde: "",
       fechaHasta: "",
     });
@@ -1585,7 +1558,7 @@ const ObrasPage = () => {
       </>
     );
 
-  const toolbarRightPresupuestos = (
+  const toolbarRightPresupuestosLegacy = (
     <div className="flex items-center gap-2">
       <Button
         type="button"
@@ -1715,7 +1688,7 @@ const ObrasPage = () => {
     </div>
   );
 
-  const toolbarRightObras = (
+  const toolbarRightObrasLegacy = (
     <div className="flex items-center gap-2">
       <Button
         type="button"
@@ -1845,6 +1818,48 @@ const ObrasPage = () => {
     </div>
   );
 
+  const FiltrosFechas = () => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-10 rounded-xl border-border/60 bg-background px-4">
+          <Icon icon="heroicons:calendar-days" className="mr-2 h-4 w-4" />
+          Fechas
+          {(filtros.fechaDesde || filtros.fechaHasta) ? <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">1</span> : null}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[320px] rounded-2xl border-border/60 p-4">
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Desde</div><DateInput value={filtros.fechaDesde || ""} onChange={(fechaDesde) => setFiltros((actual) => ({ ...actual, fechaDesde }))} buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background" /></div>
+            <div><div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Hasta</div><DateInput value={filtros.fechaHasta || ""} min={filtros.fechaDesde || undefined} onChange={(fechaHasta) => setFiltros((actual) => ({ ...actual, fechaHasta }))} buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background" /></div>
+          </div>
+          <Button variant="ghost" className="w-full justify-center rounded-xl" onClick={limpiarFiltrosTabla}>Limpiar fechas</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
+  const toolbarRightPresupuestos = (
+    <div className="flex items-center gap-2">
+      <FiltrosFechas />
+      <Button type="button" onClick={() => router.push(`/${lang}/obras/presupuesto/create`)} className="h-10 rounded-xl px-4"><Plus className="mr-2 h-4 w-4" />Nuevo presupuesto</Button>
+    </div>
+  );
+
+  const toolbarRightObras = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={filtros.estado || "todos"} onValueChange={(estado) => setFiltros((actual) => ({ ...actual, estado: estado === "todos" ? "" : estado }))}>
+        <SelectTrigger className="h-10 w-[190px] rounded-xl border-border/60 bg-background"><SelectValue placeholder="Estado" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos los estados</SelectItem>
+          {Object.entries(estadosObra).filter(([value]) => value !== "activo").map(([value, estado]) => <SelectItem key={value} value={value}>{estado.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <FiltrosFechas />
+      <Button type="button" onClick={() => router.push(`/${lang}/obras/create`)} className="h-10 rounded-xl px-4"><Plus className="mr-2 h-4 w-4" />Nueva obra</Button>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1954,7 +1969,7 @@ const ObrasPage = () => {
           title="Presupuestos"
           searchValue={busquedaPresupuestos}
           onSearchChange={setBusquedaPresupuestos}
-          searchPlaceholder="Buscar cliente, teléfono o documento..."
+          searchPlaceholder="Buscar presupuesto, cliente, teléfono o documento..."
           toolbarRight={toolbarRightPresupuestos}
           loading={loadingBusquedaPresupuestos}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
@@ -1968,7 +1983,7 @@ const ObrasPage = () => {
           title="Obras"
           searchValue={busquedaObras}
           onSearchChange={setBusquedaObras}
-          searchPlaceholder="Buscar cliente, teléfono o documento..."
+          searchPlaceholder="Buscar obra, cliente, teléfono o documento..."
           toolbarRight={toolbarRightObras}
           loading={loadingBusquedaObras}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}

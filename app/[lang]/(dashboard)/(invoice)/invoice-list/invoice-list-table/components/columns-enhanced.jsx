@@ -157,13 +157,10 @@ export const columnsPresupuestos = [
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-            {(row?.original?.cliente?.nombre || "-").toUpperCase()}
-          </span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {getClienteSecondaryLabel(row?.original?.cliente)}
-          </span>
-        </div>
+        <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
+        </span>
+      </div>
       </div>
     ),
     enableSorting: true,
@@ -327,13 +324,10 @@ export const columnsVentas = [
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-            {(row?.original?.cliente?.nombre || "-").toUpperCase()}
-          </span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {getClienteSecondaryLabel(row?.original?.cliente)}
-          </span>
-        </div>
+        <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
+        </span>
+      </div>
       </div>
     ),
     enableSorting: true,

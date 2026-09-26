@@ -107,8 +107,9 @@ const ObrasHeader = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="15dias">15 días</SelectItem>
+              <SelectItem value="lista">Lista diaria</SelectItem>
               <SelectItem value="semana">Semana</SelectItem>
+              <SelectItem value="mes">Mes</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -162,6 +163,7 @@ const ObrasHeader = ({
             </PopoverContent>
           </Popover>
 
+          {false && <>
           <Popover
             open={filtrosAbiertos.cliente}
             onOpenChange={(open) =>
@@ -260,6 +262,7 @@ const ObrasHeader = ({
               </div>
             </PopoverContent>
           </Popover>
+          </>}
 
           <Popover
             open={filtrosAbiertos.fecha}

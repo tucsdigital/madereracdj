@@ -59,7 +59,7 @@ const coloresEstado = {
 const CalendarioObras = ({
   obras = [],
   notas = [],
-  vista = "15dias", // "15dias" | "semana" | "mes"
+  vista = "lista", // "lista" | "15dias" | "semana" | "mes"
   fechaInicio,
   onFechaInicioChange,
   onObraClick,
@@ -172,7 +172,9 @@ const CalendarioObras = ({
   const goToPrevious = () => {
     if (!fechaInicio) return;
     const newDate = new Date(fechaInicio);
-    if (vista === "15dias") {
+    if (vista === "lista") {
+      newDate.setDate(newDate.getDate() - 1);
+    } else if (vista === "15dias") {
       newDate.setDate(newDate.getDate() - DIAS_15);
     } else if (vista === "semana") {
       newDate.setDate(newDate.getDate() - 7);
@@ -185,7 +187,9 @@ const CalendarioObras = ({
   const goToNext = () => {
     if (!fechaInicio) return;
     const newDate = new Date(fechaInicio);
-    if (vista === "15dias") {
+    if (vista === "lista") {
+      newDate.setDate(newDate.getDate() + 1);
+    } else if (vista === "15dias") {
       newDate.setDate(newDate.getDate() + DIAS_15);
     } else if (vista === "semana") {
       newDate.setDate(newDate.getDate() + 7);
@@ -197,7 +201,10 @@ const CalendarioObras = ({
 
   const goToToday = () => {
     const today = new Date();
-    if (vista === "15dias") {
+    if (vista === "lista") {
+      today.setHours(0, 0, 0, 0);
+      onFechaInicioChange(today);
+    } else if (vista === "15dias") {
       const start = new Date(today);
       start.setHours(0, 0, 0, 0);
       onFechaInicioChange(start);
@@ -217,6 +224,9 @@ const CalendarioObras = ({
   // Título del calendario
   const tituloCalendario = useMemo(() => {
     if (!fechaInicio) return "";
+    if (vista === "lista") {
+      return fechaInicio.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    }
     if (vista === "15dias") {
       const start = new Date(fechaInicio);
       const end = new Date(fechaInicio);
@@ -262,10 +272,10 @@ const CalendarioObras = ({
           </div>
           <div>
             <div className="text-lg font-semibold text-gray-900">
-              Calendario de Obras y Notas
+              Agenda de obras
             </div>
             <div className="text-xs font-medium text-gray-600">
-              Vista {vista === "15dias" ? "15 días" : vista === "semana" ? "Semanal" : "Mensual"}
+              {vista === "lista" ? "Lista diaria" : vista === "15dias" ? "15 días" : vista === "semana" ? "Semanal" : "Mensual"}
             </div>
           </div>
         </CardTitle>
@@ -300,6 +310,35 @@ const CalendarioObras = ({
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+
+        {vista === "lista" && (() => {
+          const dateKey = formatDateKey(fechaInicio);
+          const obrasDelDia = getObrasForDate(dateKey);
+          const notasDelDia = getNotasForDate(dateKey);
+          return (
+            <div className="max-w-4xl mx-auto space-y-2">
+              {obrasDelDia.length === 0 && notasDelDia.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-5 py-10 text-center text-sm text-gray-500">
+                  No hay actividad programada para este día.
+                </div>
+              ) : (
+                <>
+                  {obrasDelDia.map((obra) => {
+                    const estado = coloresEstado[obra.estado] || coloresEstado.pendiente_inicio;
+                    return <button key={obra.id} type="button" onClick={() => onObraClick?.(obra)} className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-blue-200 hover:shadow-sm">
+                      <div className={`h-2.5 w-2.5 rounded-full ${estado.badge.split(" ")[0]}`} />
+                      <div className="min-w-0 flex-1"><div className="truncate font-semibold text-gray-900">{obra.numeroPedido || "Obra sin número"}</div><div className="truncate text-xs text-gray-500">{obra.cliente?.nombre || "Sin cliente"}</div></div>
+                      <Badge variant="outline" className={estado.badge}>{String(obra.estado || "pendiente").replaceAll("_", " ")}</Badge>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </button>;
+                  })}
+                  {notasDelDia.map((nota) => <button key={nota.id} type="button" onClick={() => onNotaClick?.(nota)} className="flex w-full items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-left"><FileText className="h-4 w-4 text-amber-600" /><span className="flex-1 truncate text-sm font-medium text-gray-800">{nota.detalle || "Nota"}</span></button>)}
+                </>
+              )}
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => onAgregarNota?.(dateKey)}><Icon icon="heroicons:plus" className="mr-1 h-4 w-4" />Nueva nota</Button>
+            </div>
+          );
+        })()}
 
         {/* Vista 15 días */}
         {vista === "15dias" && (
