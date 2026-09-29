@@ -46,6 +46,18 @@ const capitalizarInicial = (value, fallback = "") => {
   );
 };
 
+const opcionAplicada = (registro, campos, importe) => {
+  const valor = campos
+    .map((campo) => registro?.[campo])
+    .find((item) => item !== undefined && item !== null && item !== "");
+
+  if (valor !== undefined) {
+    return valor === true || valor === 1 || valor === "1" || valor === "true";
+  }
+
+  return Number(importe) > 0;
+};
+
 const ObraDetallePage = () => {
   const params = useParams();
   const router = useRouter();
@@ -66,6 +78,10 @@ const ObraDetallePage = () => {
   const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
   const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
   const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
+  const [impuestosEditados, setImpuestosEditados] = useState({
+    iva: false,
+    transferencia: false,
+  });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   const {
@@ -85,7 +101,7 @@ const ObraDetallePage = () => {
     itemsPresupuesto,
     gastoObraManual,
     modoCosto,
-    presupuestoBloqueSeleccionadoId,
+    presupuestoBloquesSeleccionadosIds,
     setEditando,
     setDocLinks,
     setMovimientos,
@@ -96,7 +112,7 @@ const ObraDetallePage = () => {
     cliente,
     setItemsCatalogo,
     guardarEdicion,
-    cambiarBloquePresupuesto,
+    cambiarBloquesPresupuesto,
     cancelarEdicion,
   } = useObra(id);
 
@@ -107,10 +123,17 @@ const ObraDetallePage = () => {
     setValorOficialDolar(obra.valorOficialDolar ?? null);
     setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
     setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
-    setAplicarIva(obra.aplicarIva === true || obra.aplicaIva === true);
+    setAplicarIva(opcionAplicada(obra, ["aplicarIva", "aplicaIva"], obra.ivaMonto));
     setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
-    setAplicarTransferencia(obra.aplicarTransferencia === true || obra.aplicaTransferencia === true);
+    setAplicarTransferencia(
+      opcionAplicada(
+        obra,
+        ["aplicarTransferencia", "aplicaTransferencia"],
+        obra.transferenciaMonto
+      )
+    );
     setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
+    setImpuestosEditados({ iva: false, transferencia: false });
   }, [obra]);
 
   useEffect(() => {
@@ -203,8 +226,10 @@ const ObraDetallePage = () => {
           notasObra,
           aplicarIva,
           ivaPorcentaje,
+          sobrescribirIva: impuestosEditados.iva,
           aplicarTransferencia,
           transferenciaPorcentaje,
+          sobrescribirTransferencia: impuestosEditados.transferencia,
         });
       } catch (err) {
         console.error("Error al guardar edición completa:", err);
@@ -231,30 +256,70 @@ const ObraDetallePage = () => {
           ? obra.notas
           : []
     );
-    setAplicarIva(obra?.aplicarIva === true || obra?.aplicaIva === true);
+    setAplicarIva(
+      opcionAplicada(obra, ["aplicarIva", "aplicaIva"], obra?.ivaMonto)
+    );
     setIvaPorcentaje(
       obra?.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21"
     );
     setAplicarTransferencia(
-      obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true
+      opcionAplicada(
+        obra,
+        ["aplicarTransferencia", "aplicaTransferencia"],
+        obra?.transferenciaMonto
+      )
     );
     setTransferenciaPorcentaje(
       obra?.transferenciaPorcentaje != null
         ? String(obra.transferenciaPorcentaje)
         : "10"
     );
+    setImpuestosEditados({ iva: false, transferencia: false });
     cancelarEdicion();
   };
 
+  const handleAplicarIvaChange = (checked) => {
+    setAplicarIva(checked);
+    setImpuestosEditados((prev) => ({ ...prev, iva: true }));
+    if (checked) {
+      setIvaPorcentaje((prev) =>
+        Number(String(prev).replace(",", ".")) > 0 ? prev : "21"
+      );
+    }
+  };
+
+  const handleIvaPorcentajeChange = (value) => {
+    setIvaPorcentaje(value);
+    setImpuestosEditados((prev) => ({ ...prev, iva: true }));
+  };
+
+  const handleAplicarTransferenciaChange = (checked) => {
+    setAplicarTransferencia(checked);
+    setImpuestosEditados((prev) => ({ ...prev, transferencia: true }));
+    if (checked) {
+      setTransferenciaPorcentaje((prev) =>
+        Number(String(prev).replace(",", ".")) > 0 ? prev : "10"
+      );
+    }
+  };
+
+  const handleTransferenciaPorcentajeChange = (value) => {
+    setTransferenciaPorcentaje(value);
+    setImpuestosEditados((prev) => ({ ...prev, transferencia: true }));
+  };
+
   const handleSeleccionarBloque = (bloqueId) => {
-    const seleccion = cambiarBloquePresupuesto(bloqueId);
+    const seleccion = cambiarBloquesPresupuesto(bloqueId);
     if (!seleccion) return;
+    setImpuestosEditados({ iva: false, transferencia: false });
     setAplicarIva(seleccion.aplicarIva);
-    setIvaPorcentaje(String(seleccion.ivaPorcentaje || 0));
+    if (seleccion.aplicarIva && Number(seleccion.ivaPorcentaje) > 0) {
+      setIvaPorcentaje(String(seleccion.ivaPorcentaje));
+    }
     setAplicarTransferencia(seleccion.aplicarTransferencia);
-    setTransferenciaPorcentaje(
-      String(seleccion.transferenciaPorcentaje || 0)
-    );
+    if (seleccion.aplicarTransferencia && Number(seleccion.transferenciaPorcentaje) > 0) {
+      setTransferenciaPorcentaje(String(seleccion.transferenciaPorcentaje));
+    }
   };
 
   // Handler para cuando se selecciona un cliente (existente o nuevo)
@@ -744,6 +809,20 @@ const ObraDetallePage = () => {
   const presupuestoBloques = Array.isArray(presupuesto?.bloques)
     ? presupuesto.bloques
     : [];
+  const idsBloquesPersistidos = Array.isArray(obra?.presupuestoInicialBloques) && obra.presupuestoInicialBloques.length > 0
+    ? obra.presupuestoInicialBloques.map((bloque) => String(bloque.id))
+    : obra?.presupuestoInicialBloqueId
+      ? [String(obra.presupuestoInicialBloqueId)]
+      : [];
+  const idsBloquesPreview = editando
+    ? presupuestoBloquesSeleccionadosIds
+    : idsBloquesPersistidos;
+  const bloquesPersistidosEnObra = Array.isArray(obra?.bloques)
+    ? obra.bloques
+    : [];
+  const bloquesSeleccionadosPreview = !editando && bloquesPersistidosEnObra.length > 0
+    ? bloquesPersistidosEnObra
+    : presupuestoBloques.filter((bloque) => idsBloquesPreview.includes(String(bloque.id)));
 
   // En edición la selección local del hook es la fuente de verdad.
   // Fuera de edición se usa el bloque persistido en la obra.
@@ -764,26 +843,28 @@ const ObraDetallePage = () => {
     return false;
   });
 
-  const bloqueSeleccionadoEdicion = presupuestoBloques.find(
-    (bloque) =>
-      presupuestoBloqueSeleccionadoId != null &&
-      String(bloque?.id) === String(presupuestoBloqueSeleccionadoId)
-  );
+  const bloqueSeleccionadoEdicion = bloquesSeleccionadosPreview[0] || null;
 
-  const bloquePreview = editando
-    ? (bloqueSeleccionadoEdicion || bloquePersistido ||
-        (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null))
-    : (bloquePersistido ||
-        (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null));
+  const bloquePreview = bloqueSeleccionadoEdicion || bloquePersistido ||
+    (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null);
 
-  const bloquePreviewId = bloquePreview?.id != null ? String(bloquePreview.id) : "";
-  const bloquePersistidoId = bloquePersistido?.id != null ? String(bloquePersistido.id) : "";
-  const bloqueCambioPendiente =
-    editando && bloquePreviewId && bloquePreviewId !== bloquePersistidoId;
+  const bloqueCambioPendiente = editando &&
+    JSON.stringify([...idsBloquesPreview].sort()) !== JSON.stringify([...idsBloquesPersistidos].sort());
 
-  const productosPreview = bloquePreview
-    ? (Array.isArray(bloquePreview.productos) ? bloquePreview.productos : [])
+  const productosPreview = bloquesSeleccionadosPreview.length > 0
+    ? bloquesSeleccionadosPreview.flatMap((bloque) =>
+        Array.isArray(bloque.productos) ? bloque.productos : []
+      )
+    : bloquePreview
+      ? (Array.isArray(bloquePreview.productos) ? bloquePreview.productos : [])
     : (Array.isArray(presupuesto?.productos) ? presupuesto.productos : []);
+  const bloquesParaDetalle = bloquesSeleccionadosPreview.length > 0
+    ? bloquesSeleccionadosPreview
+    : [{
+        id: "general",
+        nombre: "Detalle de la obra",
+        productos: productosPreview,
+      }];
   const subtotalProductosPreview = productosPreview.reduce(
     (acc, item) => acc + calcularBaseProductoPreview(item),
     0
@@ -805,10 +886,23 @@ const ObraDetallePage = () => {
     return 0;
   })();
   const totalBloquePreview = (() => {
-    const totalDirecto = normalizarNumero(bloquePreview?.total);
-    if (totalDirecto > 0) return Math.round(totalDirecto);
-    if (subtotalBloquePreview > 0) {
-      return Math.round(subtotalBloquePreview - descuentoBloquePreview);
+    const bloquesConTotal = bloquesSeleccionadosPreview.length > 0
+      ? bloquesSeleccionadosPreview
+      : bloquePreview ? [bloquePreview] : [];
+    if (bloquesConTotal.length > 0) {
+      return bloquesConTotal.reduce((total, bloque) => {
+        const directo = normalizarNumero(bloque?.total);
+        if (directo > 0) return total + directo;
+        const productos = Array.isArray(bloque?.productos) ? bloque.productos : [];
+        const subtotal = productos.reduce((acc, item) => acc + calcularBaseProductoPreview(item), 0);
+        const descuento = productos.reduce((acc, item) => acc + (calcularBaseProductoPreview(item) - calcularSubtotalProductoPreview(item)), 0);
+        const base = Math.max(0, subtotal - descuento);
+        const iva = (bloque?.aplicarIva === true || bloque?.aplicaIva === true)
+          ? Math.round(base * (normalizarNumero(bloque?.ivaPorcentaje) / 100)) : 0;
+        const transferencia = (bloque?.aplicarTransferencia === true || bloque?.aplicaTransferencia === true)
+          ? Math.round(base * (normalizarNumero(bloque?.transferenciaPorcentaje) / 100)) : 0;
+        return total + base + iva + transferencia;
+      }, 0);
     }
     return Math.round(totalProductosPreview);
   })();
@@ -882,10 +976,11 @@ const ObraDetallePage = () => {
           descuentoEfectivoPersistido
       );
 
-      const aplicaIvaPersistido =
-        obra?.aplicarIva === true ||
-        obra?.aplicaIva === true ||
-        normalizarNumero(obra?.ivaMonto) > 0;
+      const aplicaIvaPersistido = opcionAplicada(
+        obra,
+        ["aplicarIva", "aplicaIva"],
+        obra?.ivaMonto
+      );
       const ivaPctPersistido = Math.max(
         0,
         normalizarNumero(obra?.ivaPorcentaje)
@@ -898,10 +993,11 @@ const ObraDetallePage = () => {
           )
         : 0;
 
-      const aplicaTransferenciaPersistido =
-        obra?.aplicarTransferencia === true ||
-        obra?.aplicaTransferencia === true ||
-        normalizarNumero(obra?.transferenciaMonto) > 0;
+      const aplicaTransferenciaPersistido = opcionAplicada(
+        obra,
+        ["aplicarTransferencia", "aplicaTransferencia"],
+        obra?.transferenciaMonto
+      );
       const transferenciaPctPersistido = Math.max(
         0,
         normalizarNumero(obra?.transferenciaPorcentaje)
@@ -987,14 +1083,16 @@ const ObraDetallePage = () => {
   })();
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto p-4 space-y-6">
+    <div className="w-full mx-auto p-4 space-y-6">
       <ObraHeader
         obra={obra}
         editando={editando}
         onToggleEdit={handleToggleEdit}
+        onCancel={handleCancelarEdicion}
         onPrint={handlePrint}
         onDownload={null} // Opcional
         onConvertToObra={null}
+        saving={guardandoEdicion}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1015,7 +1113,7 @@ const ObraDetallePage = () => {
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</span>
                     </div>
                     <div className="text-lg font-semibold leading-tight text-foreground">
-                      {cliente?.nombre || obra?.cliente?.nombre || "Sin cliente asignado"}
+                      {(cliente?.nombre || obra?.cliente?.nombre || "Sin cliente asignado").toUpperCase()}
                     </div>
                     <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                       <div>
@@ -1160,6 +1258,15 @@ const ObraDetallePage = () => {
             formatearNumeroArgentino={formatearNumeroArgentino}
             totalObra={resumenFinancieroObra.total}
             resumenFinanciero={resumenFinancieroObra}
+            aplicarIva={aplicarIva}
+            ivaPorcentaje={ivaPorcentaje}
+            onAplicarIvaChange={handleAplicarIvaChange}
+            onIvaPorcentajeChange={handleIvaPorcentajeChange}
+            aplicarTransferencia={aplicarTransferencia}
+            transferenciaPorcentaje={transferenciaPorcentaje}
+            onAplicarTransferenciaChange={handleAplicarTransferenciaChange}
+            onTransferenciaPorcentajeChange={handleTransferenciaPorcentajeChange}
+            impuestosDisabled={guardandoEdicion}
             onEstadoPagoChange={(estaPagado) => {
               // Aquí podrías actualizar el estado de la obra si es necesario
               console.log(
@@ -1177,7 +1284,9 @@ const ObraDetallePage = () => {
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-lg font-semibold text-gray-900">
-                          {bloquePreview?.nombre || obra?.presupuestoInicialBloqueNombre || "Bloque del presupuesto"}
+                          {bloquesSeleccionadosPreview.length > 1
+                            ? `${bloquesSeleccionadosPreview.length} bloques del presupuesto`
+                            : bloquePreview?.nombre || obra?.presupuestoInicialBloqueNombre || "Bloque del presupuesto"}
                         </p>
                         {bloqueCambioPendiente && (
                           <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
@@ -1194,42 +1303,35 @@ const ObraDetallePage = () => {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       {editando && presupuestoBloques.length > 0 && (
                         <div className="min-w-[280px]">
-                          <Select
-                            value={bloquePreviewId}
-                            onValueChange={handleSeleccionarBloque}
-                            disabled={guardandoEdicion}
-                          >
-                            <SelectTrigger className="h-9 bg-white">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/60" aria-hidden="true" />
-                                <SelectValue placeholder="Seleccionar bloque" />
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {presupuestoBloques.map((bloque, index) => (
-                                <SelectItem
+                          <div className="flex flex-wrap gap-1.5 rounded-lg bg-white p-1.5">
+                            {presupuestoBloques.map((bloque, index) => {
+                              const seleccionado = presupuestoBloquesSeleccionadosIds.includes(String(bloque?.id));
+                              return (
+                                <Button
                                   key={bloque?.id || `${bloque?.nombre || "bloque"}-${index}`}
-                                  value={String(bloque?.id)}
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`h-7 rounded-md px-2.5 text-xs font-medium transition-colors ${
+                                    seleccionado
+                                      ? "bg-primary/10 text-primary hover:bg-primary/15"
+                                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  }`}
+                                  onClick={() => handleSeleccionarBloque(String(bloque?.id))}
+                                  disabled={guardandoEdicion}
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <span>{bloque?.nombre || `Bloque ${index + 1}`}</span>
-                                    {String(bloque?.id) === bloquePersistidoId && (
-                                      <span className="text-xs text-muted-foreground">Actual</span>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            Al guardar se aplicarán sus productos, importes e impuestos a la obra.
-                          </p>
+                                  {seleccionado ? "✓ " : ""}{bloque?.nombre || `Presupuesto ${index + 1}`}
+                                </Button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
                       <Button
                         variant="outline"
                         size="sm"
+                        className="border-border/60 bg-background text-foreground shadow-none hover:bg-muted"
                         onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
                       >
                         Ver Presupuesto
@@ -1254,8 +1356,8 @@ const ObraDetallePage = () => {
                       <div>
                         <p className="font-medium">
                           {bloqueCambioPendiente
-                            ? `Se aplicará “${bloquePreview?.nombre || "el bloque seleccionado"}” al guardar.`
-                            : "Este es el bloque actualmente aplicado a la obra."}
+                            ? `Se aplicarán ${bloquesSeleccionadosPreview.length} bloques al guardar.`
+                            : `${bloquesSeleccionadosPreview.length || 1} bloque${(bloquesSeleccionadosPreview.length || 1) === 1 ? "" : "s"} aplicado${(bloquesSeleccionadosPreview.length || 1) === 1 ? "" : "s"} a la obra.`}
                         </p>
                         <p className="mt-0.5 text-xs opacity-80">
                           La vista previa, la cobranza y los totales usan esta misma selección.
@@ -1265,7 +1367,9 @@ const ObraDetallePage = () => {
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div className="group relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-blue-700">Total del Bloque</div>
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                        {bloquesSeleccionadosPreview.length > 1 ? "Total de bloques" : "Total del bloque"}
+                      </div>
                       <p className="text-xl font-bold leading-tight text-gray-900">
                         {formatearNumeroArgentino(totalBloquePreview)}
                       </p>
@@ -1305,50 +1409,52 @@ const ObraDetallePage = () => {
                             <th className="p-2 text-right">Subtotal</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {productosPreview.map((producto, idx) => {
-                            const medida = detalleMedidaProducto(producto);
-                            const unidad = medida.unidad;
-                            const origen =
-                              producto?.categoria ||
-                              (producto?._esManual ? "Manual" : "Obras");
-                            return (
-                              <tr
-                                key={producto.id || `${producto.nombre || "producto"}-${idx}`}
-                                className="border-b last:border-0"
-                              >
-                                <td className="p-2">
-                                  <div className="font-medium text-gray-900">
-                                    {capitalizarInicial(
-                                      producto?.nombre,
-                                      "Producto sin nombre"
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="p-2 text-center">{normalizarNumero(producto?.cantidad) || 1}</td>
-                                <td className="p-2 text-center">{unidad}</td>
-                                <td className="p-2 text-center">
-                                  {medida.altoTxt}
-                                </td>
-                                <td className="p-2 text-center">
-                                  {medida.largoTxt}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
-                                </td>
-                                <td className="p-2 text-right">
-                                  {formatearNumeroArgentino(obtenerValorUnitarioPreview(producto))}
-                                </td>
-                                <td className="p-2 text-center">
-                                  {normalizarNumero(producto?.descuento)}%
-                                </td>
-                                <td className="p-2 text-right font-semibold">
-                                  {formatearNumeroArgentino(calcularSubtotalProductoPreview(producto))}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
+                        {bloquesParaDetalle.map((bloque, bloqueIndex) => (
+                          <tbody key={bloque?.id || `bloque-${bloqueIndex}`}>
+                            <tr className="border-y border-slate-200 bg-slate-100">
+                              <td colSpan={9} className="px-3 py-2 text-sm font-semibold text-slate-800">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span>{bloque?.nombre || `Presupuesto ${bloqueIndex + 1}`}</span>
+                                  {normalizarNumero(bloque?.total) > 0 && (
+                                    <span className="tabular-nums text-xs font-bold text-slate-700">
+                                      {formatearNumeroArgentino(bloque.total)}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                            {(Array.isArray(bloque?.productos) ? bloque.productos : []).map((producto, idx) => {
+                              const medida = detalleMedidaProducto(producto);
+                              const unidad = medida.unidad;
+                              return (
+                                <tr
+                                  key={producto.id || `${producto.nombre || "producto"}-${bloqueIndex}-${idx}`}
+                                  className="border-b last:border-0"
+                                >
+                                  <td className="p-2">
+                                    <div className="font-medium text-gray-900">
+                                      {capitalizarInicial(producto?.nombre, "Producto sin nombre")}
+                                    </div>
+                                  </td>
+                                  <td className="p-2 text-center">{normalizarNumero(producto?.cantidad) || 1}</td>
+                                  <td className="p-2 text-center">{unidad}</td>
+                                  <td className="p-2 text-center">{medida.altoTxt}</td>
+                                  <td className="p-2 text-center">{medida.largoTxt}</td>
+                                  <td className="p-2 text-center">
+                                    <span className="text-xs font-medium text-gray-700">{medida.medidaTxt}</span>
+                                  </td>
+                                  <td className="p-2 text-right">
+                                    {formatearNumeroArgentino(obtenerValorUnitarioPreview(producto))}
+                                  </td>
+                                  <td className="p-2 text-center">{normalizarNumero(producto?.descuento)}%</td>
+                                  <td className="p-2 text-right font-semibold">
+                                    {formatearNumeroArgentino(calcularSubtotalProductoPreview(producto))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        ))}
                       </table>
                     </div>
                   ) : (
@@ -1490,7 +1596,7 @@ const ObraDetallePage = () => {
                 editando={editando}
               />
 
-              <div className="space-y-3">
+              {false && <div className="space-y-3">
                 {editando ? (
                   <>
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -1705,7 +1811,7 @@ const ObraDetallePage = () => {
                     )}
                   </div>
                 )}
-              </div>
+              </div>}
 
 
               {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (

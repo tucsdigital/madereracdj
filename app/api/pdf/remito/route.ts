@@ -47,11 +47,20 @@ export async function POST(req: NextRequest) {
 
     const data = { id: snap.id, ...snap.data() };
     const docTipo = (data as any)?.tipo;
+    let presupuestoInicial: any = null;
+    if (type === "obra" && docTipo === "obra" && (data as any)?.presupuestoInicialId) {
+      const presupuestoSnap = await getDoc(
+        doc(db, "obras", (data as any).presupuestoInicialId)
+      );
+      if (presupuestoSnap.exists()) {
+        presupuestoInicial = { id: presupuestoSnap.id, ...presupuestoSnap.data() };
+      }
+    }
     const remito =
       type === "venta"
         ? mapVentaToRemito(data)
         : type === "obra" || docTipo === "obra" || docTipo === "presupuesto"
-          ? mapObraToRemito(data, null)
+          ? mapObraToRemito(data, presupuestoInicial)
           : mapPresupuestoToRemito(data);
 
     // Generar PDF

@@ -13,12 +13,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@iconify/react";
-import { Plus, Trash2, AlertCircle, CheckCircle } from "lucide-react";
+import { Plus, Trash2, AlertCircle, CheckCircle, FileText, RefreshCw } from "lucide-react";
+import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 
 const numeroSeguro = (valor) => {
   const numero = Number(valor);
   return Number.isFinite(numero) ? numero : 0;
+};
+
+const fechaLocalActual = () => {
+  const ahora = new Date();
+  const offset = ahora.getTimezoneOffset() * 60_000;
+  return new Date(ahora.getTime() - offset).toISOString().slice(0, 10);
 };
 
 const ObraCobranza = ({
@@ -29,16 +37,30 @@ const ObraCobranza = ({
   totalObra = 0,
   resumenFinanciero = null,
   onEstadoPagoChange,
+  aplicarIva = false,
+  ivaPorcentaje = "21",
+  onAplicarIvaChange,
+  onIvaPorcentajeChange,
+  aplicarTransferencia = false,
+  transferenciaPorcentaje = "10",
+  onAplicarTransferenciaChange,
+  onTransferenciaPorcentajeChange,
+  impuestosDisabled = false,
 }) => {
   const [nuevoMovimiento, setNuevoMovimiento] = useState({
-    fecha: "",
+    fecha: fechaLocalActual(),
     tipo: "pago",
     metodo: "efectivo",
     monto: "",
     nota: "",
+    moneda: "ARS",
+    cotizacionDolar: null,
+    comprobantes: [],
   });
 
   const [error, setError] = useState("");
+  const [cargandoDolar, setCargandoDolar] = useState(false);
+  const [comprobanteActivo, setComprobanteActivo] = useState(null);
 
   // Todos estos tipos representan dinero efectivamente recibido.
   const totalCobrado = useMemo(
@@ -141,11 +163,21 @@ const ObraCobranza = ({
   const saldoPendiente = Math.max(0, financiero.total - totalCobrado);
   const estaPagado = financiero.total > 0 && saldoPendiente === 0;
 
-  const validarPago = (monto) => {
-    const montoNum = Number(monto) || 0;
+  const montoEnPesos = (movimiento) => {
+    const monto = Math.max(0, numeroSeguro(movimiento?.monto));
+    if (movimiento?.moneda === "USD") {
+      return Math.round(monto * Math.max(0, numeroSeguro(movimiento?.cotizacionDolar)));
+    }
+    return monto;
+  };
+
+  const validarPago = (movimiento) => {
+    const montoNum = montoEnPesos(movimiento);
 
     if (montoNum <= 0) {
-      setError("El monto debe ser mayor a 0");
+      setError(movimiento?.moneda === "USD" && !numeroSeguro(movimiento?.cotizacionDolar)
+        ? "Ingresá o actualizá la cotización del dólar"
+        : "El monto debe ser mayor a 0");
       return false;
     }
 
@@ -164,13 +196,33 @@ const ObraCobranza = ({
 
   useEffect(() => {
     if (nuevoMovimiento.monto) {
-      validarPago(nuevoMovimiento.monto);
+      validarPago(nuevoMovimiento);
     } else {
       setError("");
     }
     // validarPago depende únicamente del saldo y del valor actual.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nuevoMovimiento.monto, saldoPendiente]);
+  }, [nuevoMovimiento, saldoPendiente]);
+
+  const actualizarCotizacionDolar = async () => {
+    setCargandoDolar(true);
+    try {
+      const respuesta = await fetch("/api/dolar-blue");
+      const data = await respuesta.json();
+      if (!respuesta.ok || data?.referencia == null) {
+        throw new Error("No se pudo obtener la cotización");
+      }
+      setNuevoMovimiento((prev) => ({
+        ...prev,
+        cotizacionDolar: Number(data.referencia),
+      }));
+      setError("");
+    } catch (err) {
+      setError(err?.message || "No se pudo obtener la cotización");
+    } finally {
+      setCargandoDolar(false);
+    }
+  };
 
   useEffect(() => {
     if (onEstadoPagoChange) {
@@ -180,22 +232,30 @@ const ObraCobranza = ({
 
   const handleAgregarMovimiento = () => {
     if (!nuevoMovimiento.fecha || !nuevoMovimiento.monto) return;
-    if (!validarPago(nuevoMovimiento.monto)) return;
+    if (!validarPago(nuevoMovimiento)) return;
 
     const movimiento = {
       ...nuevoMovimiento,
-      monto: Number(nuevoMovimiento.monto),
+      monto: montoEnPesos(nuevoMovimiento),
+      montoOriginal: Number(nuevoMovimiento.monto),
+      pagoEnDolares: nuevoMovimiento.moneda === "USD",
+      valorOficialDolar: nuevoMovimiento.moneda === "USD"
+        ? Number(nuevoMovimiento.cotizacionDolar)
+        : null,
       id: Date.now(),
       timestamp: new Date().toISOString(),
     };
 
     onMovimientosChange([...(movimientos || []), movimiento]);
     setNuevoMovimiento({
-      fecha: "",
+      fecha: fechaLocalActual(),
       tipo: "pago",
       metodo: "efectivo",
       monto: "",
       nota: "",
+      moneda: "ARS",
+      cotizacionDolar: null,
+      comprobantes: [],
     });
     setError("");
   };
@@ -353,6 +413,65 @@ const ObraCobranza = ({
           </div>
         )}
 
+        {editando && (onAplicarIvaChange || onAplicarTransferenciaChange) && (
+          <div className="rounded-xl border border-border/60 bg-muted/[0.18] p-4">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-foreground">Impuestos y recargos</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Se aplican al total de la obra al guardar los cambios.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-lg bg-background px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={aplicarIva}
+                  onChange={(event) => onAplicarIvaChange?.(event.target.checked)}
+                  disabled={impuestosDisabled}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span className="flex-1 text-sm font-medium">Aplicar IVA</span>
+                {aplicarIva && (
+                  <div className="relative w-20">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={ivaPorcentaje}
+                      onChange={(event) => onIvaPorcentajeChange?.(event.target.value)}
+                      disabled={impuestosDisabled}
+                      className="h-8 pr-5 text-right text-xs"
+                    />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                  </div>
+                )}
+              </label>
+              <label className="flex items-center gap-3 rounded-lg bg-background px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={aplicarTransferencia}
+                  onChange={(event) => onAplicarTransferenciaChange?.(event.target.checked)}
+                  disabled={impuestosDisabled}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span className="flex-1 text-sm font-medium">Recargo por transferencia</span>
+                {aplicarTransferencia && (
+                  <div className="relative w-20">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={transferenciaPorcentaje}
+                      onChange={(event) => onTransferenciaPorcentajeChange?.(event.target.value)}
+                      disabled={impuestosDisabled}
+                      className="h-8 pr-5 text-right text-xs"
+                    />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Formulario de nuevo pago */}
         {editando && saldoPendiente > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -360,13 +479,13 @@ const ObraCobranza = ({
               Agregar Nuevo Pago
             </h4>
 
-            <div className="grid grid-cols-1 items-end gap-2 md:grid-cols-5">
+            <div className="grid grid-cols-1 items-end gap-2 md:grid-cols-6">
               <DateInput
                 value={nuevoMovimiento.fecha}
                 onChange={(v) =>
                   setNuevoMovimiento((prev) => ({ ...prev, fecha: v }))
                 }
-                buttonClassName="h-10 w-full justify-start"
+                buttonClassName="h-10 w-full justify-start border-border/60 bg-background shadow-none hover:bg-muted/50"
               />
 
               <Select
@@ -402,6 +521,26 @@ const ObraCobranza = ({
                 </SelectContent>
               </Select>
 
+              <Select
+                value={nuevoMovimiento.moneda}
+                onValueChange={(value) => {
+                  setNuevoMovimiento((prev) => ({
+                    ...prev,
+                    moneda: value,
+                    cotizacionDolar: value === "USD" ? prev.cotizacionDolar : null,
+                  }));
+                  if (value === "USD" && !nuevoMovimiento.cotizacionDolar) {
+                    setTimeout(actualizarCotizacionDolar, 0);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ARS">Pesos (ARS)</SelectItem>
+                  <SelectItem value="USD">Dólares (USD)</SelectItem>
+                </SelectContent>
+              </Select>
+
               <div className="relative">
                 <Input
                   type="number"
@@ -412,7 +551,7 @@ const ObraCobranza = ({
                       monto: e.target.value,
                     }))
                   }
-                  placeholder="Monto"
+                  placeholder={nuevoMovimiento.moneda === "USD" ? "USD" : "Monto"}
                   className={`h-10 pr-8 ${
                     error ? "border-red-500 focus:border-red-500" : ""
                   }`}
@@ -439,6 +578,46 @@ const ObraCobranza = ({
                 Agregar
               </Button>
             </div>
+
+            {nuevoMovimiento.moneda === "USD" && (
+              <div className="mt-3 grid gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-amber-900">
+                  <span className="font-medium">Cotización USD</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={nuevoMovimiento.cotizacionDolar ?? ""}
+                    onChange={(event) => setNuevoMovimiento((prev) => ({
+                      ...prev,
+                      cotizacionDolar: event.target.value ? Number(event.target.value) : null,
+                    }))}
+                    className="h-8 w-28 bg-white"
+                  />
+                  {nuevoMovimiento.monto && numeroSeguro(nuevoMovimiento.cotizacionDolar) > 0 && (
+                    <span className="text-xs">Equivale a {formatearNumeroArgentino(montoEnPesos(nuevoMovimiento))}</span>
+                  )}
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={actualizarCotizacionDolar} disabled={cargandoDolar}>
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${cargandoDolar ? "animate-spin" : ""}`} />
+                  Actualizar
+                </Button>
+              </div>
+            )}
+
+            <details className="group mt-3 rounded-lg border border-border/60 bg-background">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium text-muted-foreground marker:hidden">
+                Adjuntar comprobantes <span className="text-xs">Opcional</span>
+              </summary>
+              <div className="border-t border-border/60 p-3">
+                <ComprobantesPagoSection
+                  comprobantes={nuevoMovimiento.comprobantes || []}
+                  onComprobantesChange={(comprobantes) => setNuevoMovimiento((prev) => ({ ...prev, comprobantes }))}
+                  disabled={cargandoDolar}
+                  maxFiles={5}
+                />
+              </div>
+            </details>
 
             <div className="mt-3 text-xs text-gray-600">
               <p>
@@ -495,6 +674,9 @@ const ObraCobranza = ({
                   <th className="p-3 text-left font-medium text-gray-700">
                     Nota
                   </th>
+                  <th className="p-3 text-center font-medium text-gray-700">
+                    Comprobante
+                  </th>
                   {editando && (
                     <th className="p-3 text-center font-medium text-gray-700">
                       Acción
@@ -529,10 +711,39 @@ const ObraCobranza = ({
                       {movimiento.metodo}
                     </td>
                     <td className="p-3 text-right font-semibold text-gray-900">
-                      {formatearNumeroArgentino(movimiento.monto)}
+                      {movimiento.pagoEnDolares ? (
+                        <div>
+                          <div>USD {numeroSeguro(movimiento.montoOriginal).toLocaleString("es-AR")}</div>
+                          <div className="text-xs font-normal text-muted-foreground">
+                            {formatearNumeroArgentino(movimiento.monto)}
+                          </div>
+                        </div>
+                      ) : formatearNumeroArgentino(movimiento.monto)}
                     </td>
                     <td className="p-3 text-gray-600">
                       {movimiento.nota || "-"}
+                    </td>
+                    <td className="p-3 text-center">
+                      {Array.isArray(movimiento.comprobantes) && movimiento.comprobantes.length > 0 ? (
+                        <div className="flex justify-center gap-1">
+                          {movimiento.comprobantes.slice(0, 3).map((comprobante, index) => (
+                            <button
+                              key={`${comprobante.url}-${index}`}
+                              type="button"
+                              onClick={() => setComprobanteActivo(comprobante)}
+                              className="h-9 w-9 overflow-hidden rounded-md border bg-muted transition hover:ring-2 hover:ring-primary/30"
+                              title="Ver comprobante"
+                            >
+                              {comprobante.tipo === "pdf" ? (
+                                <FileText className="mx-auto h-4 w-4 text-red-600" />
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element -- URLs de comprobantes subidos por el usuario
+                                <img src={comprobante.url} alt={comprobante.nombre || "Comprobante"} className="h-full w-full object-cover" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : <span className="text-muted-foreground">-</span>}
                     </td>
                     {editando && (
                       <td className="p-3 text-center">
@@ -567,6 +778,18 @@ const ObraCobranza = ({
             </p>
           </div>
         )}
+
+        <Dialog open={!!comprobanteActivo} onOpenChange={(open) => !open && setComprobanteActivo(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Comprobante de pago</DialogTitle></DialogHeader>
+            {comprobanteActivo?.tipo === "pdf" ? (
+              <iframe src={comprobanteActivo.url} title={comprobanteActivo.nombre || "Comprobante"} className="h-[70vh] w-full rounded border" />
+            ) : comprobanteActivo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL remota del comprobante subido
+              <img src={comprobanteActivo.url} alt={comprobanteActivo.nombre || "Comprobante"} className="max-h-[70vh] w-full rounded object-contain" />
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

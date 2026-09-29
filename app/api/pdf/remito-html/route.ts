@@ -103,10 +103,33 @@ export async function POST(req: NextRequest) {
                 metodo: p.metodo || "efectivo",
                 monto: Number(p.monto) || 0,
                 nota: p.nota || "",
+                pagoEnDolares: p.pagoEnDolares === true,
+                montoOriginal: Number(p.montoOriginal) || null,
+                valorOficialDolar: Number(p.valorOficialDolar) || null,
+                comprobantes: Array.isArray(p.comprobantes) ? p.comprobantes : [],
               });
             });
 
-            return generarContenidoImpresion(obra, presupuesto, modoCosto, inicial);
+            const idsBloquesSeleccionados = Array.isArray(obra?.presupuestoInicialBloques)
+              ? obra.presupuestoInicialBloques.map((bloque: any) => String(bloque?.id))
+              : obra?.presupuestoInicialBloqueId
+                ? [String(obra.presupuestoInicialBloqueId)]
+                : [];
+            const tieneBloquesGuardados = Array.isArray(obra?.bloques) && obra.bloques.some(
+              (bloque: any) => Array.isArray(bloque?.productos) && bloque.productos.length > 0
+            );
+            // Obras anteriores guardaban sólo productos planos. Para imprimir,
+            // se reconstruyen las secciones desde su presupuesto de origen.
+            const bloquesParaImprimir = !tieneBloquesGuardados && Array.isArray(presupuesto?.bloques)
+              ? presupuesto.bloques.filter((bloque: any) =>
+                  idsBloquesSeleccionados.includes(String(bloque?.id))
+                )
+              : obra?.bloques;
+            const obraParaImprimir = Array.isArray(bloquesParaImprimir) && bloquesParaImprimir.length > 0
+              ? { ...obra, bloques: bloquesParaImprimir }
+              : obra;
+
+            return generarContenidoImpresion(obraParaImprimir, presupuesto, modoCosto, inicial);
           })()
         : (() => {
             // Las obras (tipo "obra" o "presupuesto" de obra) usan el mapper de

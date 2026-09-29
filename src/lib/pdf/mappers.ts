@@ -147,6 +147,7 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
       subtotal,
       categoria: p.categoria,
       subcategoria: p.subcategoria || p.subCategoria,
+      bloqueNombre: p.bloquePresupuestoNombre || undefined,
     };
   });
 }
@@ -336,7 +337,27 @@ export function mapObraToRemito(obra: any, presupuestoInicial?: any): RemitoMode
   const presupuesto = presupuestoInicial || null;
   const cliente = fuente.cliente || presupuesto?.cliente || {};
 
-  const bloques = Array.isArray((fuente as any)?.bloques) ? (fuente as any).bloques : [];
+  const bloquesGuardados = Array.isArray((fuente as any)?.bloques)
+    ? (fuente as any).bloques
+    : [];
+  const idsBloquesSeleccionados = Array.isArray(fuente?.presupuestoInicialBloques)
+    ? fuente.presupuestoInicialBloques.map((bloque: any) => String(bloque?.id))
+    : fuente?.presupuestoInicialBloqueId
+      ? [String(fuente.presupuestoInicialBloqueId)]
+      : [];
+  // Compatibilidad para obras creadas antes de guardar una copia de sus
+  // bloques: se recuperan del presupuesto original sólo para imprimir.
+  const bloques = bloquesGuardados.length > 0
+    ? idsBloquesSeleccionados.length > 0
+      ? bloquesGuardados.filter((bloque: any) =>
+          idsBloquesSeleccionados.includes(String(bloque?.id))
+        )
+      : bloquesGuardados
+    : Array.isArray(presupuesto?.bloques)
+      ? presupuesto.bloques.filter((bloque: any) =>
+          idsBloquesSeleccionados.includes(String(bloque?.id))
+        )
+      : [];
   const bloquesConItems = bloques.filter((b: any) => Array.isArray(b?.productos) && b.productos.length > 0);
   const materiales = Array.isArray((fuente as any)?.materialesCatalogo) ? (fuente as any).materialesCatalogo : [];
   const productosSueltos = Array.isArray((fuente as any)?.productos) ? (fuente as any).productos : [];
@@ -344,7 +365,13 @@ export function mapObraToRemito(obra: any, presupuestoInicial?: any): RemitoMode
 
   const items =
     bloquesConItems.length > 0
-      ? bloquesConItems.flatMap((b: any) => (Array.isArray(b?.productos) ? b.productos : []))
+      ? bloquesConItems.flatMap((b: any) =>
+          (Array.isArray(b?.productos) ? b.productos : []).map((producto: any) => ({
+            ...producto,
+            bloquePresupuestoId: producto?.bloquePresupuestoId || String(b?.id || ""),
+            bloquePresupuestoNombre: producto?.bloquePresupuestoNombre || b?.nombre || "Presupuesto",
+          }))
+        )
       : productosSueltos.length > 0
         ? productosSueltos
         : materiales.length > 0

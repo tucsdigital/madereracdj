@@ -1,81 +1,85 @@
 /**
  * GET /api/dolar-blue
- * Obtiene la cotización oficial del dólar billete desde Banco Nación
- * y devuelve compra, venta y un valor de referencia promedio.
+ * Consulta el dólar blue publicado por DolarHoy. Para cobranzas en USD la
+ * referencia es la cotización de compra: al recibir dólares, la empresa los
+ * acredita a la punta compradora, que es la política más favorable al vendedor.
  */
 import { NextResponse } from "next/server";
 
-const BNA_URL = "https://www.bna.com.ar/personas";
+const DOLAR_HOY_BLUE_URL = "https://dolarhoy.com/cotizaciondolarblue";
 
-function parseBnaNumber(value) {
+function parseDolarHoyNumber(value) {
   if (!value) return null;
-  const normalized = String(value).replace(/\./g, "").replace(",", ".").trim();
+  const normalized = String(value)
+    .replace(/\$/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .trim();
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function extractBnaUsdBilleteValues(html) {
-  const rowMatch = html.match(
-    /<tr[^>]*>\s*<td[^>]*>\s*Dolar\s*U\.?S\.?A\s*<\/td>\s*<td[^>]*>\s*([\d.,]+)\s*<\/td>\s*<td[^>]*>\s*([\d.,]+)\s*<\/td>/i
-  );
-  if (rowMatch) {
-    return {
-      compra: parseBnaNumber(rowMatch[1]),
-      venta: parseBnaNumber(rowMatch[2]),
-    };
-  }
+function extractDolarBlueValues(html) {
+  const quoteSection = html.match(
+    /<div class="cotizacion_moneda">[\s\S]*?<div class="tile update">/i
+  )?.[0];
 
-  const compact = html.replace(/\s+/g, " ");
-  const textMatch = compact.match(/Dolar\s*U\.?S\.?A[^0-9]*([\d.,]+)[^0-9]+([\d.,]+)/i);
-  if (textMatch) {
-    return {
-      compra: parseBnaNumber(textMatch[1]),
-      venta: parseBnaNumber(textMatch[2]),
-    };
-  }
+  if (!quoteSection) return { compra: null, venta: null };
 
-  return { compra: null, venta: null };
+  const compra = quoteSection.match(
+    /<div class="topic">\s*Compra\s*<\/div>\s*<div class="value">\s*\$?\s*([\d.,]+)\s*<\/div>/i
+  )?.[1];
+  const venta = quoteSection.match(
+    /<div class="topic">\s*Venta\s*<\/div>\s*<div class="value">\s*\$?\s*([\d.,]+)\s*<\/div>/i
+  )?.[1];
+
+  return {
+    compra: parseDolarHoyNumber(compra),
+    venta: parseDolarHoyNumber(venta),
+  };
 }
 
-function extractBnaUpdateTime(html) {
-  const match = html.match(/Hora\s+Actualizaci[oó]n:\s*([0-9]{1,2}:[0-9]{2})/i);
-  return match?.[1] || null;
+function extractDolarHoyUpdateTime(html) {
+  return html.match(
+    /Actualizado\s+por\s+[úu]ltima\s+vez:\s*([^<]+)/i
+  )?.[1]?.trim() || null;
 }
 
 export async function GET() {
   try {
-    const res = await fetch(BNA_URL, {
+    const res = await fetch(DOLAR_HOY_BLUE_URL, {
       next: { revalidate: 300 },
-      headers: { Accept: "text/html,application/xhtml+xml" },
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "MaderasCaballero/1.0 (+https://www.caballeromaderas.com)",
+      },
     });
 
     if (!res.ok) {
-      throw new Error(`Banco Nación respondió: ${res.status}`);
+      throw new Error(`DolarHoy respondió: ${res.status}`);
     }
 
     const html = await res.text();
-    const { compra, venta } = extractBnaUsdBilleteValues(html);
+    const { compra, venta } = extractDolarBlueValues(html);
     if (compra == null || venta == null) {
-      throw new Error("No se pudo interpretar la cotización oficial de Banco Nación");
+      throw new Error("No se pudo interpretar la cotización de dólar blue de DolarHoy");
     }
-
-    const referencia = Number(((compra + venta) / 2).toFixed(2));
-    const horaActualizacion = extractBnaUpdateTime(html);
 
     return NextResponse.json({
       compra,
       venta,
-      referencia,
+      // Al recibir USD, se acredita en ARS a la cotización de compra del blue.
+      referencia: compra,
       fechaActualizacion: new Date().toISOString(),
-      horaActualizacion,
-      nombre: "Dólar Oficial BNA",
-      fuente: "Banco Nación",
-      criterio: "promedio_compra_venta",
+      horaActualizacion: extractDolarHoyUpdateTime(html),
+      nombre: "Dólar blue · Compra",
+      fuente: "DolarHoy",
+      criterio: "compra_dolar_blue",
     });
   } catch (error) {
     console.error("[dolar-blue] Error:", error?.message || error);
     return NextResponse.json(
-      { error: error?.message || "Error al obtener cotización oficial del dólar" },
+      { error: error?.message || "Error al obtener la cotización de dólar blue" },
       { status: 502 }
     );
   }

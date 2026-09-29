@@ -70,6 +70,19 @@ export function buildRemitoHtml(
   // Helper para valores seguros y uppercase
   const safe = (val: string | undefined | null, fallback = "-") =>
     val && val.trim() ? escapeHtml(val.trim().toUpperCase()) : fallback;
+  // Alto, ancho, largo y superficie ya tienen columnas propias en el remito.
+  // Se eliminan sólo del detalle secundario para no repetir información.
+  const detalleSinMedidasDuplicadas = (detalle: string | undefined | null) => {
+    const limpio = String(detalle || "")
+      .replace(
+        /(?:\s*(?:·|,|-)?\s*(?:alto|ancho|largo)\s*:?\s*[\d.,]+(?:\s*(?:m|cm|mm))?|\s*\([\d.,]+\s*(?:m²|m2|m³|m3|ml)\))/gi,
+        ""
+      )
+      .replace(/\s*(?:·|,|-)+\s*$/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return limpio;
+  };
 
   // Generar HTML de items de productos
   // Tamaños de fuente de las filas: más grandes en boletas de Envío/Empleado, iguales que antes en Presupuesto/Venta.
@@ -83,11 +96,17 @@ export function buildRemitoHtml(
   const itemsHtml = items.length > 0
     ? items
       .map(
-        (item) => `
+        (item, index) => `
+          ${item.bloqueNombre && item.bloqueNombre !== items[index - 1]?.bloqueNombre ? `
+          <tr>
+            <td colspan="6" style="padding: 5px 6px; background: #e8edf4; border-top: 1px solid #aeb9c7; border-bottom: 1px solid #cbd5e1; color: #111827; font-size: 10px; font-weight: 900; letter-spacing: .03em;">
+              BLOQUE: ${safe(item.bloqueNombre)}
+            </td>
+          </tr>` : ""}
           <tr>
             <td style="padding: 3px 5px; font-weight: 700; color: #000000; font-size: ${itemFontNombre};">
               ${safe(item.nombre)}
-              ${item.detalle ? `<div style="font-size: ${itemFontDetalle}; font-weight: 500; margin-top: 1px;">${safe(item.detalle, "")}</div>` : ""}
+              ${detalleSinMedidasDuplicadas(item.detalle) ? `<div style="font-size: ${itemFontDetalle}; font-weight: 500; margin-top: 1px;">${safe(detalleSinMedidasDuplicadas(item.detalle), "")}</div>` : ""}
             </td>
             <td style="padding: 3px 5px; text-align: center; font-weight: 800; color: #000000; font-size: ${itemFontCantidad};">
               <div style="font-size: ${itemFontCantidad}; font-weight: 900; color: #000000;">
@@ -182,14 +201,14 @@ export function buildRemitoHtml(
       ${mostrarIvaRow ? `
       <tr>
         <td colspan="4" style="padding: ${totalesPad};"></td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">IVA (${ivaPctRow}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${ivaPctRow > 0 ? `IVA (${ivaPctRow}%)` : "IVA"}</td>
         <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(ivaMontoRow)}</td>
       </tr>
       ` : ""}
       ${mostrarTransfRow ? `
       <tr>
         <td colspan="4" style="padding: ${totalesPad};"></td>
-        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">TRANSFERENCIA (${transfPctRow}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${transfPctRow > 0 ? `TRANSFERENCIA (${transfPctRow}%)` : "TRANSFERENCIA"}</td>
         <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(transfMontoRow)}</td>
       </tr>
       ` : ""}

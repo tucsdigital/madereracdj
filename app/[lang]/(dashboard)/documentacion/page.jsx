@@ -84,7 +84,7 @@ export default function DocumentacionPage() {
   }, [items]);
 
   return (
-    <div className="py-8 px-2 max-w-7xl mx-auto">
+    <div className="py-8 px-2 mx-auto">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-2xl font-bold text-foreground">Documentación</div>

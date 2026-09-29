@@ -134,7 +134,7 @@ const WizardConversion = ({
 
   // Estados del wizard
   const [datos, setDatos] = useState({
-    bloqueSeleccionado: "",
+    bloquesSeleccionadosIds: [],
     ubicacionTipo: "cliente", // "cliente" o "nueva"
     direccion: "",
     localidad: "",
@@ -170,7 +170,7 @@ const WizardConversion = ({
       clienteSeleccionadoEnSelectorRef.current = false;
 
       setDatos({
-        bloqueSeleccionado: presupuesto.bloques?.length > 0 ? presupuesto.bloques[0].id : "",
+        bloquesSeleccionadosIds: presupuesto.bloques?.length > 0 ? [String(presupuesto.bloques[0].id)] : [],
         ubicacionTipo: "cliente",
         direccion: presupuesto.cliente?.direccion || "",
         localidad: presupuesto.cliente?.localidad || "",
@@ -255,17 +255,22 @@ const WizardConversion = ({
       return false;
     }
     
-    // Validar el bloque que se convertirá. Nunca se combinan alternativas.
+    // Una obra puede reunir uno o varios bloques del mismo presupuesto.
     if (presupuesto?.bloques && presupuesto.bloques.length > 0) {
-      if (!datos.bloqueSeleccionado) {
-        setError("Por favor seleccione un bloque");
+      if (!datos.bloquesSeleccionadosIds?.length) {
+        setError("Por favor seleccione al menos un bloque");
         return false;
       }
-      const bloqueElegido = presupuesto.bloques.find(
-        (bloque) => bloque.id === datos.bloqueSeleccionado
+      const bloquesElegidos = presupuesto.bloques.filter((bloque) =>
+        datos.bloquesSeleccionadosIds.includes(String(bloque.id))
       );
-      if (!bloqueElegido || !Array.isArray(bloqueElegido.productos) || bloqueElegido.productos.length === 0) {
-        setError("El bloque seleccionado no tiene productos para convertir");
+      if (
+        bloquesElegidos.length !== datos.bloquesSeleccionadosIds.length ||
+        bloquesElegidos.some(
+          (bloque) => !Array.isArray(bloque.productos) || bloque.productos.length === 0
+        )
+      ) {
+        setError("Cada bloque seleccionado debe tener productos para convertir");
         return false;
       }
     } else if (!Array.isArray(presupuesto?.productos) || presupuesto.productos.length === 0) {
@@ -318,7 +323,8 @@ const WizardConversion = ({
 
       const numeroPedido = await getNextObraNumber();
 
-      // Sanitizar productos del bloque seleccionado
+      // Sanitizar los productos conservando el bloque de origen para que la
+      // obra y el remito puedan identificarlos correctamente.
       const sanitizarProductos = (lista) =>
         (Array.isArray(lista) ? lista : []).map((p) => {
           const precio = Number(p.precio) || 0;
@@ -360,17 +366,19 @@ const WizardConversion = ({
         });
 
       let productosObraSanitizados = [];
-      let bloqueSeleccionadoNombre = null;
-      let bloqueSeleccionadoDatos = null;
+      let bloquesSeleccionadosDatos = [];
 
-      // Si hay bloques y se seleccionó uno específico
-      if (presupuesto.bloques && presupuesto.bloques.length > 0 && datos.bloqueSeleccionado) {
-        const bloqueSeleccionado = presupuesto.bloques.find(b => b.id === datos.bloqueSeleccionado);
-        if (bloqueSeleccionado) {
-          bloqueSeleccionadoDatos = bloqueSeleccionado;
-          productosObraSanitizados = sanitizarProductos(bloqueSeleccionado.productos || []);
-          bloqueSeleccionadoNombre = bloqueSeleccionado.nombre || null;
-        }
+      if (presupuesto.bloques && presupuesto.bloques.length > 0) {
+        bloquesSeleccionadosDatos = presupuesto.bloques.filter((bloque) =>
+          datos.bloquesSeleccionadosIds.includes(String(bloque.id))
+        );
+        productosObraSanitizados = bloquesSeleccionadosDatos.flatMap((bloque) =>
+          sanitizarProductos(bloque.productos || []).map((producto) => ({
+            ...producto,
+            bloquePresupuestoId: String(bloque.id),
+            bloquePresupuestoNombre: bloque.nombre || "Presupuesto",
+          }))
+        );
       } else {
         // Fallback para presupuestos sin bloques (estructura antigua)
         productosObraSanitizados = sanitizarProductos(presupuesto.productos || []);
@@ -379,23 +387,26 @@ const WizardConversion = ({
       // NO hay materiales adicionales en el wizard (según requisitos)
       const materialesSanitizados = [];
 
-      // Calcular exclusivamente desde el bloque seleccionado. No se consultan
-      // ni se acumulan los totales de los demás bloques del presupuesto.
-      const fuenteCondiciones = bloqueSeleccionadoDatos || presupuesto;
-      const resumenSeleccionado = calcularResumenBloque(fuenteCondiciones);
-      const productosObraSubtotal = resumenSeleccionado.subtotal;
-      const productosObraDescuento = resumenSeleccionado.descuentoTotal;
-      const subtotalCombinado = resumenSeleccionado.subtotal;
-      const descuentoTotalCombinado = resumenSeleccionado.descuentoTotal;
-      const descuentoEfectivoCombinado = resumenSeleccionado.descuentoEfectivo;
-      const baseCombinada = resumenSeleccionado.base;
-      const aplicaIvaPres = resumenSeleccionado.aplicarIva;
-      const ivaPorcentajePres = resumenSeleccionado.ivaPorcentaje;
-      const ivaMontoPres = resumenSeleccionado.ivaMonto;
-      const aplicaTransfPres = resumenSeleccionado.aplicarTransferencia;
-      const transfPorcentajePres = resumenSeleccionado.transferenciaPorcentaje;
-      const transfMontoPres = resumenSeleccionado.transferenciaMonto;
-      const totalCombinado = resumenSeleccionado.total;
+      const resumenesBloques = (bloquesSeleccionadosDatos.length
+        ? bloquesSeleccionadosDatos
+        : [presupuesto]
+      ).map((bloque) => ({ bloque, resumen: calcularResumenBloque(bloque) }));
+      const sumar = (campo) => resumenesBloques.reduce((total, item) => total + (item.resumen[campo] || 0), 0);
+      const productosObraSubtotal = sumar("subtotal");
+      const productosObraDescuento = sumar("descuentoTotal");
+      const subtotalCombinado = productosObraSubtotal;
+      const descuentoTotalCombinado = productosObraDescuento;
+      const descuentoEfectivoCombinado = sumar("descuentoEfectivo");
+      const baseCombinada = sumar("base");
+      const ivaMontoPres = sumar("ivaMonto");
+      const transfMontoPres = sumar("transferenciaMonto");
+      const aplicaIvaPres = resumenesBloques.some((item) => item.resumen.aplicarIva);
+      const aplicaTransfPres = resumenesBloques.some((item) => item.resumen.aplicarTransferencia);
+      const ivaPctUnico = [...new Set(resumenesBloques.filter((item) => item.resumen.aplicarIva).map((item) => item.resumen.ivaPorcentaje))];
+      const transfPctUnico = [...new Set(resumenesBloques.filter((item) => item.resumen.aplicarTransferencia).map((item) => item.resumen.transferenciaPorcentaje))];
+      const ivaPorcentajePres = ivaPctUnico.length === 1 ? ivaPctUnico[0] : 0;
+      const transfPorcentajePres = transfPctUnico.length === 1 ? transfPctUnico[0] : 0;
+      const totalCombinado = sumar("total");
 
       // Usar cliente confirmado explícitamente o el del presupuesto como fallback
       const clienteFinal = clienteConfirmadoExplicitamente 
@@ -430,6 +441,28 @@ const WizardConversion = ({
         clienteId: clienteIdFinal,
         cliente: clienteFinal,
         productos: productosObraSanitizados,
+        // Cada bloque queda preservado como una sección de la obra. El array
+        // plano se mantiene para compatibilidad con cálculos y cobranzas.
+        bloques: resumenesBloques.map(({ bloque, resumen }) => ({
+          id: String(bloque.id),
+          nombre: bloque.nombre || "Presupuesto",
+          productos: sanitizarProductos(bloque.productos || []).map((producto) => ({
+            ...producto,
+            bloquePresupuestoId: String(bloque.id),
+            bloquePresupuestoNombre: bloque.nombre || "Presupuesto",
+          })),
+          subtotal: resumen.subtotal,
+          descuentoTotal: resumen.descuentoTotal,
+          descuentoEfectivo: resumen.descuentoEfectivo,
+          baseImponible: resumen.base,
+          aplicarIva: resumen.aplicarIva,
+          ivaPorcentaje: resumen.ivaPorcentaje,
+          ivaMonto: resumen.ivaMonto,
+          aplicarTransferencia: resumen.aplicarTransferencia,
+          transferenciaPorcentaje: resumen.transferenciaPorcentaje,
+          transferenciaMonto: resumen.transferenciaMonto,
+          total: resumen.total,
+        })),
         materialesCatalogo: materialesSanitizados,
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
@@ -447,14 +480,31 @@ const WizardConversion = ({
         transferenciaMonto: transfMontoPres,
         descripcionGeneral:
           datos.descripcionGeneral ||
-          bloqueSeleccionadoDatos?.descripcion ||
+          bloquesSeleccionadosDatos[0]?.descripcion ||
           presupuesto.descripcionGeneral ||
           "",
         fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
         presupuestoInicialId: presupuesto.id,
-        presupuestoInicialBloqueId: datos.bloqueSeleccionado || null,
-        presupuestoInicialBloqueNombre: bloqueSeleccionadoNombre,
+        // Campos singulares preservados para documentos previos. La fuente de
+        // verdad es el arreglo, que permite uno o varios bloques.
+        presupuestoInicialBloqueId: bloquesSeleccionadosDatos[0]?.id || null,
+        presupuestoInicialBloqueNombre: bloquesSeleccionadosDatos[0]?.nombre || null,
+        presupuestoInicialBloques: resumenesBloques.map(({ bloque, resumen }) => ({
+          id: String(bloque.id),
+          nombre: bloque.nombre || "Presupuesto",
+          subtotal: resumen.subtotal,
+          descuentoTotal: resumen.descuentoTotal,
+          descuentoEfectivo: resumen.descuentoEfectivo,
+          baseImponible: resumen.base,
+          aplicarIva: resumen.aplicarIva,
+          ivaPorcentaje: resumen.ivaPorcentaje,
+          ivaMonto: resumen.ivaMonto,
+          aplicarTransferencia: resumen.aplicarTransferencia,
+          transferenciaPorcentaje: resumen.transferenciaPorcentaje,
+          transferenciaMonto: resumen.transferenciaMonto,
+          total: resumen.total,
+        })),
         ubicacion,
         fechas: {
           inicio: datos.fechaInicio,
@@ -512,17 +562,37 @@ const WizardConversion = ({
 
   const tieneBloques = presupuesto.bloques && presupuesto.bloques.length > 0;
   const totalBloques = presupuesto.bloques?.length || 0;
-  const bloqueSeleccionadoVista = tieneBloques
-    ? presupuesto.bloques.find((bloque) => bloque.id === datos.bloqueSeleccionado) || presupuesto.bloques[0]
-    : null;
-  const condicionesVista = bloqueSeleccionadoVista || presupuesto;
-  const resumenBloqueVista = calcularResumenBloque(condicionesVista);
-  const aplicaIvaPresupuesto = resumenBloqueVista.aplicarIva;
-  const aplicaTransfPresupuesto = resumenBloqueVista.aplicarTransferencia;
-  const ivaPctPresupuesto = resumenBloqueVista.ivaPorcentaje;
-  const transfPctPresupuesto = resumenBloqueVista.transferenciaPorcentaje;
-  const ivaMontoPresupuesto = resumenBloqueVista.ivaMonto;
-  const transfMontoPresupuesto = resumenBloqueVista.transferenciaMonto;
+  const bloquesSeleccionadosVista = tieneBloques
+    ? presupuesto.bloques.filter((bloque) => datos.bloquesSeleccionadosIds.includes(String(bloque.id)))
+    : [];
+  const resumenesBloquesVista = (bloquesSeleccionadosVista.length
+    ? bloquesSeleccionadosVista
+    : [presupuesto]
+  ).map((bloque) => calcularResumenBloque(bloque));
+  const sumarResumenVista = (campo) => resumenesBloquesVista.reduce(
+    (total, resumen) => total + (resumen[campo] || 0),
+    0
+  );
+  const resumenBloqueVista = {
+    subtotal: sumarResumenVista("subtotal"),
+    descuentoTotal: sumarResumenVista("descuentoTotal"),
+    adicionales: sumarResumenVista("adicionales"),
+    total: sumarResumenVista("total"),
+  };
+  const ivaMontoPresupuesto = sumarResumenVista("ivaMonto");
+  const transfMontoPresupuesto = sumarResumenVista("transferenciaMonto");
+  const ivaPctPresupuesto = [...new Set(resumenesBloquesVista.filter((item) => item.aplicarIva).map((item) => item.ivaPorcentaje))];
+  const transfPctPresupuesto = [...new Set(resumenesBloquesVista.filter((item) => item.aplicarTransferencia).map((item) => item.transferenciaPorcentaje))];
+
+  const alternarBloque = (bloqueId) => {
+    const id = String(bloqueId);
+    setDatos((prev) => ({
+      ...prev,
+      bloquesSeleccionadosIds: prev.bloquesSeleccionadosIds.includes(id)
+        ? prev.bloquesSeleccionadosIds.filter((seleccionado) => seleccionado !== id)
+        : [...prev.bloquesSeleccionadosIds, id],
+    }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -608,10 +678,10 @@ const WizardConversion = ({
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                     <FileText className="w-4 h-4 text-blue-600" />
                   </div>
-                  <span>Paso 1: Cliente y Bloque</span>
+                  <span>Paso 1: Cliente y bloques</span>
                 </h3>
                 <p className="text-xs text-gray-600 ml-10">
-                  Confirma el cliente y selecciona el bloque a convertir
+                  Confirma el cliente y elegí uno o más bloques para esta obra
                 </p>
               </div>
 
@@ -712,7 +782,7 @@ const WizardConversion = ({
                     <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                       <FileText className="w-4 h-4 text-indigo-600" />
                     </div>
-                    Seleccionar Bloque <span className="text-red-500">*</span>
+                    Seleccionar bloques <span className="text-red-500">*</span>
                   </label>
                   {/* Tabs/Pills para bloques */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -721,9 +791,9 @@ const WizardConversion = ({
                       return (
                         <button
                         key={bloque.id}
-                        onClick={() => setDatos({ ...datos, bloqueSeleccionado: bloque.id })}
+                        onClick={() => alternarBloque(bloque.id)}
                         className={`p-3 rounded-lg border transition-all text-left ${
-                          datos.bloqueSeleccionado === bloque.id
+                          datos.bloquesSeleccionadosIds.includes(String(bloque.id))
                             ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-blue-600 shadow-lg scale-105"
                             : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:shadow-md"
                         }`}
@@ -732,9 +802,9 @@ const WizardConversion = ({
                         <div className="flex items-start justify-between mb-2">
                           <span className="font-semibold text-sm">{bloque.nombre || "Sin nombre"}</span>
                           <Badge
-                            variant={datos.bloqueSeleccionado === bloque.id ? "secondary" : "outline"}
+                            variant={datos.bloquesSeleccionadosIds.includes(String(bloque.id)) ? "secondary" : "outline"}
                             className={
-                              datos.bloqueSeleccionado === bloque.id
+                              datos.bloquesSeleccionadosIds.includes(String(bloque.id))
                                 ? "bg-white text-blue-600 border-white"
                                 : "bg-gray-100"
                             }
@@ -744,7 +814,7 @@ const WizardConversion = ({
                             })}
                           </Badge>
                         </div>
-                        <p className={`text-xs ${datos.bloqueSeleccionado === bloque.id ? "text-blue-100" : "text-gray-500"}`}>
+                        <p className={`text-xs ${datos.bloquesSeleccionadosIds.includes(String(bloque.id)) ? "text-blue-100" : "text-gray-500"}`}>
                           {bloque.productos?.length || 0} productos
                         </p>
                         </button>
@@ -778,11 +848,13 @@ const WizardConversion = ({
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-emerald-900">
-                    Resumen del bloque elegido
+                    Resumen de los bloques seleccionados
                   </p>
-                  {bloqueSeleccionadoVista?.nombre && (
+                  {bloquesSeleccionadosVista.length > 0 && (
                     <Badge variant="outline" className="border-emerald-300 bg-white text-emerald-700">
-                      {bloqueSeleccionadoVista.nombre}
+                      {bloquesSeleccionadosVista.length === 1
+                        ? bloquesSeleccionadosVista[0].nombre
+                        : `${bloquesSeleccionadosVista.length} bloques`}
                     </Badge>
                   )}
                 </div>
@@ -797,15 +869,15 @@ const WizardConversion = ({
                       <span className="font-bold tabular-nums">- ${resumenBloqueVista.descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
-                  {aplicaIvaPresupuesto && (
+                  {ivaMontoPresupuesto > 0 && (
                     <div className="flex justify-between gap-4">
-                      <span>IVA ({ivaPctPresupuesto}%)</span>
+                      <span>IVA{ivaPctPresupuesto.length === 1 ? ` (${ivaPctPresupuesto[0]}%)` : ""}</span>
                       <span className="font-bold tabular-nums">$ {ivaMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
-                  {aplicaTransfPresupuesto && (
+                  {transfMontoPresupuesto > 0 && (
                     <div className="flex justify-between gap-4">
-                      <span>Transferencia ({transfPctPresupuesto}%)</span>
+                      <span>Transferencia{transfPctPresupuesto.length === 1 ? ` (${transfPctPresupuesto[0]}%)` : ""}</span>
                       <span className="font-bold tabular-nums">$ {transfMontoPresupuesto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
@@ -814,7 +886,7 @@ const WizardConversion = ({
                     <span className="font-bold tabular-nums">$ {resumenBloqueVista.adicionales.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between gap-4 text-sm text-emerald-950">
-                    <span className="font-semibold">Total del bloque</span>
+                    <span className="font-semibold">Total seleccionado</span>
                     <span className="font-bold tabular-nums">$ {resumenBloqueVista.total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>

@@ -694,7 +694,7 @@ const PreciosPage = () => {
     productosSeleccionados.size === productosPaginados.length;
 
   return (
-    <div className="py-8 px-2 max-w-7xl mx-auto">
+    <div className="py-8 px-2 mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Gestión de Precios</h1>
         <p className="text-lg text-gray-600">

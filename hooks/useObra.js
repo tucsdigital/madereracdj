@@ -155,6 +155,10 @@ export const useObra = (id) => {
     presupuestoBloqueSeleccionadoId,
     setPresupuestoBloqueSeleccionadoId,
   ] = useState("");
+  const [
+    presupuestoBloquesSeleccionadosIds,
+    setPresupuestoBloquesSeleccionadosIds,
+  ] = useState([]);
 
   const [modoCosto, setModoCosto] = useState("gasto");
   const [descripcionGeneral, setDescripcionGeneral] = useState("");
@@ -242,6 +246,13 @@ export const useObra = (id) => {
             setPresupuestoBloqueSeleccionadoId(
               data.presupuestoInicialBloqueId || ""
             );
+            setPresupuestoBloquesSeleccionadosIds(
+              Array.isArray(data.presupuestoInicialBloques) && data.presupuestoInicialBloques.length > 0
+                ? data.presupuestoInicialBloques.map((bloque) => String(bloque.id))
+                : data.presupuestoInicialBloqueId
+                  ? [String(data.presupuestoInicialBloqueId)]
+                  : []
+            );
           } else if (data.tipo === "presupuesto") {
             setEstadoObra(data.estado || "Activo");
             setClienteId(data.clienteId || data.cliente?.id || "");
@@ -309,6 +320,10 @@ export const useObra = (id) => {
               metodo: p.metodo || "efectivo",
               monto: Number(p.monto) || 0,
               nota: p.nota || "",
+              pagoEnDolares: p.pagoEnDolares === true,
+              montoOriginal: Number(p.montoOriginal) || null,
+              valorOficialDolar: Number(p.valorOficialDolar) || null,
+              comprobantes: Array.isArray(p.comprobantes) ? p.comprobantes : [],
             });
           });
 
@@ -944,6 +959,10 @@ export const useObra = (id) => {
         metodo: m.metodo || "efectivo",
         monto: Number(m.monto) || 0,
         nota: m.nota || "",
+        pagoEnDolares: m.pagoEnDolares === true || m.moneda === "USD",
+        montoOriginal: Number(m.montoOriginal) || null,
+        valorOficialDolar: Number(m.valorOficialDolar ?? m.cotizacionDolar) || null,
+        comprobantes: Array.isArray(m.comprobantes) ? m.comprobantes : [],
       })
     );
 
@@ -1139,13 +1158,112 @@ export const useObra = (id) => {
           descuentoEfectivoObra
       );
 
-      const aplicaIvaObra = opcionActiva(
-        opciones.aplicarIva ??
-          obra?.aplicarIva ??
-          obra?.aplicaIva
-      );
+      const idsBloquesGuardar = presupuestoBloquesSeleccionadosIds.length > 0
+        ? presupuestoBloquesSeleccionadosIds
+        : Array.isArray(obra?.bloques)
+          ? obra.bloques.map((bloque) => String(bloque.id))
+          : [];
+      const bloquesGuardados = Array.isArray(obra?.bloques) && obra.bloques.length > 0
+        ? obra.bloques
+        : Array.isArray(obra?.presupuestoInicialBloques)
+          ? obra.presupuestoInicialBloques
+          : [];
+      const bloquesDelPresupuesto = Array.isArray(presupuesto?.bloques)
+        ? presupuesto.bloques
+        : [];
 
-      const ivaPctObra = Math.max(
+      // La obra conserva sus propios bloques. Sólo se toma el bloque del
+      // presupuesto original cuando se agrega uno que todavía no existe en ella.
+      const bloquesPresupuestoGuardar = idsBloquesGuardar
+        .map((idBloque) => {
+          const bloqueGuardado = bloquesGuardados.find(
+            (bloque) => String(bloque.id) === String(idBloque)
+          );
+          const bloqueOriginal = bloquesDelPresupuesto.find(
+            (bloque) => String(bloque.id) === String(idBloque)
+          );
+
+          if (!bloqueGuardado) return bloqueOriginal;
+
+          return {
+            ...bloqueOriginal,
+            ...bloqueGuardado,
+            productos: Array.isArray(bloqueGuardado.productos) && bloqueGuardado.productos.length > 0
+              ? bloqueGuardado.productos
+              : bloqueOriginal?.productos || [],
+          };
+        })
+        .filter(Boolean);
+
+      const sobrescribirIva = opciones.sobrescribirIva === true;
+      const sobrescribirTransferencia = opciones.sobrescribirTransferencia === true;
+      const porcentajeOpcion = (valor) => Math.max(
+        0,
+        Number(String(valor ?? "").replace(",", ".")) || 0
+      );
+      const aplicarIvaSobrescrito = opcionActiva(opciones.aplicarIva);
+      const aplicarTransferenciaSobrescrito = opcionActiva(
+        opciones.aplicarTransferencia
+      );
+      const ivaPorcentajeSobrescrito = porcentajeOpcion(opciones.ivaPorcentaje);
+      const transferenciaPorcentajeSobrescrito = porcentajeOpcion(
+        opciones.transferenciaPorcentaje
+      );
+      const impuestosPorBloque = bloquesPresupuestoGuardar.map((bloque) => {
+        const productosBloque = Array.isArray(bloque.productos)
+          ? bloque.productos.map(sanitizarProductoPresupuesto)
+          : [];
+        const resumenBloque = calcularResumenProductosPresupuesto(productosBloque);
+        const descuentoEfectivo = Math.max(0, Number(bloque.descuentoEfectivo) || 0);
+        const baseImponible = Math.max(0, resumenBloque.base - descuentoEfectivo);
+        const aplicarIva = sobrescribirIva
+          ? aplicarIvaSobrescrito
+          : opcionActiva(bloque.aplicarIva ?? bloque.aplicaIva);
+        const ivaPorcentaje = sobrescribirIva
+          ? ivaPorcentajeSobrescrito
+          : Math.max(0, Number(bloque.ivaPorcentaje) || 0);
+        const aplicarTransferencia = sobrescribirTransferencia
+          ? aplicarTransferenciaSobrescrito
+          : opcionActiva(
+              bloque.aplicarTransferencia ?? bloque.aplicaTransferencia
+            );
+        const transferenciaPorcentaje = sobrescribirTransferencia
+          ? transferenciaPorcentajeSobrescrito
+          : Math.max(0, Number(bloque.transferenciaPorcentaje) || 0);
+        return {
+          id: String(bloque.id),
+          nombre: bloque.nombre || "Presupuesto",
+          subtotal: resumenBloque.subtotal,
+          descuentoTotal: resumenBloque.descuentoTotal,
+          descuentoEfectivo,
+          baseImponible,
+          aplicarIva,
+          ivaPorcentaje,
+          ivaMonto: aplicarIva ? Math.round(baseImponible * (ivaPorcentaje / 100)) : 0,
+          aplicarTransferencia,
+          transferenciaPorcentaje,
+          transferenciaMonto: aplicarTransferencia
+            ? Math.round(baseImponible * (transferenciaPorcentaje / 100))
+            : 0,
+        };
+      });
+      const usaImpuestosDeBloques = impuestosPorBloque.length > 0;
+
+      const aplicaIvaObra = sobrescribirIva
+        ? aplicarIvaSobrescrito
+        : usaImpuestosDeBloques
+          ? impuestosPorBloque.some((bloque) => bloque.aplicarIva)
+          : opcionActiva(
+              opciones.aplicarIva ??
+                obra?.aplicarIva ??
+                obra?.aplicaIva
+            );
+
+      const ivaPctObra = usaImpuestosDeBloques
+        ? [...new Set(impuestosPorBloque.filter((bloque) => bloque.aplicarIva).map((bloque) => bloque.ivaPorcentaje))].length === 1
+          ? impuestosPorBloque.find((bloque) => bloque.aplicarIva)?.ivaPorcentaje || 0
+          : 0
+        : Math.max(
         0,
         Number(
           opciones.ivaPorcentaje ??
@@ -1153,19 +1271,29 @@ export const useObra = (id) => {
         ) || 0
       );
 
-      const ivaMontoObra = aplicaIvaObra
+      const ivaMontoObra = usaImpuestosDeBloques
+        ? impuestosPorBloque.reduce((total, bloque) => total + bloque.ivaMonto, 0)
+        : aplicaIvaObra
         ? Math.round(
             baseCombinada * (ivaPctObra / 100)
           )
         : 0;
 
-      const aplicaTransfObra = opcionActiva(
-        opciones.aplicarTransferencia ??
-          obra?.aplicarTransferencia ??
-          obra?.aplicaTransferencia
-      );
+      const aplicaTransfObra = sobrescribirTransferencia
+        ? aplicarTransferenciaSobrescrito
+        : usaImpuestosDeBloques
+          ? impuestosPorBloque.some((bloque) => bloque.aplicarTransferencia)
+          : opcionActiva(
+              opciones.aplicarTransferencia ??
+                obra?.aplicarTransferencia ??
+                obra?.aplicaTransferencia
+            );
 
-      const transfPctObra = Math.max(
+      const transfPctObra = usaImpuestosDeBloques
+        ? [...new Set(impuestosPorBloque.filter((bloque) => bloque.aplicarTransferencia).map((bloque) => bloque.transferenciaPorcentaje))].length === 1
+          ? impuestosPorBloque.find((bloque) => bloque.aplicarTransferencia)?.transferenciaPorcentaje || 0
+          : 0
+        : Math.max(
         0,
         Number(
           opciones.transferenciaPorcentaje ??
@@ -1173,7 +1301,9 @@ export const useObra = (id) => {
         ) || 0
       );
 
-      const transfMontoObra = aplicaTransfObra
+      const transfMontoObra = usaImpuestosDeBloques
+        ? impuestosPorBloque.reduce((total, bloque) => total + bloque.transferenciaMonto, 0)
+        : aplicaTransfObra
         ? Math.round(
             baseCombinada *
               (transfPctObra / 100)
@@ -1206,6 +1336,7 @@ export const useObra = (id) => {
       );
 
       const bloqueIdGuardar =
+        presupuestoBloquesSeleccionadosIds[0] ||
         presupuestoBloqueSeleccionadoId ||
         obra.presupuestoInicialBloqueId ||
         "";
@@ -1226,6 +1357,28 @@ export const useObra = (id) => {
         bloqueSeleccionadoGuardar?.nombre ||
         obra.presupuestoInicialBloqueNombre ||
         null;
+
+      updateData.presupuestoInicialBloques = impuestosPorBloque.map((bloque) => ({
+        ...bloque,
+        total: Math.round(
+          bloque.baseImponible + bloque.ivaMonto + bloque.transferenciaMonto
+        ),
+      }));
+      updateData.bloques = bloquesPresupuestoGuardar.map((bloque) => {
+        const resumen = impuestosPorBloque.find(
+          (item) => String(item.id) === String(bloque.id)
+        );
+        return {
+          ...(resumen || {}),
+          id: String(bloque.id),
+          nombre: bloque.nombre || "Presupuesto",
+          productos: (Array.isArray(bloque.productos) ? bloque.productos : []).map((producto) => ({
+            ...sanitizarProductoPresupuesto(producto),
+            bloquePresupuestoId: String(bloque.id),
+            bloquePresupuestoNombre: bloque.nombre || "Presupuesto",
+          })),
+        };
+      });
 
       if (estadoObra) {
         updateData.estado = estadoObra;
@@ -1326,6 +1479,13 @@ export const useObra = (id) => {
         setPresupuestoBloqueSeleccionadoId(
           obraActualizada.presupuestoInicialBloqueId ||
             ""
+        );
+        setPresupuestoBloquesSeleccionadosIds(
+          Array.isArray(obraActualizada.presupuestoInicialBloques) && obraActualizada.presupuestoInicialBloques.length > 0
+            ? obraActualizada.presupuestoInicialBloques.map((bloque) => String(bloque.id))
+            : obraActualizada.presupuestoInicialBloqueId
+              ? [String(obraActualizada.presupuestoInicialBloqueId)]
+              : []
         );
 
         setDescripcionGeneral(
@@ -1461,6 +1621,71 @@ export const useObra = (id) => {
     };
   };
 
+  // Alterna bloques del presupuesto para una misma obra. Los productos se
+  // copian por bloque para que guardar e imprimir sean independientes del
+  // presupuesto original.
+  const cambiarBloquesPresupuesto = (bloqueId) => {
+    if (!presupuesto || !Array.isArray(presupuesto.bloques)) return null;
+
+    const id = String(bloqueId);
+    if (
+      presupuestoBloquesSeleccionadosIds.length === 1 &&
+      presupuestoBloquesSeleccionadosIds.includes(id)
+    ) {
+      return null;
+    }
+    const siguientesIds = presupuestoBloquesSeleccionadosIds.includes(id)
+      ? presupuestoBloquesSeleccionadosIds.filter((seleccionado) => seleccionado !== id)
+      : [...presupuestoBloquesSeleccionadosIds, id];
+    const bloques = presupuesto.bloques.filter((bloque) =>
+      siguientesIds.includes(String(bloque.id))
+    );
+    const productos = bloques.flatMap((bloque) =>
+      (Array.isArray(bloque.productos) ? bloque.productos : []).map((producto) => ({
+        ...sanitizarProductoPresupuesto(producto),
+        bloquePresupuestoId: String(bloque.id),
+        bloquePresupuestoNombre: bloque.nombre || "Presupuesto",
+      }))
+    );
+    const resumenes = bloques.map((bloque) => {
+      const resumen = calcularResumenProductosPresupuesto(
+        (Array.isArray(bloque.productos) ? bloque.productos : []).map(sanitizarProductoPresupuesto)
+      );
+      const aplicarIva = opcionActiva(bloque.aplicarIva ?? bloque.aplicaIva);
+      const ivaPorcentaje = Math.max(0, Number(bloque.ivaPorcentaje) || 0);
+      const aplicarTransferencia = opcionActiva(bloque.aplicarTransferencia ?? bloque.aplicaTransferencia);
+      const transferenciaPorcentaje = Math.max(0, Number(bloque.transferenciaPorcentaje) || 0);
+      return {
+        resumen,
+        aplicarIva,
+        ivaPorcentaje,
+        ivaMonto: aplicarIva ? Math.round(resumen.base * (ivaPorcentaje / 100)) : 0,
+        aplicarTransferencia,
+        transferenciaPorcentaje,
+        transferenciaMonto: aplicarTransferencia
+          ? Math.round(resumen.base * (transferenciaPorcentaje / 100))
+          : 0,
+      };
+    });
+
+    setPresupuestoBloquesSeleccionadosIds(siguientesIds);
+    setPresupuestoBloqueSeleccionadoId(siguientesIds[0] || "");
+    setItemsPresupuesto(productos);
+
+    const ivaPorcentajes = [...new Set(resumenes.filter((item) => item.aplicarIva).map((item) => item.ivaPorcentaje))];
+    const transferenciaPorcentajes = [...new Set(resumenes.filter((item) => item.aplicarTransferencia).map((item) => item.transferenciaPorcentaje))];
+    return {
+      bloques,
+      productos,
+      aplicarIva: resumenes.some((item) => item.aplicarIva),
+      ivaPorcentaje: ivaPorcentajes.length === 1 ? ivaPorcentajes[0] : 0,
+      ivaMonto: resumenes.reduce((total, item) => total + item.ivaMonto, 0),
+      aplicarTransferencia: resumenes.some((item) => item.aplicarTransferencia),
+      transferenciaPorcentaje: transferenciaPorcentajes.length === 1 ? transferenciaPorcentajes[0] : 0,
+      transferenciaMonto: resumenes.reduce((total, item) => total + item.transferenciaMonto, 0),
+    };
+  };
+
   const cancelarEdicion = () => {
     if (!obra) return;
 
@@ -1478,6 +1703,13 @@ export const useObra = (id) => {
 
     setPresupuestoBloqueSeleccionadoId(
       obra.presupuestoInicialBloqueId || ""
+    );
+    setPresupuestoBloquesSeleccionadosIds(
+      Array.isArray(obra.presupuestoInicialBloques) && obra.presupuestoInicialBloques.length > 0
+        ? obra.presupuestoInicialBloques.map((bloque) => String(bloque.id))
+        : obra.presupuestoInicialBloqueId
+          ? [String(obra.presupuestoInicialBloqueId)]
+          : []
     );
 
     setDescripcionGeneral(
@@ -1563,6 +1795,7 @@ export const useObra = (id) => {
     presupuestosDisponibles,
     presupuestoSeleccionadoId,
     presupuestoBloqueSeleccionadoId,
+    presupuestoBloquesSeleccionadosIds,
     modoCosto,
     descripcionGeneral,
     catalogoCargado,
@@ -1598,6 +1831,7 @@ export const useObra = (id) => {
     convertirPresupuestoToObra,
     cargarCatalogoProductos,
     cambiarBloquePresupuesto,
+    cambiarBloquesPresupuesto,
     cancelarEdicion,
   };
 };

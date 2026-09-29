@@ -244,7 +244,7 @@ export default function DolaresPage() {
   }, [itemsFiltrados]);
 
   return (
-    <div className="py-8 px-2 max-w-7xl mx-auto space-y-6">
+    <div className="py-8 px-2 mx-auto space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <DollarSign className="w-9 h-9 text-amber-600" />

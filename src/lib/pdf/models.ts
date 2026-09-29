@@ -17,6 +17,7 @@ export interface RemitoItemModel {
   subtotal?: number;
   categoria?: string;
   subcategoria?: string;
+  bloqueNombre?: string;
 }
 
 export interface RemitoClienteModel {
