@@ -20,7 +20,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { db } from "@/lib/firebase";
-import { useAuth } from "@/provider/auth.provider";
 import {
   collection,
   doc,
@@ -241,8 +240,6 @@ const WORKDAY_OPTIONS = [
 export default function AsistenciaPage() {
   const router = useRouter();
   const { lang } = useParams();
-  const { user } = useAuth();
-  const esAdmin = user?.email === "admin@admin.com";
 
   // --- Estados ---
   const [vistaActiva, setVistaActiva] = useState("asistencia"); // asistencia | empleados
@@ -947,7 +944,6 @@ export default function AsistenciaPage() {
   };
 
   const guardarConfiguracionJornada = async () => {
-    if (!esAdmin) return;
     const dias = normalizeLaborDayKeys(configuracionJornadaDraft);
     if (dias.length === 0) return;
 
@@ -1243,22 +1239,20 @@ export default function AsistenciaPage() {
                     </button>
                   </div>
 
-                  {esAdmin ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label="Configurar jornada laboral"
-                      title="Configurar jornada laboral"
-                      onClick={() => {
-                        setConfiguracionJornadaDraft(diasLaborables);
-                        setConfiguracionJornadaOpen(true);
-                      }}
-                      className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                    >
-                      <Icon icon="lucide:settings-2" className="h-4 w-4" />
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Configurar jornada laboral"
+                    title="Configurar jornada laboral"
+                    onClick={() => {
+                      setConfiguracionJornadaDraft(diasLaborables);
+                      setConfiguracionJornadaOpen(true);
+                    }}
+                    className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                  >
+                    <Icon icon="lucide:settings-2" className="h-4 w-4" />
+                  </Button>
 
                   <div>
                     <Popover
