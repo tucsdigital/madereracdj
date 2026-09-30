@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, setDoc, where } from "firebase/firestore";
 import { Icon } from "@iconify/react";
-import { calcMontoAdicional, calcMontoJornada } from "@/lib/asistencia-utils";
+import {
+  calcMontoAdicional,
+  calcMontoJornada,
+  LABOR_DAY_KEYS,
+  normalizeLaborDayKeys,
+} from "@/lib/asistencia-utils";
 
 const estados = [
   { value: "presente", label: "Presente" },
@@ -42,8 +47,8 @@ function dayIndex(dateStr) {
 function dayKey(i) {
   return ["lun", "mar", "mie", "jue", "vie", "sab", "dom"][i];
 }
-function esDiaPagablePorIndice(i) {
-  return i >= 0 && i <= 4;
+function esDiaPagablePorIndice(i, diasLaborables) {
+  return normalizeLaborDayKeys(diasLaborables).includes(dayKey(i));
 }
 
 export default function CargarDiaPage() {
@@ -51,6 +56,7 @@ export default function CargarDiaPage() {
   const [empleados, setEmpleados] = useState([]);
   const [asistencias, setAsistencias] = useState({});
   const [adicionalDrafts, setAdicionalDrafts] = useState({});
+  const [diasLaborables, setDiasLaborables] = useState(LABOR_DAY_KEYS);
   const semanaClave = fmt(startOfWeek(new Date(fecha)));
   const idx = dayIndex(fecha);
 
@@ -67,6 +73,13 @@ export default function CargarDiaPage() {
     load();
   }, [semanaClave]);
 
+  useEffect(() => {
+    const ref = doc(db, "configuracion", "asistencia");
+    return onSnapshot(ref, (snap) => {
+      setDiasLaborables(normalizeLaborDayKeys(snap.data()?.diasLaborables));
+    });
+  }, []);
+
   const setEstado = async (emp, estado) => {
     if (!emp?.id) return;
     const prev = asistencias[emp.id];
@@ -75,7 +88,7 @@ export default function CargarDiaPage() {
     const montoJornada = calcMontoJornada({
       estado,
       valorDia: Number(emp.valorDia || 0),
-      isWeekend: !esDiaPagablePorIndice(idx),
+      isWeekend: !esDiaPagablePorIndice(idx, diasLaborables),
     });
     const extraMonto = Number(prevDay?.extraMonto || 0);
     const nextDay = {
@@ -112,7 +125,7 @@ export default function CargarDiaPage() {
     const montoJornada = calcMontoJornada({
       estado: String(prevDay.estado || "ausente"),
       valorDia: Number(emp.valorDia || 0),
-      isWeekend: !esDiaPagablePorIndice(idx),
+      isWeekend: !esDiaPagablePorIndice(idx, diasLaborables),
     });
     const nextDay = {
       ...prevDay,

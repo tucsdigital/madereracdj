@@ -21,6 +21,8 @@ import {
   formatMonthLabel,
   getDayPaymentBreakdown,
   isDateBeforeEmployeeStart,
+  LABOR_DAY_KEYS,
+  normalizeLaborDayKeys,
 } from "@/lib/asistencia-utils";
 import { cn } from "@/lib/utils";
 
@@ -322,6 +324,7 @@ export default function EmpleadoDetallePage() {
   const [imprimiendoAdelantoId, setImprimiendoAdelantoId] = useState("");
   const [ausentismoDrafts, setAusentismoDrafts] = useState({});
   const [ordenTardanzas, setOrdenTardanzas] = useState("desc");
+  const [diasLaborables, setDiasLaborables] = useState(LABOR_DAY_KEYS);
 
   useEffect(() => {
     let cancelled = false;
@@ -357,6 +360,13 @@ export default function EmpleadoDetallePage() {
       unsubAdelantos();
     };
   }, [id]);
+
+  useEffect(() => {
+    const ref = doc(db, "configuracion", "asistencia");
+    return onSnapshot(ref, (snap) => {
+      setDiasLaborables(normalizeLaborDayKeys(snap.data()?.diasLaborables));
+    });
+  }, []);
 
   useEffect(() => {
     if (!filtroMes) return undefined;
@@ -406,18 +416,21 @@ export default function EmpleadoDetallePage() {
       empleado,
       asistencias,
       monthInput: fechaMes,
+      laborDayKeys: diasLaborables,
     });
     const totExtras = calcularTotalExtrasMensual({
       employeeId: id,
       empleado,
       asistencias,
       monthInput: fechaMes,
+      laborDayKeys: diasLaborables,
     });
     const extrasDetalle = buildExtrasDetalleMensual({
       employeeId: id,
       empleado,
       asistencias,
       monthInput: fechaMes,
+      laborDayKeys: diasLaborables,
     });
     const totAdv = adelantosDetalle.reduce((acc, item) => acc + Number(item.monto || 0), 0);
     const premioAsistencia = calcularPremioAsistenciaMensual({
@@ -460,7 +473,7 @@ export default function EmpleadoDetallePage() {
       isClosed: false,
       labelMes: formatMonthLabel(fechaMes),
     };
-  }, [filtroMes, asistencias, adelantos, empleado, cierreMensual, id]);
+  }, [filtroMes, asistencias, adelantos, empleado, cierreMensual, id, diasLaborables]);
 
   const comprobanteMensualNormalizado = useMemo(() => {
     if (!comprobanteMensual) return null;
@@ -645,6 +658,7 @@ export default function EmpleadoDetallePage() {
         dayData,
         empleado,
         dateInput: current,
+        laborDayKeys: diasLaborables,
       });
 
       if (!breakdown.llegoTarde) continue;
@@ -666,7 +680,7 @@ export default function EmpleadoDetallePage() {
     }
 
     return results;
-  }, [asistencias, empleado, filtroMes]);
+  }, [asistencias, diasLaborables, empleado, filtroMes]);
 
   const tardanzasMesOrdenadas = useMemo(() => {
     const results = [...tardanzasMes];

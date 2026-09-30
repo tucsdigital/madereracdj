@@ -20,6 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/provider/auth.provider";
 import {
   collection,
   doc,
@@ -44,6 +45,8 @@ import {
   formatMonthKey,
   formatMonthLabel,
   getDayPaymentBreakdown,
+  LABOR_DAY_KEYS,
+  normalizeLaborDayKeys,
   resolveEmployeeStartDate,
 } from "@/lib/asistencia-utils";
 
@@ -115,7 +118,7 @@ function calcTotalSemanaLaboral(days) {
   return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
 }
 
-function contarDiasHabilesDelMes(dateObj, empleado = null) {
+function contarDiasHabilesDelMes(dateObj, empleado = null, laborDayKeys = LABOR_DAY_KEYS) {
   const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
   const y = d.getFullYear();
   const m = d.getMonth();
@@ -125,7 +128,8 @@ function contarDiasHabilesDelMes(dateObj, empleado = null) {
   for (let day = 1; day <= lastDay; day++) {
     const current = new Date(y, m, day);
     const dow = current.getDay();
-    if (dow === 0 || dow === 6) continue;
+    const dayKey = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"][dow];
+    if (!normalizeLaborDayKeys(laborDayKeys).includes(dayKey)) continue;
     if (fechaIngreso && current < fechaIngreso) continue;
     count++;
   }
@@ -224,9 +228,21 @@ const MONTHS_ES = [
   "Diciembre",
 ];
 
+const WORKDAY_OPTIONS = [
+  { key: "lun", label: "Lun" },
+  { key: "mar", label: "Mar" },
+  { key: "mie", label: "Mié" },
+  { key: "jue", label: "Jue" },
+  { key: "vie", label: "Vie" },
+  { key: "sab", label: "Sáb" },
+  { key: "dom", label: "Dom" },
+];
+
 export default function AsistenciaPage() {
   const router = useRouter();
   const { lang } = useParams();
+  const { user } = useAuth();
+  const esAdmin = user?.email === "admin@admin.com";
 
   // --- Estados ---
   const [vistaActiva, setVistaActiva] = useState("asistencia"); // asistencia | empleados
@@ -265,6 +281,12 @@ export default function AsistenciaPage() {
   );
   const [cierresPremioMensuales, setCierresPremioMensuales] = useState({});
   const [guardandoCierreMes, setGuardandoCierreMes] = useState(false);
+  const [configuracionJornada, setConfiguracionJornada] = useState({
+    diasLaborables: LABOR_DAY_KEYS,
+  });
+  const [configuracionJornadaDraft, setConfiguracionJornadaDraft] = useState(LABOR_DAY_KEYS);
+  const [configuracionJornadaOpen, setConfiguracionJornadaOpen] = useState(false);
+  const [guardandoConfiguracionJornada, setGuardandoConfiguracionJornada] = useState(false);
 
   // Estados para gestión de empleados (vista empleados)
   const [buscadorEmp, setBuscadorEmp] = useState("");
@@ -293,6 +315,10 @@ export default function AsistenciaPage() {
   // --- Memos ---
   const semanaInicio = useMemo(() => startOfWeek(fechaBase), [fechaBase]);
   const semanaClave = useMemo(() => fmt(semanaInicio), [semanaInicio]);
+  const diasLaborables = useMemo(
+    () => normalizeLaborDayKeys(configuracionJornada.diasLaborables),
+    [configuracionJornada.diasLaborables],
+  );
 
   const rangoSemana = useMemo(() => {
     const ini = formatDateDisplay(semanaInicio);
@@ -305,9 +331,9 @@ export default function AsistenciaPage() {
     return [0, 1, 2, 3, 4, 5, 6].map((i) => ({
       nombre: nombres[i],
       fecha: fmtDM(addDays(semanaInicio, i)),
-      esFinDeSemana: i >= 5,
+      esFinDeSemana: !diasLaborables.includes(dayKey(i)),
     }));
-  }, [semanaInicio]);
+  }, [diasLaborables, semanaInicio]);
 
   const empleadosFiltrados = useMemo(() => {
     return empleados
@@ -428,7 +454,11 @@ export default function AsistenciaPage() {
 
   const estadisticasMensualesLive = useMemo(() => {
     const porEmpleado = empleadosGestionFiltrados.map((emp) => {
-      const diasHabiles = contarDiasHabilesDelMes(fechaMesResumen, emp);
+      const diasHabiles = contarDiasHabilesDelMes(
+        fechaMesResumen,
+        emp,
+        diasLaborables,
+      );
       const objetivoCalculado =
         Number(emp.objetivoMensual || 0) > 0
           ? Number(emp.objetivoMensual)
@@ -438,18 +468,21 @@ export default function AsistenciaPage() {
         empleado: emp,
         asistencias: asistenciasMensuales,
         monthInput: fechaMesResumen,
+        laborDayKeys: diasLaborables,
       });
       const adicionales = calcularTotalExtrasMensual({
         employeeId: emp.id,
         empleado: emp,
         asistencias: asistenciasMensuales,
         monthInput: fechaMesResumen,
+        laborDayKeys: diasLaborables,
       });
       const cobrado = trabajado + adicionales;
       const premioAsistencia = calcularPremioAsistenciaMensual({
         empleado: emp,
         asistencias: asistenciasMensuales,
         monthInput: fechaMesResumen,
+        laborDayKeys: diasLaborables,
       });
       const adelanto = adelantosMensuales
         .filter((a) => {
@@ -520,6 +553,7 @@ export default function AsistenciaPage() {
     adelantosMensuales,
     empleadosGestionFiltrados,
     fechaMesResumen,
+    diasLaborables,
   ]);
 
   const estadisticasMensuales = useMemo(() => {
@@ -684,6 +718,15 @@ export default function AsistenciaPage() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const ref = doc(db, "configuracion", "asistencia");
+    return onSnapshot(ref, (snap) => {
+      const dias = normalizeLaborDayKeys(snap.data()?.diasLaborables);
+      setConfiguracionJornada({ diasLaborables: dias });
+      setConfiguracionJornadaDraft(dias);
+    });
+  }, []);
+
   // --- Helpers Logic ---
 
   const totalAdelantosEmp = (empId) =>
@@ -744,11 +787,12 @@ export default function AsistenciaPage() {
       dayData: prevDay,
       empleado: emp,
       dateInput,
+      laborDayKeys: diasLaborables,
     });
     const montoJornada = calcMontoJornada({
       estado,
       valorDia: Number(emp.valorDia || 0),
-      isWeekend: idx >= 5,
+      isWeekend: !diasLaborables.includes(dayKey(idx)),
     });
     const nextDay = {
       ...prevDay,
@@ -784,7 +828,7 @@ export default function AsistenciaPage() {
     const montoJornada = calcMontoJornada({
       estado: String(prevDay.estado || "ausente"),
       valorDia: Number(emp.valorDia || 0),
-      isWeekend: idx >= 5,
+      isWeekend: !diasLaborables.includes(dayKey(idx)),
     });
     const nextDay = {
       ...prevDay,
@@ -807,6 +851,7 @@ export default function AsistenciaPage() {
       dayData: nextDay,
       empleado: emp,
       dateInput: addDays(semanaInicio, idx),
+      laborDayKeys: diasLaborables,
     });
     nextDay.llegoTarde = Boolean(nextBreakdown.llegoTarde);
     nextDay.minutosTarde = Number(nextBreakdown.minutosTarde || 0);
@@ -889,6 +934,40 @@ export default function AsistenciaPage() {
   };
 
   // --- Empleados Logic ---
+
+  const toggleDiaLaborable = (dia) => {
+    setConfiguracionJornadaDraft((prev) => {
+      const actuales = normalizeLaborDayKeys(prev);
+      if (actuales.includes(dia) && actuales.length === 1) return actuales;
+      const siguiente = actuales.includes(dia)
+        ? actuales.filter((item) => item !== dia)
+        : [...actuales, dia];
+      return normalizeLaborDayKeys(siguiente);
+    });
+  };
+
+  const guardarConfiguracionJornada = async () => {
+    if (!esAdmin) return;
+    const dias = normalizeLaborDayKeys(configuracionJornadaDraft);
+    if (dias.length === 0) return;
+
+    try {
+      setGuardandoConfiguracionJornada(true);
+      await setDoc(
+        doc(db, "configuracion", "asistencia"),
+        {
+          diasLaborables: dias,
+          actualizadoEn: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      setConfiguracionJornadaOpen(false);
+    } catch (err) {
+      console.error("Error guardando la configuración de jornada:", err);
+    } finally {
+      setGuardandoConfiguracionJornada(false);
+    }
+  };
 
   const cerrarPremioMes = async () => {
     if (
@@ -1163,6 +1242,23 @@ export default function AsistenciaPage() {
                         Empleados
                     </button>
                   </div>
+
+                  {esAdmin ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="Configurar jornada laboral"
+                      title="Configurar jornada laboral"
+                      onClick={() => {
+                        setConfiguracionJornadaDraft(diasLaborables);
+                        setConfiguracionJornadaOpen(true);
+                      }}
+                      className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                    >
+                      <Icon icon="lucide:settings-2" className="h-4 w-4" />
+                    </Button>
+                  ) : null}
 
                   <div>
                     <Popover
@@ -1609,6 +1705,7 @@ export default function AsistenciaPage() {
                       dayData: a?.days?.[dayKey(idx)],
                       empleado: emp,
                       dateInput: addDays(semanaInicio, idx),
+                      laborDayKeys: diasLaborables,
                     }),
                   );
                   const tSemana = breakdownsSemana.reduce(
@@ -1649,11 +1746,12 @@ export default function AsistenciaPage() {
                       {[0, 1, 2, 3, 4, 5, 6].map((i) => {
                         const d = getDay(emp.id, i);
                         const dayDate = addDays(semanaInicio, i);
-                        const isWeekendColumn = i >= 5;
+                        const isWeekendColumn = !diasLaborables.includes(dayKey(i));
                         const breakdown = getDayPaymentBreakdown({
                           dayData: d,
                           empleado: emp,
                           dateInput: dayDate,
+                          laborDayKeys: diasLaborables,
                         });
                         const estadoItem =
                           estadoItems.find(
@@ -1690,6 +1788,7 @@ export default function AsistenciaPage() {
                           },
                           empleado: emp,
                           dateInput: dayDate,
+                          laborDayKeys: diasLaborables,
                         });
                         return (
                           <td
@@ -2306,6 +2405,66 @@ export default function AsistenciaPage() {
           </Card>
         </div>
       )}
+
+      <Dialog
+        open={configuracionJornadaOpen}
+        onOpenChange={setConfiguracionJornadaOpen}
+      >
+        <DialogContent className="max-w-md rounded-2xl border-border/60 p-0">
+          <DialogHeader className="border-b border-border/60 px-6 py-5">
+            <DialogTitle>Jornada laboral</DialogTitle>
+            <p className="pt-1 text-sm font-normal text-muted-foreground">
+              Elegí los días que forman parte de la jornada normal. Esta regla actualiza jornales, objetivos mensuales y asistencia.
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 px-6 py-5">
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+              {WORKDAY_OPTIONS.map((dia) => {
+                const activo = configuracionJornadaDraft.includes(dia.key);
+                return (
+                  <button
+                    key={dia.key}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => toggleDiaLaborable(dia.key)}
+                    className={`h-10 rounded-xl text-xs font-semibold transition-colors ${
+                      activo
+                        ? "bg-violet-600 text-white shadow-sm"
+                        : "border border-border/70 bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {dia.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="rounded-xl bg-muted/55 px-3 py-2.5 text-xs text-muted-foreground">
+              {configuracionJornadaDraft.length} día{configuracionJornadaDraft.length === 1 ? "" : "s"} de jornada por semana.
+              Los días no seleccionados solo pueden sumar adicionales.
+            </div>
+          </div>
+          <DialogFooter className="border-t border-border/60 px-6 py-4">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setConfiguracionJornadaDraft(diasLaborables);
+                setConfiguracionJornadaOpen(false);
+              }}
+              disabled={guardandoConfiguracionJornada}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={guardarConfiguracionJornada}
+              disabled={guardandoConfiguracionJornada}
+            >
+              {guardandoConfiguracionJornada ? "Guardando…" : "Guardar jornada"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Adelantos */}
       <Dialog
