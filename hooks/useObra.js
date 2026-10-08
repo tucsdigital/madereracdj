@@ -23,6 +23,12 @@ import {
   getNextObraPresupuestoNumber,
 } from "@/lib/obra-numbering";
 
+import {
+  movimientosDesdeCobranzas,
+  normalizarMovimientos,
+  ordenarMovimientos,
+} from "@/lib/obras-pagos";
+
 const opcionActiva = (valor) =>
   valor === true || valor === 1 || valor === "1" || valor === "true";
 
@@ -282,52 +288,7 @@ export const useObra = (id) => {
           const d = data.documentacion || {};
           setDocLinks(Array.isArray(d.links) ? d.links : []);
 
-          const c = data.cobranzas || {};
-          const inicial = [];
-
-          const forma = c.formaPago || "efectivo";
-          const sen = Number(c.senia) || 0;
-          const mon = Number(c.monto) || 0;
-
-          if (sen > 0) {
-            inicial.push({
-              fecha: c.fechaSenia || "",
-              tipo: "seña",
-              metodo: forma,
-              monto: sen,
-              nota: "Seña",
-            });
-          }
-
-          if (mon > 0) {
-            inicial.push({
-              fecha: c.fechaMonto || "",
-              tipo: "pago",
-              metodo: forma,
-              monto: mon,
-              nota: "Pago",
-            });
-          }
-
-          const hist = Array.isArray(c.historialPagos)
-            ? c.historialPagos
-            : [];
-
-          hist.forEach((p) => {
-            inicial.push({
-              fecha: p.fecha || "",
-              tipo: p.tipo || "pago",
-              metodo: p.metodo || "efectivo",
-              monto: Number(p.monto) || 0,
-              nota: p.nota || "",
-              pagoEnDolares: p.pagoEnDolares === true,
-              montoOriginal: Number(p.montoOriginal) || null,
-              valorOficialDolar: Number(p.valorOficialDolar) || null,
-              comprobantes: Array.isArray(p.comprobantes) ? p.comprobantes : [],
-            });
-          });
-
-          setMovimientos(inicial);
+          setMovimientos(movimientosDesdeCobranzas(data.cobranzas));
         } else {
           setError("Obra no encontrada");
         }
@@ -952,19 +913,32 @@ export const useObra = (id) => {
       links: (docLinks || []).filter(Boolean),
     };
 
-    const movimientosSan = (movimientos || []).map(
-      (m) => ({
-        fecha: m.fecha || "",
-        tipo: m.tipo || "pago",
-        metodo: m.metodo || "efectivo",
-        monto: Number(m.monto) || 0,
-        nota: m.nota || "",
-        pagoEnDolares: m.pagoEnDolares === true || m.moneda === "USD",
-        montoOriginal: Number(m.montoOriginal) || null,
-        valorOficialDolar: Number(m.valorOficialDolar ?? m.cotizacionDolar) || null,
-        comprobantes: Array.isArray(m.comprobantes) ? m.comprobantes : [],
-      })
-    );
+    const movimientosSan = ordenarMovimientos(
+      normalizarMovimientos(movimientos)
+    ).map((m) => ({
+      id: m.id,
+      fecha: m.fecha,
+      tipo: m.tipo,
+      metodo: m.metodo,
+      monto: m.monto,
+      nota: m.nota,
+      moneda: m.moneda,
+      pagoEnDolares: m.pagoEnDolares,
+      montoOriginal: m.montoOriginal,
+      valorOficialDolar: m.valorOficialDolar,
+      comprobantes: m.comprobantes,
+      timestamp: m.timestamp,
+    }));
+
+    // Se conservan otros campos de cobranzas y se descartan los legacy
+    // (senia/monto), que ya están convertidos dentro del historial.
+    const {
+      senia: _senia,
+      fechaSenia: _fechaSenia,
+      monto: _montoLegacy,
+      fechaMonto: _fechaMonto,
+      ...cobranzasRestantes
+    } = obra.cobranzas || {};
 
     const materialesSanitizados = Array.isArray(
       itemsCatalogo
@@ -1083,6 +1057,7 @@ export const useObra = (id) => {
       documentacion,
 
       cobranzas: {
+        ...cobranzasRestantes,
         historialPagos: movimientosSan,
       },
 

@@ -17,16 +17,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Icon } from "@iconify/react";
 import { Plus, Trash2, AlertCircle, CheckCircle, FileText, RefreshCw } from "lucide-react";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
+import {
+  eliminarMovimientoPorId,
+  esMovimientoCobrado,
+  fechaLocalActual,
+  formatearFechaLocal,
+  generarIdMovimiento,
+  ordenarMovimientos,
+} from "@/lib/obras-pagos";
 
 const numeroSeguro = (valor) => {
   const numero = Number(valor);
   return Number.isFinite(numero) ? numero : 0;
-};
-
-const fechaLocalActual = () => {
-  const ahora = new Date();
-  const offset = ahora.getTimezoneOffset() * 60_000;
-  return new Date(ahora.getTime() - offset).toISOString().slice(0, 10);
 };
 
 const ObraCobranza = ({
@@ -61,13 +63,18 @@ const ObraCobranza = ({
   const [error, setError] = useState("");
   const [cargandoDolar, setCargandoDolar] = useState(false);
   const [comprobanteActivo, setComprobanteActivo] = useState(null);
+  const [movimientoAEliminar, setMovimientoAEliminar] = useState(null);
+
+  const movimientosOrdenados = useMemo(
+    () => ordenarMovimientos(movimientos),
+    [movimientos]
+  );
 
   // Todos estos tipos representan dinero efectivamente recibido.
   const totalCobrado = useMemo(
     () =>
       (Array.isArray(movimientos) ? movimientos : []).reduce((acc, movimiento) => {
-        const tipo = String(movimiento?.tipo || "").toLowerCase();
-        if (["pago", "seña", "senia", "anticipo"].includes(tipo)) {
+        if (esMovimientoCobrado(movimiento)) {
           return acc + Math.max(0, numeroSeguro(movimiento?.monto));
         }
         return acc;
@@ -242,7 +249,7 @@ const ObraCobranza = ({
       valorOficialDolar: nuevoMovimiento.moneda === "USD"
         ? Number(nuevoMovimiento.cotizacionDolar)
         : null,
-      id: Date.now(),
+      id: generarIdMovimiento(),
       timestamp: new Date().toISOString(),
     };
 
@@ -260,18 +267,15 @@ const ObraCobranza = ({
     setError("");
   };
 
-  const handleEliminarMovimiento = (id) => {
-    onMovimientosChange((movimientos || []).filter((m) => m.id !== id));
+  const confirmarEliminacion = () => {
+    if (!movimientoAEliminar) return;
+    onMovimientosChange(
+      eliminarMovimientoPorId(movimientos, movimientoAEliminar.id)
+    );
+    setMovimientoAEliminar(null);
   };
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return "";
-    try {
-      return new Date(fecha).toLocaleDateString("es-AR");
-    } catch {
-      return fecha;
-    }
-  };
+  const formatearFecha = formatearFechaLocal;
 
   const tieneAjustes =
     financiero.descuentoProductos > 0 ||
@@ -685,7 +689,7 @@ const ObraCobranza = ({
                 </tr>
               </thead>
               <tbody>
-                {movimientos.map((movimiento) => (
+                {movimientosOrdenados.map((movimiento) => (
                   <tr
                     key={movimiento.id}
                     className="border-b hover:bg-gray-50"
@@ -750,9 +754,7 @@ const ObraCobranza = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            handleEliminarMovimiento(movimiento.id)
-                          }
+                          onClick={() => setMovimientoAEliminar(movimiento)}
                           className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -778,6 +780,33 @@ const ObraCobranza = ({
             </p>
           </div>
         )}
+
+        <Dialog open={!!movimientoAEliminar} onOpenChange={(open) => !open && setMovimientoAEliminar(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Eliminar pago</DialogTitle></DialogHeader>
+            {movimientoAEliminar && (
+              <div className="space-y-4 text-sm">
+                <p>
+                  ¿Seguro que querés eliminar este{" "}
+                  <strong>{movimientoAEliminar.tipo}</strong> del{" "}
+                  <strong>{formatearFecha(movimientoAEliminar.fecha)}</strong> por{" "}
+                  <strong>{formatearNumeroArgentino(movimientoAEliminar.monto)}</strong>?
+                </p>
+                <p className="text-muted-foreground">
+                  Se aplicará al guardar los cambios de la obra.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setMovimientoAEliminar(null)}>
+                    Cancelar
+                  </Button>
+                  <Button variant="destructive" onClick={confirmarEliminacion}>
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!comprobanteActivo} onOpenChange={(open) => !open && setComprobanteActivo(null)}>
           <DialogContent className="max-w-3xl">
