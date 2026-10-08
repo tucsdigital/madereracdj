@@ -934,18 +934,30 @@ const ObraDetallePage = () => {
     (acc, item) => acc + calcularSubtotalProductoPreview(item),
     0
   );
-  const subtotalBloquePreview = (() => {
-    const subtotalDirecto = normalizarNumero(bloquePreview?.subtotal);
-    if (subtotalDirecto > 0) return Math.round(subtotalDirecto);
-    return Math.round(subtotalProductosPreview);
-  })();
-  const descuentoBloquePreview = (() => {
-    const descuentoDirecto = normalizarNumero(bloquePreview?.descuentoTotal);
-    if (descuentoDirecto > 0) return Math.round(descuentoDirecto);
-    const diferencia = subtotalBloquePreview - totalProductosPreview;
-    if (diferencia > 0) return Math.round(diferencia);
-    return 0;
-  })();
+  // Subtotal y descuento suman todos los bloques aplicados, igual que el total.
+  const bloquesParaResumen = bloquesSeleccionadosPreview.length > 0
+    ? bloquesSeleccionadosPreview
+    : bloquePreview ? [bloquePreview] : [];
+  const subtotalPorBloque = (bloque) => {
+    const directo = normalizarNumero(bloque?.subtotal);
+    if (directo > 0) return Math.round(directo);
+    const productos = Array.isArray(bloque?.productos) ? bloque.productos : [];
+    return Math.round(productos.reduce((acc, item) => acc + calcularBaseProductoPreview(item), 0));
+  };
+  const descuentoPorBloque = (bloque) => {
+    const directo = normalizarNumero(bloque?.descuentoTotal);
+    if (directo > 0) return Math.round(directo);
+    const productos = Array.isArray(bloque?.productos) ? bloque.productos : [];
+    const base = productos.reduce((acc, item) => acc + calcularBaseProductoPreview(item), 0);
+    const neto = productos.reduce((acc, item) => acc + calcularSubtotalProductoPreview(item), 0);
+    return Math.max(0, Math.round(base - neto));
+  };
+  const subtotalBloquePreview = bloquesParaResumen.length > 0
+    ? bloquesParaResumen.reduce((acc, bloque) => acc + subtotalPorBloque(bloque), 0)
+    : Math.round(subtotalProductosPreview);
+  const descuentoBloquePreview = bloquesParaResumen.length > 0
+    ? bloquesParaResumen.reduce((acc, bloque) => acc + descuentoPorBloque(bloque), 0)
+    : Math.max(0, Math.round(subtotalProductosPreview - totalProductosPreview));
   const totalBloquePreview = (() => {
     const bloquesConTotal = bloquesSeleccionadosPreview.length > 0
       ? bloquesSeleccionadosPreview
@@ -1498,11 +1510,6 @@ const ObraDetallePage = () => {
                               <td colSpan={9} className="px-3 py-2 text-sm font-semibold text-slate-800">
                                 <div className="flex items-center justify-between gap-3">
                                   <span>{bloque?.nombre || `Presupuesto ${bloqueIndex + 1}`}</span>
-                                  {normalizarNumero(bloque?.total) > 0 && (
-                                    <span className="tabular-nums text-xs font-bold text-slate-700">
-                                      {formatearNumeroArgentino(bloque.total)}
-                                    </span>
-                                  )}
                                 </div>
                               </td>
                             </tr>
