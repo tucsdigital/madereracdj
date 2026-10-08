@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
@@ -74,7 +75,7 @@ export default function CrearObraPage() {
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
   // Ubicación
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaInicio, setFechaInicio] = useState(fechaLocalActual());
   const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
   const [direccion, setDireccion] = useState("");
   const [localidad, setLocalidad] = useState("");

@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -909,7 +910,7 @@ const ObrasPage = () => {
         });
         // Verificar si está en ejecución actualmente según fechas
         const estaEnEjecucion = obra.estado === "en_ejecucion" && obra.fechas?.inicio && obra.fechas?.fin;
-        const hoy = new Date().toISOString().split("T")[0];
+        const hoy = fechaLocalActual();
         const enRangoFechas = estaEnEjecucion && hoy >= obra.fechas.inicio && hoy <= obra.fechas.fin;
         
         return (

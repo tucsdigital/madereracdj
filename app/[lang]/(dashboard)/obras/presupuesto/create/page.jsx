@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
@@ -558,7 +559,7 @@ export default function CrearPresupuestoObraPage() {
       const presupuestoData = {
         tipo: "presupuesto",
         numeroPedido,
-        fecha: new Date().toISOString().split("T")[0],
+        fecha: fechaLocalActual(),
         clienteId: finalClienteId,
         cliente: clienteSel || null,
         bloques: bloques.map((bloque, index) => {

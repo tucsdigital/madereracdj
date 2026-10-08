@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -659,7 +660,7 @@ const VentaDetalle = () => {
         [
           venta.montoAbonado > 0
             ? {
-                fecha: venta.fecha || new Date().toISOString().split("T")[0],
+                fecha: venta.fecha || fechaLocalActual(),
                 monto: Number(venta.montoAbonado),
                 metodo: venta.formaPago || "-",
                 usuario: "-",
@@ -1675,7 +1676,7 @@ const VentaDetalle = () => {
       },
       previousVenta: venta,
       actorEmail: String(user?.email || ""),
-      defaultFecha: new Date().toISOString().split("T")[0],
+      defaultFecha: fechaLocalActual(),
     });
 
     const ventaActualizada = {

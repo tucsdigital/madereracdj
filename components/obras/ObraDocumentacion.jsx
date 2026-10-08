@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,7 @@ const ObraDocumentacion = ({
       id: Date.now(),
       url: nuevoLink.trim(),
       titulo: `Documento ${docLinks.length + 1}`,
-      fecha: new Date().toISOString().split('T')[0]
+      fecha: fechaLocalActual()
     };
     
     onDocLinksChange([...docLinks, link]);

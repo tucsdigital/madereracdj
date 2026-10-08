@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 
 import { useState, useEffect } from "react";
 
@@ -98,6 +99,83 @@ const calcularResumenProductosPresupuesto = (productos = []) => {
   };
 };
 
+const idsBloquesDesdeObra = (data) =>
+  Array.isArray(data.presupuestoInicialBloques) &&
+  data.presupuestoInicialBloques.length > 0
+    ? data.presupuestoInicialBloques.map((bloque) => String(bloque.id))
+    : data.presupuestoInicialBloqueId
+      ? [String(data.presupuestoInicialBloqueId)]
+      : [];
+
+// Estado editable de la obra tal como está guardado. Es la única fuente
+// para la carga inicial, para "Cancelar" y para detectar cambios sin guardar.
+const estadoEditableDesdeObra = (data) => {
+  const base = {
+    descripcionGeneral: data.descripcionGeneral || "",
+    docLinks: Array.isArray(data.documentacion?.links)
+      ? data.documentacion.links
+      : [],
+    movimientos: movimientosDesdeCobranzas(data.cobranzas),
+  };
+
+  if (data.tipo === "obra") {
+    const f = data.fechas || {};
+    const u = data.ubicacion || {};
+    const hoy = fechaLocalActual();
+
+    return {
+      ...base,
+      estadoObra: data.estado || "pendiente_inicio",
+      fechasEdit: { inicio: f.inicio || hoy, fin: f.fin || hoy },
+      ubicacionEdit: {
+        direccion: u.direccion || "",
+        localidad: u.localidad || "",
+        provincia: u.provincia || "",
+        barrio: u.barrio || "",
+        area: u.area || "",
+        lote: u.lote || "",
+      },
+      clienteId: data.clienteId || data.cliente?.id || "",
+      cliente: data.cliente || null,
+      usarDireccionCliente: data.usarDireccionCliente !== false,
+      itemsCatalogo: Array.isArray(data.materialesCatalogo)
+        ? data.materialesCatalogo
+        : [],
+      gastoObraManual: Number(data.gastoObraManual) || 0,
+      modoCosto: data.presupuestoInicialId ? "presupuesto" : "gasto",
+      itemsPresupuesto: Array.isArray(data.productos) ? data.productos : [],
+      presupuestoBloqueSeleccionadoId: data.presupuestoInicialBloqueId || "",
+      presupuestoBloquesSeleccionadosIds: idsBloquesDesdeObra(data),
+    };
+  }
+
+  if (data.tipo === "presupuesto") {
+    return {
+      ...base,
+      estadoObra: data.estado || "Activo",
+      clienteId: data.clienteId || data.cliente?.id || "",
+      cliente: data.cliente || null,
+      usarDireccionCliente: data.usarDireccionCliente !== false,
+      itemsPresupuesto: Array.isArray(data.productos) ? data.productos : [],
+    };
+  }
+
+  return base;
+};
+
+// Serialización con claves ordenadas para comparar estados sin falsos positivos.
+const serializarEstable = (valor) =>
+  JSON.stringify(valor, (_clave, v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.keys(v)
+          .sort()
+          .reduce((acc, k) => {
+            acc[k] = v[k];
+            return acc;
+          }, {})
+      : v
+  );
+
 export const useObra = (id) => {
   const [obra, setObra] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -171,6 +249,61 @@ export const useObra = (id) => {
 
   const getNextPresupuestoNumber = getNextObraPresupuestoNumber;
 
+  const aplicarEstadoEditable = (estado) => {
+    const setters = {
+      descripcionGeneral: setDescripcionGeneral,
+      docLinks: setDocLinks,
+      movimientos: setMovimientos,
+      estadoObra: setEstadoObra,
+      fechasEdit: setFechasEdit,
+      ubicacionEdit: setUbicacionEdit,
+      clienteId: setClienteId,
+      cliente: setCliente,
+      usarDireccionCliente: setUsarDireccionCliente,
+      itemsCatalogo: setItemsCatalogo,
+      gastoObraManual: setGastoObraManual,
+      modoCosto: setModoCosto,
+      itemsPresupuesto: setItemsPresupuesto,
+      presupuestoBloqueSeleccionadoId: setPresupuestoBloqueSeleccionadoId,
+      presupuestoBloquesSeleccionadosIds: setPresupuestoBloquesSeleccionadosIds,
+    };
+
+    Object.entries(estado).forEach(([clave, valor]) => {
+      setters[clave]?.(valor);
+    });
+  };
+
+  const hayCambiosSinGuardar = (() => {
+    if (!editando || !obra) return false;
+
+    const guardado = estadoEditableDesdeObra(obra);
+    const actual = {
+      descripcionGeneral,
+      docLinks,
+      movimientos: ordenarMovimientos(normalizarMovimientos(movimientos)),
+      estadoObra,
+      fechasEdit,
+      ubicacionEdit,
+      clienteId,
+      cliente,
+      usarDireccionCliente,
+      itemsCatalogo,
+      gastoObraManual: Number(gastoObraManual) || 0,
+      modoCosto,
+      itemsPresupuesto,
+      presupuestoBloqueSeleccionadoId,
+      presupuestoBloquesSeleccionadosIds,
+    };
+    guardado.movimientos = ordenarMovimientos(guardado.movimientos);
+    // El cliente se completa desde la lista de clientes; se compara por clienteId.
+    delete guardado.cliente;
+
+    return Object.keys(guardado).some(
+      (clave) =>
+        serializarEstable(actual[clave]) !== serializarEstable(guardado[clave])
+    );
+  })();
+
   useEffect(() => {
     const fetchClientes = async () => {
       try {
@@ -205,72 +338,7 @@ export const useObra = (id) => {
 
           setObra(data);
 
-          setDescripcionGeneral(data.descripcionGeneral || "");
-
-          if (data.tipo === "obra") {
-            setEstadoObra(data.estado || "pendiente_inicio");
-
-            const f = data.fechas || {};
-            const today = new Date().toISOString().split("T")[0];
-
-            setFechasEdit({
-              inicio: f.inicio || today,
-              fin: f.fin || today,
-            });
-
-            const u = data.ubicacion || {};
-
-            setUbicacionEdit({
-              direccion: u.direccion || "",
-              localidad: u.localidad || "",
-              provincia: u.provincia || "",
-              barrio: u.barrio || "",
-              area: u.area || "",
-              lote: u.lote || "",
-            });
-
-            setClienteId(data.clienteId || data.cliente?.id || "");
-            setCliente(data.cliente || null);
-            setUsarDireccionCliente(data.usarDireccionCliente !== false);
-
-            setItemsCatalogo(
-              Array.isArray(data.materialesCatalogo)
-                ? data.materialesCatalogo
-                : []
-            );
-
-            setGastoObraManual(Number(data.gastoObraManual) || 0);
-
-            setModoCosto(
-              data.presupuestoInicialId ? "presupuesto" : "gasto"
-            );
-
-            setItemsPresupuesto(
-              Array.isArray(data.productos) ? data.productos : []
-            );
-
-            setPresupuestoBloqueSeleccionadoId(
-              data.presupuestoInicialBloqueId || ""
-            );
-            setPresupuestoBloquesSeleccionadosIds(
-              Array.isArray(data.presupuestoInicialBloques) && data.presupuestoInicialBloques.length > 0
-                ? data.presupuestoInicialBloques.map((bloque) => String(bloque.id))
-                : data.presupuestoInicialBloqueId
-                  ? [String(data.presupuestoInicialBloqueId)]
-                  : []
-            );
-          } else if (data.tipo === "presupuesto") {
-            setEstadoObra(data.estado || "Activo");
-            setClienteId(data.clienteId || data.cliente?.id || "");
-            setCliente(data.cliente || null);
-            setUsarDireccionCliente(data.usarDireccionCliente !== false);
-
-            setItemsPresupuesto(
-              Array.isArray(data.productos) ? data.productos : []
-            );
-
-            setDescripcionGeneral(data.descripcionGeneral || "");
-          }
+          aplicarEstadoEditable(estadoEditableDesdeObra(data));
 
           if (data.presupuestoInicialId) {
             const presSnap = await getDoc(
@@ -285,10 +353,6 @@ export const useObra = (id) => {
             }
           }
 
-          const d = data.documentacion || {};
-          setDocLinks(Array.isArray(d.links) ? d.links : []);
-
-          setMovimientos(movimientosDesdeCobranzas(data.cobranzas));
         } else {
           setError("Obra no encontrada");
         }
@@ -552,7 +616,7 @@ export const useObra = (id) => {
     const nuevo = {
       tipo: "presupuesto",
       numeroPedido,
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: fechaLocalActual(),
       clienteId: obra.clienteId || obra.cliente?.id || null,
       cliente: obra.cliente || null,
       productos: [],
@@ -784,7 +848,7 @@ export const useObra = (id) => {
       const nuevaObra = {
         tipo: "obra",
         numeroPedido,
-        fecha: new Date().toISOString().split("T")[0],
+        fecha: fechaLocalActual(),
         clienteId:
           obra.clienteId || obra.cliente?.id || null,
         cliente: obra.cliente || null,
@@ -848,12 +912,8 @@ export const useObra = (id) => {
         rangoHorario: obra.rangoHorario || null,
 
         fechas: {
-          inicio: new Date()
-            .toISOString()
-            .split("T")[0],
-          fin: new Date()
-            .toISOString()
-            .split("T")[0],
+          inicio: fechaLocalActual(),
+          fin: fechaLocalActual(),
         },
 
         gastoObraManual: 0,
@@ -1661,77 +1721,11 @@ export const useObra = (id) => {
     };
   };
 
+  // Descarta el borrador y vuelve al estado guardado, sin escribir en Firestore.
   const cancelarEdicion = () => {
     if (!obra) return;
 
-    setItemsCatalogo(
-      Array.isArray(obra.materialesCatalogo)
-        ? obra.materialesCatalogo
-        : []
-    );
-
-    setItemsPresupuesto(
-      Array.isArray(obra.productos)
-        ? obra.productos
-        : []
-    );
-
-    setPresupuestoBloqueSeleccionadoId(
-      obra.presupuestoInicialBloqueId || ""
-    );
-    setPresupuestoBloquesSeleccionadosIds(
-      Array.isArray(obra.presupuestoInicialBloques) && obra.presupuestoInicialBloques.length > 0
-        ? obra.presupuestoInicialBloques.map((bloque) => String(bloque.id))
-        : obra.presupuestoInicialBloqueId
-          ? [String(obra.presupuestoInicialBloqueId)]
-          : []
-    );
-
-    setDescripcionGeneral(
-      obra.descripcionGeneral || ""
-    );
-
-    setEstadoObra(
-      obra.estado || "pendiente_inicio"
-    );
-
-    setFechasEdit({
-      inicio: obra.fechas?.inicio || "",
-      fin: obra.fechas?.fin || "",
-    });
-
-    setUbicacionEdit({
-      direccion:
-        obra.ubicacion?.direccion || "",
-      localidad:
-        obra.ubicacion?.localidad || "",
-      provincia:
-        obra.ubicacion?.provincia || "",
-      barrio: obra.ubicacion?.barrio || "",
-      area: obra.ubicacion?.area || "",
-      lote: obra.ubicacion?.lote || "",
-    });
-
-    setClienteId(
-      obra.clienteId || obra.cliente?.id || ""
-    );
-
-    setCliente(obra.cliente || null);
-
-    setUsarDireccionCliente(
-      obra.usarDireccionCliente !== false
-    );
-
-    setGastoObraManual(
-      Number(obra.gastoObraManual) || 0
-    );
-
-    setModoCosto(
-      obra.presupuestoInicialId
-        ? "presupuesto"
-        : "gasto"
-    );
-
+    aplicarEstadoEditable(estadoEditableDesdeObra(obra));
     setEditando(false);
   };
 
@@ -1808,5 +1802,6 @@ export const useObra = (id) => {
     cambiarBloquePresupuesto,
     cambiarBloquesPresupuesto,
     cancelarEdicion,
+    hayCambiosSinGuardar,
   };
 };

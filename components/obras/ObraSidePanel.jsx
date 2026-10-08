@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useState, useMemo } from "react";
 import {
   Sheet,
@@ -121,7 +122,7 @@ const ObraSidePanel = ({
   React.useEffect(() => {
     if (obra && open) {
       setNuevoEstado(obra.estado || "pendiente_inicio");
-      const fechaHoy = new Date().toISOString().split("T")[0];
+      const fechaHoy = fechaLocalActual();
       setNotaForm({
         nombreObra: obra.numeroPedido || obra.cliente?.nombre || "",
         productos: "",

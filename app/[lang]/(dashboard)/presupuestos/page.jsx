@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     resolver: yupResolver(schema),
     defaultValues: {
       nombre: "",
-      fecha: new Date().toISOString().split('T')[0], // Fecha actual por defecto
+      fecha: fechaLocalActual(), // Fecha actual por defecto
       vencimiento: "",
       tipoEnvio: "",
       costoEnvio: "",

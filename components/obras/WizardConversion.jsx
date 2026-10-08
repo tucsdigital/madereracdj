@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
@@ -150,7 +151,7 @@ const WizardConversion = ({
   // Inicializar datos cuando se abre el wizard
   useEffect(() => {
     if (presupuesto && open) {
-      const hoy = new Date().toISOString().split("T")[0];
+      const hoy = fechaLocalActual();
 
       // Inicializar con opción predeterminada: confirmar cliente actual
       setOpcionCliente("confirmar");
@@ -437,7 +438,7 @@ const WizardConversion = ({
       const nuevaObra = {
         tipo: "obra",
         numeroPedido,
-        fecha: new Date().toISOString().split("T")[0],
+        fecha: fechaLocalActual(),
         clienteId: clienteIdFinal,
         cliente: clienteFinal,
         productos: productosObraSanitizados,

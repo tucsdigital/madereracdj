@@ -21,6 +21,7 @@ import {
   Eye,
 } from "lucide-react";
 import { formatearNumeroArgentino, formatearFecha } from "@/lib/obra-utils";
+import { normalizarFecha } from "@/lib/fechas-locales";
 
 // Colores según estado de obra
 const coloresEstado = {
@@ -139,8 +140,7 @@ const CalendarioObras = ({
   // Formatear fecha como clave (YYYY-MM-DD)
   const formatDateKey = useCallback((date) => {
     if (!date) return "";
-    const d = new Date(date);
-    return d.toISOString().split("T")[0];
+    return normalizarFecha(date);
   }, []);
 
   // Verificar si una fecha coincide con la fecha de inicio de una obra

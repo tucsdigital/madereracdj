@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual } from "@/lib/fechas-locales";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,12 @@ import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const capitalizarInicial = (value, fallback = "") => {
   const texto = String(value || fallback).trim();
@@ -57,6 +64,30 @@ const opcionAplicada = (registro, campos, importe) => {
 
   return Number(importe) > 0;
 };
+
+const estadoPaginaDesdeObra = (obra) => ({
+  pagoEnDolares: !!obra?.pagoEnDolares,
+  valorOficialDolar: obra?.valorOficialDolar ?? null,
+  comprobantesPago: Array.isArray(obra?.comprobantesPago)
+    ? obra.comprobantesPago
+    : [],
+  notasObra: Array.isArray(obra?.notasObra)
+    ? obra.notasObra
+    : Array.isArray(obra?.notas)
+      ? obra.notas
+      : [],
+  aplicarIva: opcionAplicada(obra, ["aplicarIva", "aplicaIva"], obra?.ivaMonto),
+  ivaPorcentaje: obra?.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21",
+  aplicarTransferencia: opcionAplicada(
+    obra,
+    ["aplicarTransferencia", "aplicaTransferencia"],
+    obra?.transferenciaMonto
+  ),
+  transferenciaPorcentaje:
+    obra?.transferenciaPorcentaje != null
+      ? String(obra.transferenciaPorcentaje)
+      : "10",
+});
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -83,6 +114,7 @@ const ObraDetallePage = () => {
     transferencia: false,
   });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false);
 
   const {
     obra,
@@ -114,27 +146,60 @@ const ObraDetallePage = () => {
     guardarEdicion,
     cambiarBloquesPresupuesto,
     cancelarEdicion,
+    hayCambiosSinGuardar,
+    setObra,
   } = useObra(id);
 
-  // Cuando cambia la obra, inicializar estados de pago/comprobantes con los datos existentes
+  // Sincroniza el borrador de la página con la obra guardada. Solo se
+  // reinicia al cargar otra obra o tras guardarla, no ante cambios parciales.
   useEffect(() => {
     if (!obra) return;
-    setPagoEnDolares(!!obra.pagoEnDolares);
-    setValorOficialDolar(obra.valorOficialDolar ?? null);
-    setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
-    setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
-    setAplicarIva(opcionAplicada(obra, ["aplicarIva", "aplicaIva"], obra.ivaMonto));
-    setIvaPorcentaje(obra.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21");
-    setAplicarTransferencia(
-      opcionAplicada(
-        obra,
-        ["aplicarTransferencia", "aplicaTransferencia"],
-        obra.transferenciaMonto
-      )
-    );
-    setTransferenciaPorcentaje(obra.transferenciaPorcentaje != null ? String(obra.transferenciaPorcentaje) : "10");
+    const guardado = estadoPaginaDesdeObra(obra);
+    setPagoEnDolares(guardado.pagoEnDolares);
+    setValorOficialDolar(guardado.valorOficialDolar);
+    setComprobantesPago(guardado.comprobantesPago);
+    setNotasObra(guardado.notasObra);
+    setAplicarIva(guardado.aplicarIva);
+    setIvaPorcentaje(guardado.ivaPorcentaje);
+    setAplicarTransferencia(guardado.aplicarTransferencia);
+    setTransferenciaPorcentaje(guardado.transferenciaPorcentaje);
     setImpuestosEditados({ iva: false, transferencia: false });
-  }, [obra]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obra?.id, obra?.fechaModificacion]);
+
+  const hayCambiosPagina = (() => {
+    if (!editando || !obra) return false;
+    const guardado = estadoPaginaDesdeObra(obra);
+    const actual = {
+      pagoEnDolares,
+      valorOficialDolar,
+      comprobantesPago,
+      notasObra,
+      aplicarIva,
+      ivaPorcentaje: String(ivaPorcentaje),
+      aplicarTransferencia,
+      transferenciaPorcentaje: String(transferenciaPorcentaje),
+    };
+    return (
+      Object.keys(guardado).some(
+        (clave) =>
+          JSON.stringify(actual[clave]) !== JSON.stringify(guardado[clave])
+      ) ||
+      Boolean(notaTitulo.trim() || notaContenido.trim())
+    );
+  })();
+
+  const hayCambios = Boolean(hayCambiosSinGuardar || hayCambiosPagina);
+
+  useEffect(() => {
+    if (!editando || !hayCambios) return undefined;
+    const avisar = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [editando, hayCambios]);
 
   useEffect(() => {
     if (obra?.numeroPedido) {
@@ -242,40 +307,31 @@ const ObraDetallePage = () => {
     }
   };
 
-  const handleCancelarEdicion = () => {
-    if (guardandoEdicion) return;
-    setPagoEnDolares(!!obra?.pagoEnDolares);
-    setValorOficialDolar(obra?.valorOficialDolar ?? null);
-    setComprobantesPago(
-      Array.isArray(obra?.comprobantesPago) ? obra.comprobantesPago : []
-    );
-    setNotasObra(
-      Array.isArray(obra?.notasObra)
-        ? obra.notasObra
-        : Array.isArray(obra?.notas)
-          ? obra.notas
-          : []
-    );
-    setAplicarIva(
-      opcionAplicada(obra, ["aplicarIva", "aplicaIva"], obra?.ivaMonto)
-    );
-    setIvaPorcentaje(
-      obra?.ivaPorcentaje != null ? String(obra.ivaPorcentaje) : "21"
-    );
-    setAplicarTransferencia(
-      opcionAplicada(
-        obra,
-        ["aplicarTransferencia", "aplicaTransferencia"],
-        obra?.transferenciaMonto
-      )
-    );
-    setTransferenciaPorcentaje(
-      obra?.transferenciaPorcentaje != null
-        ? String(obra.transferenciaPorcentaje)
-        : "10"
-    );
+  const descartarCambios = () => {
+    const guardado = estadoPaginaDesdeObra(obra);
+    setPagoEnDolares(guardado.pagoEnDolares);
+    setValorOficialDolar(guardado.valorOficialDolar);
+    setComprobantesPago(guardado.comprobantesPago);
+    setNotasObra(guardado.notasObra);
+    setAplicarIva(guardado.aplicarIva);
+    setIvaPorcentaje(guardado.ivaPorcentaje);
+    setAplicarTransferencia(guardado.aplicarTransferencia);
+    setTransferenciaPorcentaje(guardado.transferenciaPorcentaje);
     setImpuestosEditados({ iva: false, transferencia: false });
+    setNotaTitulo("");
+    setNotaContenido("");
+    setNotaEditIdx(null);
+    setConfirmarCancelar(false);
     cancelarEdicion();
+  };
+
+  const handleCancelarEdicion = () => {
+    if (guardandoEdicion || !obra) return;
+    if (hayCambios) {
+      setConfirmarCancelar(true);
+      return;
+    }
+    descartarCambios();
   };
 
   const handleAplicarIvaChange = (checked) => {
@@ -340,6 +396,11 @@ const ObraDetallePage = () => {
       // Actualizar el estado local usando los setters del hook
       setClienteId(clienteId);
       setCliente(clienteData);
+      // Mantiene la obra local alineada con lo ya guardado para que Cancelar
+      // no restaure el cliente anterior.
+      setObra((prev) =>
+        prev ? { ...prev, clienteId, cliente: clienteData } : prev
+      );
 
       setShowFormularioCliente(false);
     } catch (error) {
@@ -732,7 +793,7 @@ const ObraDetallePage = () => {
         "¿Desea actualizar la fecha de inicio a HOY al comenzar la obra?"
       );
       if (confirmar) {
-        const hoy = new Date().toISOString().split("T")[0];
+        const hoy = fechaLocalActual();
         setFechasEdit((prev) => ({ ...prev, inicio: hoy }));
         // Si no estamos editando, guardar directamente
         if (!editando) {
@@ -1094,6 +1155,28 @@ const ObraDetallePage = () => {
         onConvertToObra={null}
         saving={guardandoEdicion}
       />
+
+      <Dialog open={confirmarCancelar} onOpenChange={setConfirmarCancelar}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Descartar los cambios?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p>
+              Hay cambios sin guardar. Si cancelás, la obra vuelve a su último
+              estado guardado y se pierden los cambios de esta edición.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmarCancelar(false)}>
+                Seguir editando
+              </Button>
+              <Button variant="destructive" onClick={descartarCambios}>
+                Descartar cambios
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* COLUMNA IZQUIERDA: Datos principales, Estado, Fechas */}

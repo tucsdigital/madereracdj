@@ -65,6 +65,22 @@ const ObraCobranza = ({
   const [comprobanteActivo, setComprobanteActivo] = useState(null);
   const [movimientoAEliminar, setMovimientoAEliminar] = useState(null);
 
+  useEffect(() => {
+    if (editando) return;
+    setNuevoMovimiento({
+      fecha: fechaLocalActual(),
+      tipo: "pago",
+      metodo: "efectivo",
+      monto: "",
+      nota: "",
+      moneda: "ARS",
+      cotizacionDolar: null,
+      comprobantes: [],
+    });
+    setMovimientoAEliminar(null);
+    setError("");
+  }, [editando]);
+
   const movimientosOrdenados = useMemo(
     () => ordenarMovimientos(movimientos),
     [movimientos]

@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual, normalizarFecha } from "@/lib/fechas-locales";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,7 +205,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: fechaLocalActual(),
       clienteId: "",
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
@@ -1257,7 +1258,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 pagos: paymentIntentMonto > 0
                   ? [
                       {
-                        fecha: cleanData.fecha || new Date().toISOString().split("T")[0],
+                        fecha: cleanData.fecha || fechaLocalActual(),
                         monto: paymentIntentMonto,
                         metodo: cleanData.formaPago || "-",
                         usuario: user?.email || "Usuario no identificado",
@@ -1266,7 +1267,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   : [],
               },
               actorEmail: user?.email || "Usuario no identificado",
-              defaultFecha: cleanData.fecha || new Date().toISOString().split("T")[0],
+              defaultFecha: cleanData.fecha || fechaLocalActual(),
             })
           : null;
 
@@ -1562,7 +1563,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setValue("costoEnvio", "");
     } else if (watch("tipoEnvio") && watch("tipoEnvio") !== "retiro_local") {
       // Establecer fecha de entrega por defecto al día actual
-      setValue("fechaEntrega", new Date().toISOString().split("T")[0]);
+      setValue("fechaEntrega", fechaLocalActual());
     }
   }, [watch("tipoEnvio")]);
 
@@ -1612,7 +1613,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <input
               type="hidden"
               {...register("fecha")}
-              value={new Date().toISOString().split("T")[0]}
+              value={fechaLocalActual()}
               readOnly
             />
 
@@ -3172,7 +3173,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         <DateInput
                           value={
                             watch("fechaEntrega")
-                              ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
+                              ? normalizarFecha(watch("fechaEntrega"))
                               : ""
                           }
                           onChange={(v) =>

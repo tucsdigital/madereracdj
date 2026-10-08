@@ -1,4 +1,5 @@
 "use client";
+import { fechaLocalActual, normalizarFecha, sumarDias } from "@/lib/fechas-locales";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   computeLineBase,
@@ -63,10 +64,7 @@ function formatFechaLocal(dateString) {
 function calcularFechaVencimiento(fechaEmision) {
   if (!fechaEmision) return null;
 
-  const fecha = new Date(fechaEmision);
-  fecha.setDate(fecha.getDate() + 7); // Agregar 7 días
-
-  return fecha.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+  return sumarDias(fechaEmision, 7) || null; // Formato YYYY-MM-DD
 }
 
 const normalizarPorcentaje = (value, fallback) => {
@@ -4305,7 +4303,7 @@ const PresupuestoDetalle = () => {
                     montoAbonado: paymentIntentMonto,
                     pagos: paymentIntentMonto > 0
                       ? [{
-                          fecha: new Date().toISOString().split("T")[0],
+                          fecha: fechaLocalActual(),
                           monto: paymentIntentMonto,
                           metodo: formaPagoFinal || "manual",
                           usuario: user?.email || "Usuario no identificado",
@@ -4514,7 +4512,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   // Establecer fecha de entrega por defecto al día actual
   React.useEffect(() => {
     if (tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local") {
-      setValue("fechaEntrega", new Date().toISOString().split("T")[0]);
+      setValue("fechaEntrega", fechaLocalActual());
     }
   }, [tipoEnvioSeleccionado, setValue]);
 
@@ -4625,7 +4623,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 <DateInput
                   value={
                     watch("fechaEntrega")
-                      ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
+                      ? normalizarFecha(watch("fechaEntrega"))
                       : ""
                   }
                   onChange={(v) =>
