@@ -430,10 +430,12 @@ const ObraSidePanel = ({
                         <span className="font-medium">Inicio:</span>{" "}
                         {formatearFecha(obra.fechas.inicio)}
                       </div>
-                      <div className="mt-1">
-                        <span className="font-medium">Fin:</span>{" "}
-                        {formatearFecha(obra.fechas.fin)}
-                      </div>
+                      {obra.fechas.fin && (
+                        <div className="mt-1">
+                          <span className="font-medium">Fin:</span>{" "}
+                          {formatearFecha(obra.fechas.fin)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

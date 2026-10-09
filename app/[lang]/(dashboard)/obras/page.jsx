@@ -1400,14 +1400,9 @@ const ObrasPage = () => {
     return filtered;
   }, [obrasBase, filtros, busquedaGlobalAplicada, busquedaObrasAplicada]);
 
-  // Filtrar obras que tienen fechas válidas para el calendario
+  // Filtrar obras que tienen fecha de inicio (la de fin es opcional)
   const obrasParaCalendario = useMemo(() => {
-    return obras.filter((obra) => {
-      if (!obra.fechas) return false;
-      const fechaInicio = obra.fechas.inicio;
-      const fechaFin = obra.fechas.fin;
-      return fechaInicio && fechaFin;
-    });
+    return obras.filter((obra) => Boolean(obra.fechas?.inicio));
   }, [obras]);
 
   const presupuestosTabla = useMemo(() => {
