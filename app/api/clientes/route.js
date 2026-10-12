@@ -27,7 +27,7 @@ export async function POST(request) {
       }
     }
 
-    const { nombre, telefono, cuit, email } = validateClienteUpsert(body || {});
+    const { nombre, telefono, dni, cuit, email } = validateClienteUpsert(body || {});
     const origen = trimOrEmpty(body?.origen) || "ecommerce";
     const descripcion = trimOrEmpty(body?.descripcion) || (await clienteExists(uid) ? "Update desde ecommerce" : "Alta desde ecommerce");
 
@@ -39,7 +39,8 @@ export async function POST(request) {
       const payload = {
         area: "",
         barrio: "",
-        cuit,
+        dni,
+        ...(cuit ? { cuit } : {}),
         descripcion,
         direccion: "",
         email,
@@ -62,9 +63,11 @@ export async function POST(request) {
 
     const existingData = existing.data() || {};
     const createdIso = existingData.creadoEn || nowIso;
+    const legacyCuitIsDni = !body?.dni && /^\d{7,9}$/.test(String(body?.cuit || "").replace(/\D/g, ""));
     const payload = {
       // solo actualizamos campos de cliente, no dirección aquí
-      cuit,
+      dni,
+      ...(cuit ? { cuit } : legacyCuitIsDni ? { cuit: "" } : existingData.cuit ? { cuit: existingData.cuit } : {}),
       descripcion,
       email,
       esClienteViejo: body?.esClienteViejo != null ? Boolean(body.esClienteViejo) : existingData.esClienteViejo ?? false,

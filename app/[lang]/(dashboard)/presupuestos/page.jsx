@@ -53,6 +53,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
       email: "",
       telefono: "",
       direccion: "",
+      dni: "",
       cuit: "",
       localidad: "",
       esClienteDefault: true,
@@ -73,6 +74,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
       email: yup.string().email("Email inválido").notRequired(),
       telefono: yup.string().notRequired(),
       direccion: yup.string().notRequired(),
+      dni: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
     items: yup.array().of(
@@ -94,7 +96,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
       vencimiento: "",
       tipoEnvio: "",
       costoEnvio: "",
-      cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
+      cliente: { nombre: "", email: "", telefono: "", direccion: "", dni: "", cuit: "" },
       items: [],
     }
   });
@@ -109,7 +111,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   const clienteSeleccionado = clientesState.find(c => c.id === clienteId);
   // Estado para modal de nuevo cliente
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", dni: "", direccion: "", telefono: "", email: "" });
 
   // Estado para selección de categoría y productos
   const [categoriaId, setCategoriaId] = useState("");
@@ -174,7 +176,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     const docRef = await addDoc(collection(db, "clientes"), clienteObj);
     setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
     setClienteId(docRef.id);
-    setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+    setNuevoCliente({ nombre: "", dni: "", direccion: "", telefono: "", email: "" });
     setOpenNuevoCliente(false);
   };
 
@@ -186,6 +188,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
         email: clienteSeleccionado.email || "",
         telefono: clienteSeleccionado.telefono || "",
         direccion: clienteSeleccionado.direccion || "",
+        dni: clienteSeleccionado.dni || "",
         cuit: clienteSeleccionado.cuit || "",
       });
     }
@@ -275,6 +278,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
             email: c.email || DEFAULT_CLIENTE_DATA.email,
             telefono: c.telefono || DEFAULT_CLIENTE_DATA.telefono,
             direccion: c.direccion || DEFAULT_CLIENTE_DATA.direccion,
+            dni: c.dni || DEFAULT_CLIENTE_DATA.dni,
             cuit: c.cuit || DEFAULT_CLIENTE_DATA.cuit,
           };
         }
@@ -618,9 +622,10 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
               onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} 
             />
             <Input 
-              placeholder="CUIT" 
-              value={nuevoCliente.cuit} 
-              onChange={e => setNuevoCliente({...nuevoCliente, cuit: e.target.value})} 
+              placeholder="DNI" 
+              inputMode="numeric"
+              value={nuevoCliente.dni} 
+              onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value.replace(/\D/g, "")})} 
             />
             <Input 
               placeholder="Dirección" 

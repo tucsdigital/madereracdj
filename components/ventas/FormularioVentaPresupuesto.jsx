@@ -68,6 +68,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       email: "",
       telefono: "",
       direccion: "",
+      dni: "",
       cuit: "",
       localidad: "",
       esClienteDefault: true,
@@ -84,6 +85,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       email: yup.string().email("Email inválido").notRequired(),
       telefono: yup.string().notRequired(),
       direccion: yup.string().notRequired(),
+      dni: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
     items: yup
@@ -125,6 +127,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       email: yup.string().email("Email inválido").notRequired(),
       telefono: yup.string().notRequired(),
       direccion: yup.string().notRequired(),
+      dni: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
     items: yup
@@ -207,7 +210,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     defaultValues: {
       fecha: fechaLocalActual(),
       clienteId: "",
-      cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
+      cliente: { nombre: "", email: "", telefono: "", direccion: "", dni: "", cuit: "" },
       items: [],
       usarDireccionCliente: true,
     },
@@ -457,6 +460,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           esCombo: isComboProduct(real),
           tipoProducto: isComboProduct(real) ? "combo" : (real.tipoProducto || "simple"),
           componentesCombo: normalizeComboComponents(real.componentesCombo),
+          versionComposicion: Number(real.versionComposicion) || 1,
         },
       ]);
     }
@@ -1066,6 +1070,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           email: (clienteObj.email || "").toUpperCase(),
           telefono: (clienteObj.telefono || "").toUpperCase(),
           direccion: (clienteObj.direccion || "").toUpperCase(),
+          dni: (clienteObj.dni || "").toUpperCase(),
           cuit: (clienteObj.cuit || "").toUpperCase(),
         });
       }
@@ -1079,6 +1084,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         email: (clienteSeleccionado.email || "").toUpperCase(),
         telefono: (clienteSeleccionado.telefono || "").toUpperCase(),
         direccion: (clienteSeleccionado.direccion || "").toUpperCase(),
+        dni: (clienteSeleccionado.dni || "").toUpperCase(),
         cuit: (clienteSeleccionado.cuit || "").toUpperCase(),
       });
     }
@@ -1099,6 +1105,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         esCombo: p.esCombo || false,
         tipoProducto: p.tipoProducto || (p.esCombo ? "combo" : "simple"),
         componentesCombo: normalizeComboComponents(p.componentesCombo),
+        versionComposicion: Number(p.versionComposicion) || 1,
         // Agregar propiedades específicas de madera
         ...(p.categoria === "Maderas" && {
           alto: Number(p.alto) || 0,
@@ -1173,6 +1180,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           email: (fromState.email || "").toUpperCase(),
           telefono: (fromState.telefono || "").toUpperCase(),
           direccion: (fromState.direccion || "").toUpperCase(),
+          dni: (fromState.dni || "").toUpperCase(),
           cuit: (fromState.cuit || "").toUpperCase(),
         };
       }
@@ -1184,13 +1192,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setSubmitMessage("Debe agregar al menos un producto");
       return;
     }
-    const productosInvalidos = productosSeleccionados.filter(
-      (p) => p.cantidad <= 0
-    );
+    const productosInvalidos = productosSeleccionados.filter((p) => {
+      const cantidad = Number(p.cantidad);
+      return !Number.isFinite(cantidad) || cantidad <= 0 || (isComboProduct(p) && !Number.isSafeInteger(cantidad));
+    });
     if (productosInvalidos.length > 0) {
+      const combosInvalidos = productosInvalidos.some((producto) => isComboProduct(producto));
       setSubmitStatus("error");
       setSubmitMessage(
-        "Todos los productos deben tener una cantidad mayor a 0"
+        combosInvalidos
+          ? "Los combos requieren una cantidad entera mayor que cero; revisá las cantidades marcadas."
+          : "Todos los productos deben tener una cantidad mayor a cero."
       );
       return;
     }
@@ -1211,6 +1223,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           esCombo: p.esCombo || false,
           tipoProducto: p.tipoProducto || (p.esCombo ? "combo" : "simple"),
           componentesCombo: normalizeComboComponents(p.componentesCombo),
+          versionComposicion: Number(p.versionComposicion) || 1,
           precioIncluyeCantidad:
             p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML"),
         };
@@ -1731,14 +1744,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={(clienteSeleccionado?.cuit || "").toUpperCase()}
-                      placeholder="CUIT"
+                      value={(clienteSeleccionado?.dni || "").toUpperCase()}
+                      placeholder="DNI"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
-                    {errors.cliente?.cuit && (
+                    {errors.cliente?.dni && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
-                        {errors.cliente?.cuit.message}
+                        {errors.cliente?.dni.message}
                       </span>
                     )}
                   </div>
@@ -2147,7 +2160,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         const itemAgregado = productosMismoOrigen[0];
                         const cantidadActual = itemAgregado?.cantidad || 0;
                         const precio = (() => {
-                          if (prod.categoria === "Maderas") {
+                          if (isComboProduct(prod)) {
+                            return Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0;
+                          } else if (prod.categoria === "Maderas") {
                             return prod.precioPorPie || 0;
                           } else if (prod.categoria === "Ferretería") {
                             return prod.valorVenta || 0;
@@ -2258,9 +2273,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 {/* Stock */}
                                 {prod.stock !== undefined && (
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                      Stock:
-                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{isComboProduct(prod) ? "Combos armables:" : "Stock:"}</span>
                                     <span
                                       className={`text-xs font-medium ${
                                         prod.stock > 10
@@ -2272,6 +2285,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     >
                                       {prod.stock} unidades
                                     </span>
+                                  </div>
+                                )}
+                                {isComboProduct(prod) && (
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>Incluye</span>
+                                    <span>{normalizeComboComponents(prod.componentesCombo).length} productos</span>
                                   </div>
                                 )}
                               </div>
@@ -3351,13 +3370,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
               <div className="mt-2 grid gap-1">
                 {advertenciasVenta.stockInsuficiente.length > 0 && (
-                  <div>
-                    Stock insuficiente: {advertenciasVenta.stockInsuficiente.length} producto(s)
-                  </div>
-                )}
-                {advertenciasVenta.stockNegativo.length > 0 && (
-                  <div>
-                    Esta venta dejará stock negativo: {advertenciasVenta.stockNegativo.length} producto(s)
+                  <div className="space-y-1">
+                    <div className="font-medium">La operación supera el stock disponible:</div>
+                    {advertenciasVenta.stockInsuficiente.slice(0, 5).map((item) => (
+                      <div key={`insuficiente-${item.productoId}`} className="text-xs">
+                        {item.productoNombre}: requiere {item.requerido}, disponible {item.stockAntes}; quedaría en {item.stockDespues}.
+                      </div>
+                    ))}
+                    {advertenciasVenta.stockInsuficiente.length > 5 && (
+                      <div className="text-xs">y {advertenciasVenta.stockInsuficiente.length - 5} componente(s) más.</div>
+                    )}
                   </div>
                 )}
                 {advertenciasVenta.productosSinPrecio.length > 0 && (

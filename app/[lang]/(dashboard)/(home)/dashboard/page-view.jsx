@@ -4,37 +4,30 @@ import dynamic from "next/dynamic";
 import { DateRangeProvider } from "./context/date-range-context";
 import { DashboardDataProvider } from "./context/dashboard-data-context";
 
-const SkeletonCard = () => (
-  <div className="h-48 rounded-3xl bg-default-100/50 animate-pulse" aria-hidden />
+const SalesStatsFallback = () => (
+  <div
+    className="rounded-3xl border border-border bg-card p-6 shadow-xl animate-pulse"
+    aria-hidden="true"
+  >
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="h-8 w-56 rounded-xl bg-muted/60" />
+      <div className="flex items-center justify-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-muted/50" />
+        <div className="h-6 w-36 rounded-lg bg-muted/60" />
+        <div className="h-10 w-10 rounded-xl bg-muted/50" />
+      </div>
+    </div>
+    <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item} className="h-28 rounded-2xl bg-muted/30" />
+      ))}
+    </div>
+  </div>
 );
 
 const SalesStats = dynamic(() => import("./components/sales-stats"), {
   ssr: false,
-  loading: () => (
-    <div className="h-64 rounded-3xl bg-default-100/50 animate-pulse" aria-hidden />
-  ),
-});
-
-const LiveActivityFeed = dynamic(() => import("./components/live-activity-feed"), {
-  loading: () => <SkeletonCard />,
-});
-const BusinessStatus = dynamic(() => import("./components/business-status"), {
-  loading: () => <SkeletonCard />,
-});
-const CommunityStats = dynamic(() => import("./components/community-stats"), {
-  loading: () => <SkeletonCard />,
-});
-const PersonalSpace = dynamic(() => import("./components/personal-space"), {
-  loading: () => <SkeletonCard />,
-});
-const UserProgress = dynamic(() => import("./components/user-progress"), {
-  loading: () => <SkeletonCard />,
-});
-const Opportunities = dynamic(() => import("./components/opportunities"), {
-  loading: () => <SkeletonCard />,
-});
-const PlatformMessages = dynamic(() => import("./components/platform-messages"), {
-  loading: () => <SkeletonCard />,
+  loading: () => <SalesStatsFallback />,
 });
 
 const DashboardPageView = ({ trans }) => {
@@ -42,26 +35,8 @@ const DashboardPageView = ({ trans }) => {
     <DateRangeProvider>
       <DashboardDataProvider>
         <div className="space-y-6 pb-6">
-          {/* Estadísticas de Ventas - Carga diferida para priorizar el resto */}
+          {/* Única sección del dashboard: estadísticas de ventas. */}
           <SalesStats />
-
-          {/* Grid principal con mejor distribución - 2 columnas principales */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Columna izquierda */}
-            <div className="space-y-6">
-              <LiveActivityFeed />
-              <BusinessStatus />
-              <CommunityStats />
-            </div>
-
-            {/* Columna derecha */}
-            <div className="space-y-6">
-              <PersonalSpace />
-              <UserProgress />
-              <Opportunities />
-              <PlatformMessages />
-            </div>
-          </div>
         </div>
       </DashboardDataProvider>
     </DateRangeProvider>

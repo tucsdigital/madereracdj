@@ -27,6 +27,75 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "nombre", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "codigo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "alto", "order": "ASCENDING" },
+        { "fieldPath": "ancho", "order": "ASCENDING" },
+        { "fieldPath": "largo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "alto", "order": "ASCENDING" },
+        { "fieldPath": "ancho", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "alto", "order": "ASCENDING" },
+        { "fieldPath": "largo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoria", "order": "ASCENDING" },
+        { "fieldPath": "ancho", "order": "ASCENDING" },
+        { "fieldPath": "largo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservasStock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "productoId", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservasStock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "componentIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

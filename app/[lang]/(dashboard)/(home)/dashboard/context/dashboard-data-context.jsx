@@ -36,6 +36,7 @@ export const DashboardDataProvider = ({ children }) => {
   const cacheRef = useRef({ key: null, data: null, ts: 0 });
 
   useEffect(() => {
+    let isActive = true;
     const rangeKey = `${fechaDesde}_${fechaHasta}`;
     const cached = cacheRef.current;
     const now = Date.now();
@@ -44,7 +45,9 @@ export const DashboardDataProvider = ({ children }) => {
     if (useCache) {
       setData(cached.data);
       setLoading(false);
-      return;
+      return () => {
+        isActive = false;
+      };
     }
 
     const fetchData = async () => {
@@ -105,15 +108,18 @@ export const DashboardDataProvider = ({ children }) => {
           }, {}),
         };
         cacheRef.current = { key: rangeKey, data: nextData, ts: Date.now() };
-        setData(nextData);
+        if (isActive) setData(nextData);
       } catch (error) {
         console.error("Error cargando datos del dashboard:", error);
       } finally {
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     };
 
     fetchData();
+    return () => {
+      isActive = false;
+    };
   }, [isInRange, fechaDesde, fechaHasta]);
 
   const value = useMemo(

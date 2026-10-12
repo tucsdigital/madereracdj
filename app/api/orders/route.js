@@ -10,9 +10,9 @@ import {
   doc,
   getDoc,
   setDoc,
-  runTransaction,
 } from "firebase/firestore";
 import crypto from "crypto";
+import { createVentaEngine } from "@/lib/erp/ventas-engine";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -244,7 +244,11 @@ export async function GET(request) {
         },
         cliente: {
           nombre: venta.cliente?.nombre || "",
+          nombrePila: venta.cliente?.nombrePila || "",
+          apellido: venta.cliente?.apellido || "",
+          email: venta.cliente?.email || userId,
           telefono: venta.cliente?.telefono || "",
+          dni: venta.cliente?.dni || "",
         },
       });
     }
@@ -441,12 +445,22 @@ export async function POST(request) {
       );
     }
 
-    if (!orderData.customerInfo.nombre || !orderData.customerInfo.email) {
+    const customerInfo = orderData.customerInfo || {};
+    const customerEmail = String(customerInfo.email || orderData.userId || "").trim().toLowerCase();
+    const customerPhone = String(customerInfo.telefono || "").trim();
+    const customerDni = String(customerInfo.dni || "").replace(/\D/g, "");
+    const customerFirstName = String(customerInfo.nombrePila || "").trim();
+    const customerLastName = String(customerInfo.apellido || "").trim();
+    if (
+      !customerInfo.nombre || !/^\S+@\S+\.\S+$/.test(customerEmail) ||
+      !customerFirstName || !customerLastName || customerPhone.replace(/\D/g, "").length < 8 ||
+      !/^\d{7,9}$/.test(customerDni)
+    ) {
       return withCors(
         NextResponse.json(
           {
             success: false,
-            error: "customerInfo debe incluir nombre y email",
+            error: "customerInfo debe incluir nombre, nombrePila, apellido, email válido, teléfono y DNI válidos",
             code: "INVALID_CUSTOMER_INFO",
           },
           { status: 400 }
@@ -537,18 +551,32 @@ export async function POST(request) {
       pendingReason,
       pricing,
       customerInfo: {
-        nombre: orderData.customerInfo.nombre,
-        email: orderData.customerInfo.email,
-        telefono: orderData.customerInfo.telefono || "",
-        dni: orderData.customerInfo.dni || "",
+        nombre: String(customerInfo.nombre).trim(),
+        nombrePila: customerFirstName,
+        apellido: customerLastName,
+        email: customerEmail,
+        telefono: customerPhone,
+        dni: customerDni,
       },
       deliveryInfo: {
-        direccion: orderData.deliveryInfo.direccion,
+        direccion: orderData.deliveryInfo.direccion || "",
         ciudad: orderData.deliveryInfo.ciudad || "",
+        localidad: orderData.deliveryInfo.localidad || orderData.deliveryInfo.ciudad || "",
+        partido: orderData.deliveryInfo.partido || "",
+        barrio: orderData.deliveryInfo.barrio || "",
+        area: orderData.deliveryInfo.area || "",
+        lote: orderData.deliveryInfo.lote || "",
         codigoPostal: orderData.deliveryInfo.codigoPostal || "",
         metodoEntrega: orderData.deliveryInfo.metodoEntrega || "",
+        lat: parseNullableNumber(orderData.deliveryInfo.lat),
+        lng: parseNullableNumber(orderData.deliveryInfo.lng),
+        storeId: orderData.deliveryInfo.storeId || null,
+        sucursal: orderData.deliveryInfo.sucursal || null,
+        distanciaKm: parseNullableNumber(orderData.deliveryInfo.distanciaKm),
+        maxRadiusKm: parseNullableNumber(orderData.deliveryInfo.maxRadiusKm),
+        cotizacionReason: orderData.deliveryInfo.cotizacionReason || pendingReason || null,
+        shippingTierKm: shippingTierKm || null,
         shippingPrice,
-        shippingTierKm,
       },
       items: orderData.items.map((item) => ({
         id: item.id,
@@ -559,6 +587,14 @@ export async function POST(request) {
         unidadMedida: item.unidadMedida || item.unidad || item.unit || "",
         category: item.category || "",
         subcategory: item.subcategory || "",
+        esCombo: item.esCombo === true || item.tipoProducto === "combo",
+        tipoProducto: item.tipoProducto || (item.esCombo ? "combo" : "simple"),
+        componentesCombo: Array.isArray(item.componentesCombo) ? item.componentesCombo : [],
+        versionComposicion: Number(item.versionComposicion) || 1,
+        image: item.image || item.srcUrl || "",
+        alto: item.alto || 0,
+        ancho: item.ancho || 0,
+        largo: item.largo || 0,
       })),
       createdBy: "internal_api",
       updatedAt: new Date().toISOString(),
@@ -572,161 +608,102 @@ export async function POST(request) {
     await setDoc(orderRef, orderForFirestore, { merge: true });
 
     const nowIso = new Date().toISOString();
-    await ensureVentasCounterUpToDate(nowIso);
     let ventaResult = null;
 
     try {
       const ventaExternalRef = doc(db, "ventasExternal", orderData.orderId);
-      const counterRef = doc(db, "counters", "ventasNumero");
-      const ventasColl = collection(db, "ventas");
-
-      await runTransaction(db, async (tx) => {
-        const extSnap = await tx.get(ventaExternalRef);
-        if (extSnap.exists()) {
-          const linked = extSnap.data() || {};
-          ventaResult = {
-            id: linked.ventaId || null,
-            numeroPedido: linked.numeroPedido || null,
-            status: "already_exists",
-          };
-          tx.set(
-            orderRef,
-            {
-              ventaId: linked.ventaId || null,
-              ventaNumeroPedido: linked.numeroPedido || null,
-              updatedAt: nowIso,
-            },
-            { merge: true }
-          );
-          return;
-        }
-
-        const orderSnapTx = await tx.get(orderRef);
-        if (orderSnapTx.exists()) {
-          const orderTx = orderSnapTx.data() || {};
-          const existingVentaId = String(orderTx.ventaId || "").trim();
-          const existingNumeroPedido = String(orderTx.ventaNumeroPedido || "").trim();
-          if (existingVentaId) {
-            let numeroPedidoToUse = existingNumeroPedido || null;
-            if (!numeroPedidoToUse) {
-              const ventaSnapTx = await tx.get(doc(db, "ventas", existingVentaId));
-              if (ventaSnapTx.exists()) {
-                const ventaTx = ventaSnapTx.data() || {};
-                numeroPedidoToUse = String(ventaTx.numeroPedido || "").trim() || null;
-              }
-            }
-            tx.set(
-              ventaExternalRef,
-              {
-                orderId: orderData.orderId,
-                ventaId: existingVentaId,
-                numeroPedido: numeroPedidoToUse,
-                reconciledAt: nowIso,
-                source: "api_orders",
-              },
-              { merge: true }
-            );
-            ventaResult = {
-              id: existingVentaId,
-              numeroPedido: numeroPedidoToUse,
-              status: "linked_existing_order",
-            };
-            return;
-          }
-        }
-
-        const counterSnap = await tx.get(counterRef);
-        const last = counterSnap.exists() ? Number(counterSnap.data()?.last || 0) : 0;
-        const next = last + 1;
-        const numeroPedidoFinal = `VENTA-${String(next).padStart(5, "0")}`;
-        tx.set(counterRef, { last: next, updatedAt: nowIso }, { merge: true });
-
-        const ventaRef = doc(ventasColl);
+      const existingLink = await getDoc(ventaExternalRef);
+      if (existingLink.exists() && existingLink.data()?.ventaId) {
+        const linked = existingLink.data() || {};
+        ventaResult = { id: linked.ventaId, numeroPedido: linked.numeroPedido || null, status: "already_exists" };
+      } else {
         const createdAtIso = orderForFirestore.createdAt || nowIso;
-        const fechaLegible = formatFechaLegible(createdAtIso);
         const items = Array.isArray(orderData.items) ? orderData.items : [];
-        const subtotalCalculado = items.reduce(
-          (acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 0),
-          0
-        );
+        const subtotalCalculado = items.reduce((acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
         const subtotal = pricing?.subtotal != null ? Number(pricing.subtotal) || 0 : subtotalCalculado;
         const descuentos = pricing?.productDiscounts != null ? Number(pricing.productDiscounts) || 0 : 0;
-        const descuentoEfectivo = pricing?.transferDiscount != null ? Number(pricing.transferDiscount) || 0 : 0;
         const costoEnvio = Number.isFinite(shippingPrice) ? shippingPrice : 0;
-        const estadoPago = mapEstadoPagoFromOrderStatus(orderData.status);
-        const tipoEnvio = normalizeShippingType(orderData?.deliveryInfo?.metodoEntrega) || "domicilio";
-
-        const ventaDoc = {
-          numeroPedido: numeroPedidoFinal,
-          estadoPago,
-          total: Number(orderData.total) || 0,
-          subtotal,
-          descuentos,
-          descuentoTotal: descuentos,
-          descuentoEfectivo,
-          totalSinEfectivo:
-            parseNullableNumber(pricing?.total) ?? Math.max(0, subtotal - descuentos + costoEnvio),
-          totalConEfectivo: null,
-          motivoPendiente: pendingReason || null,
-          fecha: fechaLegible,
-          fechaEntrega: null,
-          formaPago: paymentMethod || "",
-          vendedor: "ecommerce",
-          cliente: {
-            email: orderData.customerInfo?.email || orderData.userId || "",
-            nombre: orderData.customerInfo?.nombre || "",
-            telefono: orderData.customerInfo?.telefono || "",
-            direccion: orderData.deliveryInfo?.direccion || "",
-          },
-          productos: items.map((item) => ({
-            id: item.id || "",
-            nombre: item.name || "",
-            cantidad: Number(item.quantity) || 0,
-            precio: Number(item.price) || 0,
-            unidad: item.unidad || item.unidadMedida || item.unit || "",
-            unidadMedida: item.unidadMedida || item.unidad || item.unit || "",
-            categoria: item.category || "",
-            imagen: "",
-            alto: item.alto || 0,
-            ancho: item.ancho || 0,
-            largo: item.largo || 0,
-          })),
-          estadoEnvio: "pendiente",
-          direccionEnvio: orderData.deliveryInfo?.direccion || "",
-          transportista: "",
-          tipoEnvio,
-          costoEnvio,
-          fechaEntregaEnvio: null,
+        const created = await createVentaEngine({
+          actor: { uid: "", email: "ecommerce" },
           origen: "ecommerce_externo",
-          creadoEn: createdAtIso,
-          fechaCreacion: createdAtIso,
-          actualizadoEn: nowIso,
-          idExterno: orderData.orderId,
-        };
-
-        tx.set(ventaRef, ventaDoc);
-        tx.set(
-          ventaExternalRef,
-          {
-            orderId: orderData.orderId,
-            ventaId: ventaRef.id,
-            numeroPedido: numeroPedidoFinal,
-            createdAt: nowIso,
-            source: "api_orders",
+          ventaData: {
+            idExterno: orderData.orderId,
+            idempotencyKey: `ecommerce_${String(orderData.orderId)}`,
+            estadoPago: mapEstadoPagoFromOrderStatus(orderData.status),
+            total: Number(orderData.total) || 0,
+            subtotal,
+            descuentos,
+            descuentoTotal: descuentos,
+            descuentoEfectivo: pricing?.transferDiscount || 0,
+            totalSinEfectivo: parseNullableNumber(pricing?.total) ?? Math.max(0, subtotal - descuentos + costoEnvio),
+            fecha: formatFechaLegible(createdAtIso),
+            fechaCreacion: createdAtIso,
+            formaPago: paymentMethod || "",
+            vendedor: "ecommerce",
+            cliente: {
+              email: orderData.customerInfo?.email || orderData.userId || "",
+              nombre: orderData.customerInfo?.nombre || "",
+              nombrePila: orderData.customerInfo?.nombrePila || "",
+              apellido: orderData.customerInfo?.apellido || "",
+              telefono: orderData.customerInfo?.telefono || "",
+              dni: String(orderData.customerInfo?.dni || "").replace(/\D/g, ""),
+              direccion: orderData.deliveryInfo?.direccion || "",
+              ciudad: orderData.deliveryInfo?.ciudad || orderData.deliveryInfo?.localidad || "",
+              codigoPostal: orderData.deliveryInfo?.codigoPostal || "",
+            },
+            productos: items.map((item) => ({
+              id: item.id || "",
+              originalId: item.id || "",
+              nombre: item.name || "",
+              cantidad: Number(item.quantity) || 0,
+              precio: Number(item.price) || 0,
+              unidad: item.unidad || item.unidadMedida || item.unit || "",
+              unidadMedida: item.unidadMedida || item.unidad || item.unit || "",
+              categoria: item.category || "",
+              imagen: item.image || item.srcUrl || "",
+              alto: item.alto || 0,
+              ancho: item.ancho || 0,
+              largo: item.largo || 0,
+              esCombo: item.esCombo === true || item.tipoProducto === "combo",
+              tipoProducto: item.tipoProducto || (item.esCombo ? "combo" : "simple"),
+              componentesCombo: Array.isArray(item.componentesCombo) ? item.componentesCombo : [],
+              versionComposicion: Number(item.versionComposicion) || 1,
+            })),
+            tipoEnvio: (() => {
+              const shippingType = normalizeShippingType(orderData?.deliveryInfo?.metodoEntrega);
+              return shippingType === "retiro" ? "retiro_local" : shippingType || "domicilio";
+            })(),
+            estadoEnvio: "pendiente",
+            direccionEnvio: orderData.deliveryInfo?.direccion || "",
+            localidadEnvio: orderData.deliveryInfo?.localidad || orderData.deliveryInfo?.ciudad || "",
+            codigoPostal: orderData.deliveryInfo?.codigoPostal || "",
+            coordenadasEnvio: {
+              lat: parseNullableNumber(orderData.deliveryInfo?.lat),
+              lng: parseNullableNumber(orderData.deliveryInfo?.lng),
+            },
+            sucursal: orderData.deliveryInfo?.sucursal || null,
+            storeId: orderData.deliveryInfo?.storeId || null,
+            costoEnvio,
+            origen: "ecommerce_externo",
           },
-          { merge: true }
-        );
-        tx.set(
-          orderRef,
-          { ventaId: ventaRef.id, ventaNumeroPedido: numeroPedidoFinal, updatedAt: nowIso },
-          { merge: true }
-        );
-
-        ventaResult = { id: ventaRef.id, numeroPedido: numeroPedidoFinal, status: "created" };
-      });
+        });
+        ventaResult = { id: created.id, numeroPedido: created.numeroPedido, status: "created" };
+        await setDoc(ventaExternalRef, {
+          orderId: orderData.orderId,
+          ventaId: created.id,
+          numeroPedido: created.numeroPedido,
+          createdAt: nowIso,
+          source: "api_orders",
+        }, { merge: true });
+      }
+      await setDoc(orderRef, {
+        ventaId: ventaResult.id || null,
+        ventaNumeroPedido: ventaResult.numeroPedido || null,
+        updatedAt: nowIso,
+      }, { merge: true });
     } catch (errVenta) {
       await setDoc(orderRef, { ventaSyncError: errVenta?.message || "venta_sync_failed", updatedAt: nowIso }, { merge: true });
-      ventaResult = { status: "error", error: errVenta?.message || "venta_sync_failed" };
+      throw errVenta;
     }
 
     console.log(`Orden ${orderData.orderId} creada exitosamente`);

@@ -31,6 +31,7 @@ const FormularioClienteObras = ({
     lugar: "",
     direccion: "",
     localidad: "",
+    dni: "",
     cuit: "",
     lote: "",
     barrio: "",
@@ -49,6 +50,7 @@ const FormularioClienteObras = ({
             lugar: clienteExistente.direccion || clienteExistente.localidad || "",
             direccion: clienteExistente.direccion || "",
             localidad: clienteExistente.localidad || "",
+            dni: clienteExistente.dni || "",
             cuit: clienteExistente.cuit || "",
             lote: clienteExistente.lote || "",
             barrio: clienteExistente.barrio || "",
@@ -68,6 +70,7 @@ const FormularioClienteObras = ({
                   lugar: data.direccion || data.localidad || "",
                   direccion: data.direccion || "",
                   localidad: data.localidad || "",
+                  dni: data.dni || "",
                   cuit: data.cuit || "",
                   lote: data.lote || "",
                   barrio: data.barrio || "",
@@ -90,6 +93,7 @@ const FormularioClienteObras = ({
           lugar: "",
           direccion: "",
           localidad: "",
+          dni: "",
           cuit: "",
           lote: "",
           barrio: "",
@@ -126,7 +130,7 @@ const FormularioClienteObras = ({
       const esModoGeneral = mode === "general";
       const direccionGeneral = formData.direccion.trim();
       const localidadGeneral = formData.localidad.trim();
-      const cuitGeneral = formData.cuit.trim();
+      const dniGeneral = formData.dni.trim().replace(/\D/g, "");
       const lugarObras = formData.lugar.trim();
 
       if (clienteExistente?.id) {
@@ -146,7 +150,8 @@ const FormularioClienteObras = ({
           localidad: esModoGeneral
             ? localidadGeneral
             : lugarObras || datosActuales.localidad || "",
-          cuit: esModoGeneral ? cuitGeneral : datosActuales.cuit || "",
+          cuit: datosActuales.cuit || "",
+          dni: esModoGeneral ? dniGeneral : datosActuales.dni || "",
           lote: esModoGeneral ? datosActuales.lote || "" : formData.lote.trim() || "",
           barrio: esModoGeneral
             ? datosActuales.barrio || ""
@@ -165,7 +170,8 @@ const FormularioClienteObras = ({
               nombre: formData.nombre.trim(),
               telefono: formData.telefono.trim(),
               direccion: direccionGeneral,
-              cuit: cuitGeneral,
+              dni: dniGeneral,
+              cuit: "",
               email: "",
               localidad: localidadGeneral,
               partido: "",
@@ -191,6 +197,7 @@ const FormularioClienteObras = ({
               lote: formData.lote.trim() || "",
               barrio: formData.barrio.trim() || "",
               cuit: "",
+              dni: "",
               email: "",
               partido: "",
               area: "",
@@ -366,15 +373,16 @@ const FormularioClienteObras = ({
 
           {esModoGeneral && (
             <div className="space-y-2">
-              <Label htmlFor="cuit" className="flex items-center gap-2">
+              <Label htmlFor="dni" className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-500" />
-                CUIT
+                DNI
               </Label>
               <Input
-                id="cuit"
-                value={formData.cuit}
-                onChange={(e) => handleInputChange("cuit", e.target.value)}
-                placeholder="Opcional"
+                id="dni"
+                value={formData.dni}
+                onChange={(e) => handleInputChange("dni", e.target.value.replace(/\D/g, ""))}
+                placeholder="Ej: 12345678"
+                inputMode="numeric"
                 className="w-full"
                 disabled={guardando}
               />
@@ -416,10 +424,10 @@ const FormularioClienteObras = ({
             <p className="font-medium mb-1">Información importante:</p>
             <p className="text-xs">
               {esEdicion
-                ? "Los demás datos del cliente (CUIT, email, etc.) se mantienen sin cambios."
+                ? "El CUIT, si corresponde, se administra desde la edición del cliente."
                 : esModoGeneral
-                  ? "Podés completar más datos del cliente más adelante desde la sección de Clientes."
-                  : "Los demás campos (CUIT, email, etc.) pueden completarse más tarde desde la sección de Clientes."}
+                  ? "Podés completar CUIT y otros datos desde la edición del cliente."
+                  : "Los demás campos (DNI, CUIT, email, etc.) pueden completarse más tarde desde la sección de Clientes."}
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import {
   Table,
@@ -17,8 +18,25 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Boxes,
   Plus,
@@ -28,6 +46,7 @@ import {
   Upload,
   FileSpreadsheet,
   Download,
+  ChevronsUpDown,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -46,17 +65,77 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import DragDropImageModal from "@/components/productos/DragDropImageModal";
+import ComboComponentBuilder from "@/components/productos/ComboComponentBuilder";
 import ToastNotification from "@/components/ui/toast-notification";
 import { useAuth } from "@/provider/auth.provider";
 import {
   applyDerivedComboStock,
-  computeComboStock,
   getComboComponentIds,
   isComboProduct,
   normalizeComboComponents,
 } from "@/lib/combos";
 
 const categorias = ["Maderas", "Ferretería", "Combos", "Obras"];
+
+function ProductoCombobox({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyMessage = "No se encontraron opciones.",
+  disabled = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((option) => option === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-label={placeholder}
+          aria-expanded={open}
+          disabled={disabled}
+          className="h-11 w-full justify-between rounded-xl border-border/70 bg-background px-3.5 font-normal text-foreground shadow-none hover:bg-muted/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/20"
+        >
+          <span className={selectedOption ? "truncate" : "truncate text-muted-foreground"}>
+            {selectedOption || placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[--radix-popover-trigger-width] overflow-hidden rounded-xl border-border/70 p-0 shadow-xl"
+      >
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList className="max-h-60">
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={option}
+                  onSelect={() => {
+                    onValueChange(option);
+                    setOpen(false);
+                  }}
+                  className="rounded-lg px-3 py-2.5"
+                >
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // Función para formatear números en formato argentino
 const formatearNumeroArgentino = (numero) => {
@@ -150,7 +229,7 @@ const combosSchema = yup.object().shape({
     .of(
       yup.object().shape({
         productoId: yup.string().required(),
-        cantidad: yup.number().min(1).required(),
+        cantidad: yup.number().integer("La cantidad debe ser entera").min(1).required(),
       })
     )
     .min(1, "Debes agregar al menos un componente al combo"),
@@ -163,7 +242,7 @@ const esquemasPorCategoria = {
 };
 
 // Componente FormularioProducto mejorado
-function FormularioProducto({ onClose, onSuccess }) {
+function FormularioProducto({ onClose, onSuccess, user }) {
   const [categoria, setCategoria] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
@@ -199,8 +278,8 @@ function FormularioProducto({ onClose, onSuccess }) {
   const [unidadesMedidaUnicas, setUnidadesMedidaUnicas] = useState([]);
   const [proveedoresUnicos, setProveedoresUnicos] = useState([]);
   const [catalogoProductos, setCatalogoProductos] = useState([]);
-  const [comboSearch, setComboSearch] = useState("");
   const [comboItems, setComboItems] = useState([]);
+  const [comboBuilderValid, setComboBuilderValid] = useState(true);
   
   const schema = esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
   const {
@@ -214,8 +293,7 @@ function FormularioProducto({ onClose, onSuccess }) {
     resolver: yupResolver(schema),
     defaultValues: { estado: "Activo", estadoTienda: "Activo" },
   });
-  const valorVentaCombo = watch("valorVenta");
-
+  const comboSalePrice = watch("valorVenta");
   useEffect(() => {
     if (categoria) {
       cargarDatosPrecargados();
@@ -236,6 +314,12 @@ function FormularioProducto({ onClose, onSuccess }) {
 
   const cargarDatosPrecargados = async () => {
     try {
+      if (categoria === "Combos") {
+        setCatalogoProductos([]);
+        setSubCategoriasUnicas(["General"]);
+        setUnidadesMedidaUnicas(["Unidad"]);
+        return;
+      }
       const productosSnap = await getDocs(collection(db, "productos"));
       const productos = applyDerivedComboStock(
         productosSnap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }))
@@ -280,70 +364,6 @@ function FormularioProducto({ onClose, onSuccess }) {
     [catalogoProductos]
   );
 
-  const comboSuggestions = useMemo(() => {
-    const normalizarTexto = (texto) =>
-      String(texto || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "");
-    const term = normalizarTexto(comboSearch);
-    const selectedIds = new Set(comboItems.map((item) => item.productoId));
-    return comboCatalogo
-      .filter((producto) => !selectedIds.has(String(producto.id)))
-      .filter((producto) => {
-        if (!term) return true;
-        const nombre = normalizarTexto(producto.nombre);
-        const codigo = normalizarTexto(producto.codigo);
-        const descripcion = normalizarTexto(producto.descripcion);
-        const unidad = normalizarTexto(producto.unidadMedida || producto.unidad);
-        const busqueda = term.endsWith(".") ? term.slice(0, -1) : term;
-        const matchCampo = (value) =>
-          term.endsWith(".") ? value.startsWith(busqueda) : value.includes(busqueda);
-        return [nombre, codigo, descripcion, unidad].some(matchCampo);
-      })
-      .slice(0, 8);
-  }, [comboCatalogo, comboItems, comboSearch]);
-
-  const comboStockPreview = useMemo(() => {
-    const productoById = new Map(
-      comboCatalogo.map((producto) => [String(producto.id), producto])
-    );
-    return computeComboStock({ componentesCombo: comboItems }, productoById);
-  }, [comboCatalogo, comboItems]);
-
-  const addComboItem = (producto) => {
-    if (!producto?.id) return;
-    const nextItems = normalizeComboComponents([
-      ...comboItems,
-      {
-        productoId: producto.id,
-        nombre: producto.nombre || "",
-        codigo: producto.codigo || "",
-        cantidad: 1,
-      },
-    ]);
-    setComboItems(nextItems);
-    setValue("componentesCombo", nextItems);
-    setComboSearch("");
-  };
-
-  const updateComboItemQty = (productoId, cantidad) => {
-    const nextItems = normalizeComboComponents(
-      comboItems.map((item) =>
-        item.productoId === productoId ? { ...item, cantidad } : item
-      )
-    );
-    setComboItems(nextItems);
-    setValue("componentesCombo", nextItems);
-  };
-
-  const removeComboItem = (productoId) => {
-    const nextItems = comboItems.filter((item) => item.productoId !== productoId);
-    setComboItems(nextItems);
-    setValue("componentesCombo", nextItems);
-  };
-
   const handleAddNewValue = async (tipo, valor) => {
     if (!valor.trim()) return;
     
@@ -382,6 +402,9 @@ function FormularioProducto({ onClose, onSuccess }) {
     setSubmitStatus(null);
     setSubmitMessage("");
     try {
+      if (data.categoria === "Combos" && !comboBuilderValid) {
+        throw new Error("Corregí las cantidades de los componentes antes de guardar.");
+      }
       // Normalizar datos antes de guardar
       const payload = { ...data };
 
@@ -420,10 +443,12 @@ function FormularioProducto({ onClose, onSuccess }) {
         if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
         if (payload.unidad !== undefined) payload.unidad = toNumber(payload.unidad);
       } else if (payload.categoria === "Combos") {
-        const productoById = new Map(
-          comboCatalogo.map((producto) => [String(producto.id), producto])
-        );
-        const componentesCombo = normalizeComboComponents(comboItems);
+        const componentesCombo = normalizeComboComponents(comboItems).map((componente) => {
+          return { ...componente };
+        });
+        if (componentesCombo.length === 0 || componentesCombo.length !== comboItems.length) {
+          throw new Error("Revisá las cantidades: todos los componentes deben tener una cantidad entera mayor a cero.");
+        }
         payload.valorVenta = toNumber(payload.valorVenta);
         payload.precioVenta = payload.valorVenta;
         payload.stockMinimo = toNumber(payload.stockMinimo) ?? 0;
@@ -434,7 +459,8 @@ function FormularioProducto({ onClose, onSuccess }) {
         payload.deposito = "deposito_1";
         payload.componentesCombo = componentesCombo;
         payload.comboComponentIds = getComboComponentIds({ componentesCombo });
-        payload.stock = computeComboStock({ componentesCombo }, productoById);
+        payload.stock = 0;
+        payload.versionComposicion = 1;
       }
 
       // Eliminar claves con undefined para evitar errores de Firestore
@@ -520,17 +546,28 @@ function FormularioProducto({ onClose, onSuccess }) {
         console.groupEnd();
       }
 
-      await addDoc(collection(db, payload.categoria === "Obras" ? "productos_obras" : "productos"), {
-        ...payload,
-        fechaCreacion: new Date().toISOString(),
-        fechaActualizacion: new Date().toISOString(),
-      });
+      if (payload.categoria === "Combos") {
+        if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado.");
+        const idToken = await user.getIdToken();
+        const response = await fetch("/api/erp/combos", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ combo: payload }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result?.ok) throw new Error(result?.error || "No se pudo crear el combo.");
+      } else {
+        await addDoc(collection(db, payload.categoria === "Obras" ? "productos_obras" : "productos"), {
+          ...payload,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
       setSubmitStatus("success");
       setSubmitMessage("Producto guardado exitosamente");
       reset();
       setCategoria("");
       setComboItems([]);
-      setComboSearch("");
       setTimeout(() => {
         onSuccess && onSuccess();
         onClose();
@@ -567,7 +604,12 @@ function FormularioProducto({ onClose, onSuccess }) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, onSubmitError)} className="space-y-6">
+    <form
+      id="producto-create-form"
+      onSubmit={handleSubmit(onSubmit, onSubmitError)}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-8 sm:py-7">
       {/* Feedback de guardado con animación */}
       {submitStatus && (
         <div
@@ -596,54 +638,61 @@ function FormularioProducto({ onClose, onSuccess }) {
       {/* Debug UI removido: usar consola para inspección */}
 
       {/* Selector de categoría con diseño moderno */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <label className="text-lg font-semibold text-foreground">Categoría del Producto</label>
-        </div>
-        <div className="relative">
-          <select
-            {...register("categoria")}
+      <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <label htmlFor="producto-categoria" className="text-sm font-semibold text-foreground">Categoría del producto</label>
+            <p className="mt-1 text-sm text-muted-foreground">Elegí el tipo para mostrar los campos correspondientes.</p>
+          </div>
+          <Select
             value={categoria}
-            onChange={(e) => {
-              setCategoria(e.target.value);
-              setValue("categoria", e.target.value);
+            onValueChange={(value) => {
+              setCategoria(value);
+              setValue("categoria", value, { shouldValidate: true, shouldDirty: true });
             }}
-            className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
-            <option value="">Selecciona una categoría</option>
-            {categorias.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-            <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+            <SelectTrigger id="producto-categoria" aria-label="Categoría del producto" className="h-11 w-full rounded-xl border-border/70 bg-background shadow-none sm:w-[280px]">
+              <SelectValue placeholder="Seleccioná una categoría" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              {categorias.map((c) => (
+                <SelectItem key={c} value={c} className="rounded-lg">{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {errors.categoria && (
-          <div className="flex items-center gap-2 text-red-600 text-sm">
+          <div className="flex items-center gap-2 text-destructive text-sm">
             <AlertCircle className="w-4 h-4" />
             {errors.categoria.message}
           </div>
         )}
       </div>
 
+      {!categoria && (
+        <div className="rounded-2xl border border-dashed border-border/80 px-5 py-8 text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Boxes className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-foreground">El formulario se adapta al producto</p>
+          <p className="mt-1 text-sm text-muted-foreground">Seleccioná una categoría para continuar.</p>
+        </div>
+      )}
+
       {/* Solo mostrar el resto del formulario si hay categoría seleccionada */}
       {categoria && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Sección: Datos generales */}
-          <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-2xl p-6 border border-blue-500/20">
+          <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-500 rounded-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-foreground">Datos Generales</h3>
+                <h3 className="text-base font-semibold tracking-tight text-foreground">Datos generales</h3>
                 <p className="text-sm text-muted-foreground">Información básica del producto</p>
               </div>
             </div>
@@ -651,17 +700,17 @@ function FormularioProducto({ onClose, onSuccess }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className={`space-y-2 ${categoria === "Combos" ? "hidden" : ""}`}>
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   {categoria === "Combos" ? "Código interno (opcional)" : "Código del Producto"}
                 </label>
                 <Input
                   {...register("codigo")}
                   placeholder="Ej: MAD-001"
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                 />
                 {errors.codigo && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.codigo.message}
                   </div>
@@ -670,17 +719,17 @@ function FormularioProducto({ onClose, onSuccess }) {
               
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   Nombre del Producto
                 </label>
                 <Input
                   {...register("nombre")}
                   placeholder="Ej: Tabla de Pino"
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                 />
                 {errors.nombre && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.nombre.message}
                   </div>
@@ -689,18 +738,18 @@ function FormularioProducto({ onClose, onSuccess }) {
               
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   Descripción
                 </label>
-                <textarea
+                <Textarea
                   {...register("descripcion")}
                   placeholder="Describe las características del producto..."
                   disabled={isSubmitting}
                   rows={3}
-                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 resize-none"
+                  className="min-h-28 resize-y rounded-xl border-border/70 bg-background px-3.5 py-3 text-foreground shadow-none transition-colors focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
                 />
                 {errors.descripcion && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.descripcion.message}
                   </div>
@@ -709,28 +758,25 @@ function FormularioProducto({ onClose, onSuccess }) {
               
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   Subcategoría
                 </label>
                 <div className="flex gap-2">
-                  <select
-                    {...register("subcategoria")}
-                    className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  <ProductoCombobox
+                    value={watch("subcategoria") || ""}
+                    onValueChange={(value) => setValue("subcategoria", value, { shouldValidate: true, shouldDirty: true })}
+                    options={subCategoriasUnicas}
+                    placeholder="Seleccionar subcategoría"
+                    searchPlaceholder="Buscar subcategoría..."
                     disabled={isSubmitting}
-                  >
-                    <option value="">Seleccionar subcategoría</option>
-                    {subCategoriasUnicas.map((subCategoria) => (
-                      <option key={subCategoria} value={subCategoria}>
-                        {subCategoria}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    aria-label="Agregar subcategoría"
                     onClick={() => setShowAddSubcategoria(true)}
-                    className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200"
+                    className="h-10 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                     disabled={isSubmitting}
                   >
                     <Plus className="w-4 h-4" />
@@ -742,14 +788,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                       value={newValue}
                       onChange={(e) => setNewValue(e.target.value)}
                       placeholder="Nueva subcategoría"
-                      className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      className="h-10 flex-1 rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/10"
                     />
                     <Button
                       type="button"
                       size="sm"
                       onClick={() => handleAddNewValue('subcategoria', newValue)}
                       disabled={isSubmitting}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="h-9 rounded-xl px-3"
                     >
                       Agregar
                     </Button>
@@ -762,14 +808,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                         setNewValue("");
                       }}
                       disabled={isSubmitting}
-                      className="px-4 py-2 border border-border/60 rounded-lg hover:bg-muted transition-colors"
+                      className="h-9 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                     >
                       Cancelar
                     </Button>
                   </div>
                 )}
                 {errors.subcategoria && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.subcategoria.message}
                   </div>
@@ -778,20 +824,19 @@ function FormularioProducto({ onClose, onSuccess }) {
               
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   Estado
                 </label>
-                <select
-                  {...register("estado")}
-                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                  disabled={isSubmitting}
-                >
-                  <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
-                  <option value="Descontinuado">Descontinuado</option>
-                </select>
+                  <Select value={watch("estado") || "Activo"} onValueChange={(value) => setValue("estado", value, { shouldValidate: true, shouldDirty: true })} disabled={isSubmitting}>
+                    <SelectTrigger aria-label="Estado del producto" className="h-11 rounded-xl border-border/70 bg-background shadow-none"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Activo">Activo</SelectItem>
+                      <SelectItem value="Inactivo">Inactivo</SelectItem>
+                      <SelectItem value="Descontinuado">Descontinuado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 {errors.estado && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.estado.message}
                   </div>
@@ -800,19 +845,18 @@ function FormularioProducto({ onClose, onSuccess }) {
             
             <div className="space-y-2">
               <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <span className="text-red-500">*</span>
+                <span className="text-destructive">*</span>
                 Tienda
               </label>
-              <select
-                {...register("estadoTienda")}
-                className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                disabled={isSubmitting}
-              >
-                <option value="Activo">Activo</option>
-                <option value="Inactivo">Inactivo</option>
-              </select>
+              <Select value={watch("estadoTienda") || "Activo"} onValueChange={(value) => setValue("estadoTienda", value, { shouldValidate: true, shouldDirty: true })} disabled={isSubmitting}>
+                <SelectTrigger aria-label="Estado en tienda" className="h-11 rounded-xl border-border/70 bg-background shadow-none"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Activo">Activo</SelectItem>
+                  <SelectItem value="Inactivo">Inactivo</SelectItem>
+                </SelectContent>
+              </Select>
               {errors.estadoTienda && (
-                <div className="flex items-center gap-2 text-red-600 text-sm">
+                <div className="flex items-center gap-2 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4" />
                   {errors.estadoTienda.message}
                 </div>
@@ -821,7 +865,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               
               <div className={`space-y-2 ${categoria === "Combos" ? "hidden" : ""}`}>
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span className="text-red-500">*</span>
+                  <span className="text-destructive">*</span>
                   Costo Unitario
                 </label>
                 <div className="relative">
@@ -832,11 +876,11 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 pl-8 pr-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                 </div>
                 {errors.costo && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm">
                     <AlertCircle className="w-4 h-4" />
                     {errors.costo.message}
                   </div>
@@ -847,15 +891,15 @@ function FormularioProducto({ onClose, onSuccess }) {
 
           {/* Sección específica por categoría */}
           {categoria === "Maderas" && (
-            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 rounded-2xl p-6 border border-amber-500/20">
+            <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-amber-500 rounded-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Madera</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Especificaciones de madera</h3>
                   <p className="text-sm text-muted-foreground">Dimensiones y características específicas</p>
                 </div>
               </div>
@@ -863,28 +907,25 @@ function FormularioProducto({ onClose, onSuccess }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Tipo de Madera
                   </label>
                   <div className="flex gap-2">
-                    <select
-                      {...register("tipoMadera")}
-                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    <ProductoCombobox
+                      value={watch("tipoMadera") || ""}
+                      onValueChange={(value) => setValue("tipoMadera", value, { shouldValidate: true, shouldDirty: true })}
+                      options={tiposMaderaUnicos}
+                      placeholder="Seleccionar tipo de madera"
+                      searchPlaceholder="Buscar tipo de madera..."
                       disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar tipo de madera</option>
-                      {tiposMaderaUnicos.map((tipo) => (
-                        <option key={tipo} value={tipo}>
-                          {tipo}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      aria-label="Agregar tipo de madera"
                       onClick={() => setShowAddTipoMadera(true)}
-                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-amber-500 hover:bg-amber-500/10 transition-all duration-200"
+                      className="h-10 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
@@ -896,14 +937,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nuevo tipo de madera"
-                        className="flex-1 px-3 py-2 border border-amber-500/30 rounded-lg bg-background text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                        className="h-10 flex-1 rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/10"
                       />
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewValue('tipoMadera', newValue)}
                         disabled={isSubmitting}
-                        className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                        className="h-9 rounded-xl px-3"
                       >
                         Agregar
                       </Button>
@@ -916,14 +957,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors"
+                        className="h-9 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       >
                         Cancelar
                       </Button>
                     </div>
                   )}
                   {errors.tipoMadera && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.tipoMadera.message}
                     </div>
@@ -932,7 +973,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Largo (metros)
                   </label>
                   <Input
@@ -941,10 +982,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.largo && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.largo.message}
                     </div>
@@ -953,7 +994,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Ancho (cm)
                   </label>
                   <Input
@@ -962,10 +1003,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.ancho && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.ancho.message}
                     </div>
@@ -974,7 +1015,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Alto (cm)
                   </label>
                   <Input
@@ -983,10 +1024,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.alto && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.alto.message}
                     </div>
@@ -995,25 +1036,19 @@ function FormularioProducto({ onClose, onSuccess }) {
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
-                    <select
-                      {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar unidad</option>
-                      {unidadesMedidaUnicas.map((unidad) => (
-                        <option key={unidad} value={unidad}>
-                          {unidad}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={watch("unidadMedida") || ""} onValueChange={(value) => setValue("unidadMedida", value, { shouldValidate: true, shouldDirty: true })} disabled={isSubmitting}>
+                      <SelectTrigger aria-label="Unidad de medida" className="h-11 flex-1 rounded-xl border-border/70 bg-background shadow-none"><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {unidadesMedidaUnicas.map((unidad) => <SelectItem key={unidad} value={unidad}>{unidad}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   {errors.unidadMedida && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.unidadMedida.message}
                     </div>
@@ -1022,7 +1057,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Precio por Pie
                   </label>
                   <div className="relative">
@@ -1033,11 +1068,11 @@ function FormularioProducto({ onClose, onSuccess }) {
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      className="w-full h-11 pl-8 pr-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                     />
                   </div>
                   {errors.precioPorPie && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.precioPorPie.message}
                     </div>
@@ -1046,17 +1081,17 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Ubicación en Depósito
                   </label>
                   <Input
                     {...register("ubicacion")}
                     placeholder="Ej: Estante A, Nivel 2"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.ubicacion && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.ubicacion.message}
                     </div>
@@ -1067,15 +1102,15 @@ function FormularioProducto({ onClose, onSuccess }) {
           )}
 
           {categoria === "Ferretería" && (
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 rounded-2xl p-6 border border-green-500/20">
+            <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-green-500 rounded-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Ferretería</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Especificaciones de ferretería</h3>
                   <p className="text-sm text-muted-foreground">Información de stock y proveedores</p>
                 </div>
               </div>
@@ -1083,7 +1118,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Stock Mínimo
                   </label>
                   <Input
@@ -1092,10 +1127,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="1"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.stockMinimo && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.stockMinimo.message}
                     </div>
@@ -1104,28 +1139,25 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
-                    <select
-                      {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    <ProductoCombobox
+                      value={watch("unidadMedida") || ""}
+                      onValueChange={(value) => setValue("unidadMedida", value, { shouldValidate: true, shouldDirty: true })}
+                      options={unidadesMedidaUnicas}
+                      placeholder="Seleccionar unidad"
+                      searchPlaceholder="Buscar unidad..."
                       disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar unidad</option>
-                      {unidadesMedidaUnicas.map((unidad) => (
-                        <option key={unidad} value={unidad}>
-                          {unidad}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      aria-label="Agregar unidad de medida"
                       onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
+                      className="h-10 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
@@ -1137,14 +1169,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nueva unidad de medida"
-                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        className="h-10 flex-1 rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/10"
                       />
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewValue('unidadMedida', newValue)}
                         disabled={isSubmitting}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="h-9 rounded-xl px-3"
                       >
                         Agregar
                       </Button>
@@ -1157,14 +1189,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
+                        className="h-9 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       >
                         Cancelar
                       </Button>
                     </div>
                   )}
                   {errors.unidadMedida && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.unidadMedida.message}
                     </div>
@@ -1173,7 +1205,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Valor de Compra
                   </label>
                   <div className="relative">
@@ -1184,11 +1216,11 @@ function FormularioProducto({ onClose, onSuccess }) {
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      className="w-full h-11 pl-8 pr-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                     />
                   </div>
                   {errors.valorCompra && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.valorCompra.message}
                     </div>
@@ -1197,7 +1229,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Valor de Venta
                   </label>
                   <div className="relative">
@@ -1208,11 +1240,11 @@ function FormularioProducto({ onClose, onSuccess }) {
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      className="w-full h-11 pl-8 pr-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                     />
                   </div>
                   {errors.valorVenta && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.valorVenta.message}
                     </div>
@@ -1221,28 +1253,25 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Proveedor
                   </label>
                   <div className="flex gap-2">
-                    <select
-                      {...register("proveedor")}
-                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    <ProductoCombobox
+                      value={watch("proveedor") || ""}
+                      onValueChange={(value) => setValue("proveedor", value, { shouldValidate: true, shouldDirty: true })}
+                      options={proveedoresUnicos}
+                      placeholder="Seleccionar proveedor"
+                      searchPlaceholder="Buscar proveedor..."
                       disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar proveedor</option>
-                      {proveedoresUnicos.map((proveedor) => (
-                        <option key={proveedor} value={proveedor}>
-                          {proveedor}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      aria-label="Agregar proveedor"
                       onClick={() => setShowAddProveedor(true)}
-                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
+                      className="h-10 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
@@ -1254,14 +1283,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nuevo proveedor"
-                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        className="h-10 flex-1 rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/10"
                       />
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewValue('proveedor', newValue)}
                         disabled={isSubmitting}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="h-9 rounded-xl px-3"
                       >
                         Agregar
                       </Button>
@@ -1274,14 +1303,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
+                        className="h-9 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       >
                         Cancelar
                       </Button>
                     </div>
                   )}
                   {errors.proveedor && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.proveedor.message}
                     </div>
@@ -1292,174 +1321,44 @@ function FormularioProducto({ onClose, onSuccess }) {
           )}
 
           {categoria === "Combos" && (
-            <div className="bg-gradient-to-br from-fuchsia-500/10 to-pink-500/5 rounded-2xl p-6 border border-fuchsia-500/20">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-fuchsia-500 rounded-lg">
-                  <Boxes className="w-5 h-5 text-white" />
+            <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/10 p-4 sm:p-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Precio de venta *</label>
+                  <Input {...register("valorVenta")} type="number" min="0.01" step="0.01" placeholder="0" disabled={isSubmitting} />
+                  {errors.valorVenta && <span className="text-xs text-destructive">{errors.valorVenta.message}</span>}
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Armado del Combo</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Elegi los productos del combo y definí cuántas unidades lleva de cada uno.
-                  </p>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Stock mínimo *</label>
+                  <Input {...register("stockMinimo")} type="number" min="0" step="1" placeholder="0" disabled={isSubmitting} />
+                  {errors.stockMinimo && <span className="text-xs text-destructive">{errors.stockMinimo.message}</span>}
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
-                    Valor de Venta
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input
-                      {...register("valorVenta")}
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                    />
-                  </div>
-                  {errors.valorVenta && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.valorVenta.message}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
-                    Stock Mínimo
-                  </label>
-                  <Input
-                    {...register("stockMinimo")}
-                    type="number"
-                    step="1"
-                    placeholder="0"
-                    disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                  />
-                  {errors.stockMinimo && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.stockMinimo.message}
-                    </div>
-                  )}
-                </div>
-
-                <div className="md:col-span-2 rounded-2xl border border-fuchsia-500/20 bg-background/70 p-4 space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">Componentes del combo</div>
-                      <div className="text-xs text-muted-foreground">
-                        El stock se calcula automaticamente segun los componentes disponibles.
-                      </div>
-                    </div>
-                    <div className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-sm font-semibold text-fuchsia-700">
-                      Stock disponible: {comboStockPreview}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Input
-                      value={comboSearch}
-                      onChange={(e) => setComboSearch(e.target.value)}
-                      placeholder="Buscar por nombre o codigo para agregar al combo"
-                      disabled={isSubmitting}
-                      className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
-                    />
-
-                    {comboSuggestions.length > 0 && (
-                      <div className="grid gap-2 rounded-xl border border-border/60 bg-background p-3">
-                        {comboSuggestions.map((producto) => (
-                          <button
-                            key={producto.id}
-                            type="button"
-                            onClick={() => addComboItem(producto)}
-                            className="flex items-center justify-between rounded-lg border border-transparent px-3 py-2 text-left transition hover:border-fuchsia-500/30 hover:bg-fuchsia-500/5"
-                          >
-                            <div>
-                              <div className="font-medium text-foreground">{producto.nombre}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {producto.codigo || "Sin codigo"} · Stock {producto.stock ?? 0}
-                              </div>
-                            </div>
-                            <Plus className="w-4 h-4 text-fuchsia-600" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {comboItems.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-fuchsia-500/30 px-4 py-6 text-sm text-muted-foreground">
-                        Todavia no agregaste productos al combo.
-                      </div>
-                    )}
-
-                    {comboItems.map((item) => (
-                      <div
-                        key={item.productoId}
-                        className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div>
-                          <div className="font-medium text-foreground">{item.nombre || item.productoId}</div>
-                          <div className="text-xs text-muted-foreground">{item.codigo || "Sin codigo"}</div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.cantidad}
-                            onChange={(e) => updateComboItemQty(item.productoId, e.target.value)}
-                            className="w-24 px-3 py-2 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20"
-                            disabled={isSubmitting}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => removeComboItem(item.productoId)}
-                            disabled={isSubmitting}
-                            className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                          >
-                            Quitar
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {errors.componentesCombo && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.componentesCombo.message}
-                    </div>
-                  )}
-
-                  <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-4 py-3 text-sm text-fuchsia-900">
-                    Precio de venta configurado: ${Number(valorVentaCombo || 0).toLocaleString("es-AR")}
-                  </div>
-                </div>
-              </div>
+              <ComboComponentBuilder
+                productos={comboCatalogo}
+                value={comboItems}
+                disabled={isSubmitting}
+                salePrice={comboSalePrice}
+                onValidityChange={setComboBuilderValid}
+                onChange={(items) => {
+                  setComboItems(items);
+                  setValue("componentesCombo", items, { shouldValidate: true });
+                }}
+              />
+              {errors.componentesCombo && <span className="text-xs text-destructive">{errors.componentesCombo.message}</span>}
             </div>
           )}
 
           {categoria === "Obras" && (
-            <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 rounded-2xl p-6 border border-purple-500/20">
+            <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-purple-500 rounded-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Obras</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Especificaciones de obras</h3>
                   <p className="text-sm text-muted-foreground">Información específica para productos de obras</p>
                 </div>
               </div>
@@ -1467,7 +1366,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Stock Mínimo
                   </label>
                   <input
@@ -1476,10 +1375,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.stockMinimo && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.stockMinimo.message}
                     </div>
@@ -1488,7 +1387,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Valor de Venta
                   </label>
                   <input
@@ -1497,10 +1396,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.valorVenta && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.valorVenta.message}
                     </div>
@@ -1509,7 +1408,7 @@ function FormularioProducto({ onClose, onSuccess }) {
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Unidad
                   </label>
                   <input
@@ -1518,10 +1417,10 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    className="w-full h-11 px-3.5 border border-border/70 rounded-xl focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10 transition-colors bg-background text-foreground shadow-none hover:border-border disabled:bg-muted/30"
                   />
                   {errors.unidad && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.unidad.message}
                     </div>
@@ -1530,28 +1429,25 @@ function FormularioProducto({ onClose, onSuccess }) {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="text-red-500">*</span>
+                    <span className="text-destructive">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
-                    <select
-                      {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    <ProductoCombobox
+                      value={watch("unidadMedida") || ""}
+                      onValueChange={(value) => setValue("unidadMedida", value, { shouldValidate: true, shouldDirty: true })}
+                      options={unidadesMedidaUnicas}
+                      placeholder="Seleccionar unidad"
+                      searchPlaceholder="Buscar unidad..."
                       disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar unidad</option>
-                      {unidadesMedidaUnicas.map((unidad) => (
-                        <option key={unidad} value={unidad}>
-                          {unidad}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      aria-label="Agregar unidad de medida"
                       onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200"
+                      className="h-10 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
@@ -1563,14 +1459,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nueva unidad de medida"
-                        className="flex-1 px-3 py-2 border border-purple-500/30 rounded-lg bg-background text-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                        className="h-10 flex-1 rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground shadow-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/10"
                       />
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewValue('unidadMedida', newValue)}
                         disabled={isSubmitting}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        className="h-9 rounded-xl px-3"
                       >
                         Agregar
                       </Button>
@@ -1583,14 +1479,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-purple-500/30 rounded-lg hover:bg-purple-500/10 transition-colors"
+                        className="h-9 rounded-xl border-border/70 px-3 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
                       >
                         Cancelar
                       </Button>
                     </div>
                   )}
                   {errors.unidadMedida && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-2 text-destructive text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.unidadMedida.message}
                     </div>
@@ -1600,35 +1496,20 @@ function FormularioProducto({ onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Footer con botones modernos */}
-          <div className="flex justify-end gap-4 pt-6 border-t border-border/60">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-6 py-3 border-2 border-border/60 rounded-xl hover:bg-muted transition-all duration-200"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              variant="default" 
-              type="submit" 
-              disabled={isSubmitting}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar Producto"
-              )}
-            </Button>
-          </div>
         </div>
       )}
+      </div>
+      <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-border/70 bg-background/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <p className="text-xs text-muted-foreground"><span className="text-destructive">*</span> Campos obligatorios</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting} className="h-10 rounded-xl px-5">
+            Cancelar
+          </Button>
+          <Button variant="default" type="submit" disabled={isSubmitting} className="h-10 rounded-xl px-5 shadow-sm">
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar producto"}
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }
@@ -5612,53 +5493,28 @@ const ProductosPage = () => {
         </CardContent>
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[1000px] p-0 overflow-hidden shadow-2xl">
-          <div className="relative">
-            {/* Header con gradiente y diseño moderno */}
-            <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white px-8 py-8 relative overflow-hidden">
-              <div className="absolute inset-0 bg-black/10"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Boxes className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-3xl font-bold text-white mb-1">
-                      Agregar Nuevo Producto
-                    </DialogTitle>
-                    <p className="text-blue-100 text-base">
-                      Complete la información del producto para agregarlo al inventario
-                    </p>
-                  </div>
-                </div>
+        <DialogContent className="flex h-[92dvh] max-h-[900px] w-[94vw] max-w-[960px] flex-col gap-0 overflow-hidden rounded-[28px] border border-border/70 bg-background p-0 shadow-[0_24px_80px_-24px_rgba(15,23,42,0.35)] sm:h-[min(88dvh,900px)]">
+          <div className="shrink-0 border-b border-border/70 px-5 py-5 sm:px-8 sm:py-6">
+            <div className="flex items-center gap-3.5 pr-8">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Boxes className="h-5 w-5" />
               </div>
-              {/* Elementos decorativos animados */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20 animate-pulse"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16 animate-pulse delay-1000"></div>
-              <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-white/3 rounded-full animate-bounce"></div>
-            </div>
-            
-            {/* Contenido del formulario con scroll suave */}
-            <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-muted/30">
-              <div className="px-8 py-8">
-                <FormularioProducto
-                  onClose={() => setOpen(false)}
-                  onSuccess={() => setReload((r) => !r)}
-                />
+              <div className="min-w-0">
+                    <DialogTitle className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                  Agregar producto
+                </DialogTitle>
+                    <DialogDescription className="mt-1 text-sm text-muted-foreground">
+                  Completá los datos para incorporarlo al inventario.
+                    </DialogDescription>
               </div>
             </div>
-            
-            {/* Footer con diseño moderno - solo información */}
-            <div className="bg-muted/30 border-t border-border px-8 py-4">
-              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <span className="font-medium">Tip:</span> Los campos marcados con <span className="text-red-500 font-bold">*</span> son obligatorios
-              </div>
-            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <FormularioProducto
+              onClose={() => setOpen(false)}
+              onSuccess={() => setReload((r) => !r)}
+              user={user}
+            />
           </div>
         </DialogContent>
       </Dialog>

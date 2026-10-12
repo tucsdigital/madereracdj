@@ -45,7 +45,7 @@ import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 import ComboComponentRows from "@/components/ventas/ComboComponentRows";
-import { isComboProduct } from "@/lib/combos";
+import { applyDerivedComboStock, isComboProduct, normalizeComboComponents } from "@/lib/combos";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -416,7 +416,7 @@ const PresupuestoDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      const productosData = snapProductos.docs.map((doc) => mapFirestoreDoc(doc));
+      const productosData = applyDerivedComboStock(snapProductos.docs.map((doc) => mapFirestoreDoc(doc)));
       console.log("=== DEBUG PRESUPUESTO CARGA PRODUCTOS ===");
       console.log("Productos cargados:", productosData);
       console.log("Cantidad de productos:", productosData.length);
@@ -699,7 +699,7 @@ const PresupuestoDetalle = () => {
     try {
       // Obtener productos actualizados desde Firebase
       const productosSnap = await getDocs(collection(db, "productos"));
-      const productosActualizados = productosSnap.docs.map((doc) => mapFirestoreDoc(doc));
+      const productosActualizados = applyDerivedComboStock(productosSnap.docs.map((doc) => mapFirestoreDoc(doc)));
 
       // Actualizar precios de productos en presupuestoEdit
       const productosConPreciosActualizados = (
@@ -713,7 +713,9 @@ const PresupuestoDetalle = () => {
         );
         if (productoActualizado) {
           let nuevoPrecio = 0;
-          if (productoActualizado.categoria === "Maderas") {
+          if (isComboProduct(productoActualizado)) {
+            nuevoPrecio = Number(productoActualizado.precioVenta ?? productoActualizado.valorVenta ?? productoActualizado.precioCalculado ?? 0) || 0;
+          } else if (productoActualizado.categoria === "Maderas") {
             const altoParsed = parseNumericValue(
               productoPresupuesto.alto ?? productoActualizado.alto
             );
@@ -2875,6 +2877,7 @@ const PresupuestoDetalle = () => {
                               const itemAgregado = productosMismoOrigen[0];
                               const cantidadActual = itemAgregado?.cantidad || 0;
                               const precio = (() => {
+                                if (isComboProduct(prod)) return Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0;
                                 if (prod.categoria === "Maderas") {
                                   return prod.precioPorPie || 0;
                                 } else if (prod.categoria === "Ferretería") {
@@ -2981,9 +2984,7 @@ const PresupuestoDetalle = () => {
                                           {/* Stock */}
                                           {prod.stock !== undefined && (
                                             <div className="flex items-center justify-between">
-                                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                Stock:
-                                              </span>
+                                               <span className="text-xs text-gray-500 dark:text-gray-400">{isComboProduct(prod) ? "Combos armables:" : "Stock:"}</span>
                                               <span
                                                 className={`text-xs font-medium ${
                                                   prod.stock > 10
@@ -2995,6 +2996,12 @@ const PresupuestoDetalle = () => {
                                               >
                                                 {prod.stock} unidades
                                               </span>
+                                            </div>
+                                          )}
+                                          {isComboProduct(prod) && (
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                              <span>Incluye</span>
+                                              <span>{normalizeComboComponents(prod.componentesCombo).length} productos</span>
                                             </div>
                                           )}
                                         </div>
@@ -3068,7 +3075,9 @@ const PresupuestoDetalle = () => {
                                                 Number(prod.largo) || 0;
                                               const precioPorPie =
                                                 Number(prod.precioPorPie) || 0;
-                                              if (prod.categoria === "Maderas") {
+                                              if (isComboProduct(prod)) {
+                                                precioCalculado = Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0;
+                                              } else if (prod.categoria === "Maderas") {
                                                 if (prod.unidadMedida === "M2") {
                                                   precioCalculado = calcularPrecioMachimbre({
                                                       alto: alto,
@@ -3114,16 +3123,21 @@ const PresupuestoDetalle = () => {
                                                   nombre: prod.nombre,
                                                   detalle: prod.detalle || "",
                                                   precio: precioCalculado,
-                                                  unidad:
-                                                    prod.unidadMedida ||
-                                                    prod.unidadVenta ||
-                                                    prod.unidadVentaHerraje ||
-                                                    prod.unidadVentaQuimico ||
-                                                    prod.unidadVentaHerramienta,
+                                                   unidad: isComboProduct(prod)
+                                                     ? "Unidad"
+                                                     : prod.unidadMedida ||
+                                                     prod.unidadVenta ||
+                                                     prod.unidadVentaHerraje ||
+                                                     prod.unidadVentaQuimico ||
+                                                     prod.unidadVentaHerramienta,
                                                   stock: prod.stock,
                                                   cantidad: 1,
-                                                  descuento: 0,
-                                                  categoria: prod.categoria,
+                                                   descuento: 0,
+                                                   categoria: prod.categoria,
+                                                   esCombo: isComboProduct(prod),
+                                                   tipoProducto: isComboProduct(prod) ? "combo" : (prod.tipoProducto || "simple"),
+                                                   componentesCombo: normalizeComboComponents(prod.componentesCombo),
+                                                   versionComposicion: Number(prod.versionComposicion) || 1,
                                                   alto: alto,
                                                   ancho: ancho,
                                                   largo: largo,

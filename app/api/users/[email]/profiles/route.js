@@ -49,6 +49,7 @@ export async function GET(request, { params }) {
       email: cliente.email,
       nombre: cliente.nombre || "",
       telefono: cliente.telefono || "",
+      dni: cliente.dni || "",
       cuit: cliente.cuit || "",
       direccion: cliente.direccion || "",
       localidad: cliente.localidad || "",

@@ -33,6 +33,16 @@ const ClientesPage = () => {
 
   // Utilidades de validación en tiempo real
   const onlyDigits = (s) => (s || "").replace(/\D/g, "");
+  const dniFor = (cliente) => {
+    const dni = onlyDigits(cliente?.dni || "");
+    if (dni) return dni;
+    const legacy = onlyDigits(cliente?.cuit || "");
+    return legacy.length >= 7 && legacy.length <= 9 ? legacy : "";
+  };
+  const cuitFor = (cliente) => {
+    const cuit = onlyDigits(cliente?.cuit || "");
+    return !cliente?.dni && cuit.length >= 7 && cuit.length <= 9 ? "" : (cliente?.cuit || "");
+  };
   const isValidEmail = (email) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isValidPhone = (phone) => {
     const d = onlyDigits(phone);
@@ -41,6 +51,10 @@ const ClientesPage = () => {
   const isValidCuit = (cuit) => {
     const d = onlyDigits(cuit);
     return d.length === 0 || d.length === 11; // CUIT de 11 dígitos
+  };
+  const isValidDni = (dni) => {
+    const d = onlyDigits(dni);
+    return d.length === 0 || (d.length >= 7 && d.length <= 9);
   };
 
   useEffect(() => {
@@ -56,7 +70,7 @@ const ClientesPage = () => {
   // OPTIMIZADO: Cargar datos solo cuando se abre el modal y no están cargados
   const handleVerDetalle = async (cliente) => {
     setSelectedCliente(cliente);
-    setEditCliente({ ...cliente, estado: "Activo" });
+    setEditCliente({ ...cliente, dni: dniFor(cliente), cuit: cuitFor(cliente), estado: "Activo" });
     setEditMsg("");
     setDetalleOpen(true);
     
@@ -76,6 +90,10 @@ const ClientesPage = () => {
   const handleGuardarEdicion = async () => {
     if (!editCliente.nombre || !editCliente.direccion || !editCliente.telefono) {
       setEditMsg("Nombre, dirección y teléfono son obligatorios.");
+      return;
+    }
+    if (!isValidDni(editCliente.dni) || !isValidCuit(editCliente.cuit)) {
+      setEditMsg("Revisá el DNI (7 a 9 dígitos) y el CUIT (11 dígitos).");
       return;
     }
     setEditSaving(true);
@@ -106,7 +124,7 @@ const ClientesPage = () => {
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>Listado de Clientes</CardTitle>
           <div className="flex gap-2">
-            <Input placeholder="Buscar cliente o CUIT..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-56" />
+            <Input placeholder="Buscar cliente, DNI o CUIT..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-56" />
             <Button variant="default" onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-1" />Agregar Cliente</Button>
           </div>
         </CardHeader>
@@ -115,6 +133,7 @@ const ClientesPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
+                <TableHead>DNI</TableHead>
                 <TableHead>CUIT</TableHead>
                 <TableHead>Dirección</TableHead>
                 <TableHead>Teléfono</TableHead>
@@ -126,11 +145,12 @@ const ClientesPage = () => {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8}>Cargando...</TableCell></TableRow>
-              ) : clientes.filter(c => c.nombre.toLowerCase().includes(filtro.toLowerCase()) || (c.cuit || "").includes(filtro)).map(c => (
+                <TableRow><TableCell colSpan={9}>Cargando...</TableCell></TableRow>
+              ) : clientes.filter(c => String(c.nombre || "").toLowerCase().includes(filtro.toLowerCase()) || dniFor(c).includes(onlyDigits(filtro)) || String(cuitFor(c) || "").includes(onlyDigits(filtro))).map(c => (
                 <TableRow key={c.id}>
                   <TableCell>{c.nombre}</TableCell>
-                  <TableCell>{c.cuit}</TableCell>
+                  <TableCell>{dniFor(c) || "-"}</TableCell>
+                  <TableCell>{cuitFor(c) || "-"}</TableCell>
                   <TableCell>{c.direccion}</TableCell>
                   <TableCell>{c.telefono}</TableCell>
                   <TableCell>{c.email}</TableCell>
@@ -228,16 +248,28 @@ const ClientesPage = () => {
                             />
                           </div>
                           <div>
-                            <div className="flex items-center gap-1 mb-1">
-                              <Label htmlFor="cuit">CUIT/DNI</Label>
-                            </div>
+                            <Label htmlFor="dni">DNI</Label>
+                            <Input
+                              id="dni"
+                              placeholder="Ej: 30123456"
+                              inputMode="numeric"
+                              className={`w-full h-9 rounded-lg ${!isValidDni(editCliente.dni) ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                              value={editCliente.dni || ""}
+                              onChange={(e) => setEditCliente((c) => ({ ...c, dni: e.target.value }))}
+                            />
+                            {!isValidDni(editCliente.dni) && <p className="mt-1 text-xs text-red-600">El DNI debe tener entre 7 y 9 dígitos.</p>}
+                          </div>
+                          <div>
+                            <Label htmlFor="cuit">CUIT (opcional)</Label>
                             <Input
                               id="cuit"
                               placeholder="Ej: 20301234567"
-                              className="w-full h-9 rounded-lg"
+                              inputMode="numeric"
+                              className={`w-full h-9 rounded-lg ${!isValidCuit(editCliente.cuit) ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
                               value={editCliente.cuit || ""}
                               onChange={(e) => setEditCliente((c) => ({ ...c, cuit: e.target.value }))}
                             />
+                            {!isValidCuit(editCliente.cuit) && <p className="mt-1 text-xs text-red-600">El CUIT debe tener 11 dígitos.</p>}
                           </div>
                         </div>
                       </div>

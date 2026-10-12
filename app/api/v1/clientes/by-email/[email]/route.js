@@ -62,6 +62,7 @@ export async function PUT(request, { params }) {
     const nombre = String(body?.nombre || "").trim();
     const telefono = String(body?.telefono || "").trim();
     const dni = String(body?.dni || "").trim();
+    const hasCuit = Object.prototype.hasOwnProperty.call(body || {}, "cuit");
     const cuit = String(body?.cuit || "").trim();
     const origen = String(body?.origen || "ecommerce").trim();
 
@@ -76,8 +77,8 @@ export async function PUT(request, { params }) {
         email: emailParam,
         nombre,
         telefono,
-        dni,
-        cuit,
+        ...(dni ? { dni } : {}),
+        ...(hasCuit ? { cuit } : {}),
         origen,
         actualizadoEn: nowIso,
       };
@@ -90,7 +91,7 @@ export async function PUT(request, { params }) {
       nombre,
       telefono,
       dni,
-      cuit,
+      cuit: hasCuit ? cuit : "",
       origen,
       creadoEn: nowIso,
       actualizadoEn: nowIso,

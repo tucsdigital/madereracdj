@@ -12,7 +12,7 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import { createVentaEngine } from "@/lib/erp/ventas-engine";
+import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -316,8 +316,14 @@ export async function POST(request) {
           cliente: {
             email: emailUsuario,
             nombre: ventaData.cliente.nombre,
+            nombrePila: ventaData.cliente.nombrePila || "",
+            apellido: ventaData.cliente.apellido || "",
             telefono: ventaData.cliente.telefono || "",
+            dni: String(ventaData.cliente.dni || "").replace(/\D/g, ""),
+            cuit: ventaData.cliente.cuit || "",
             direccion: direccionEnvio,
+            ciudad: ventaData.cliente.ciudad || "",
+            codigoPostal: ventaData.cliente.codigoPostal || "",
           },
           productos: ventaData.productos.map((producto) => ({
             id: producto.id || "",
@@ -331,6 +337,10 @@ export async function POST(request) {
             alto: producto.alto || 0,
             ancho: producto.ancho || 0,
             largo: producto.largo || 0,
+            esCombo: producto.esCombo === true || producto.tipoProducto === "combo",
+            tipoProducto: producto.tipoProducto || (producto.esCombo ? "combo" : "simple"),
+            componentesCombo: Array.isArray(producto.componentesCombo) ? producto.componentesCombo : [],
+            versionComposicion: Number(producto.versionComposicion) || 1,
           })),
           estadoEnvio,
           direccionEnvio,
@@ -359,7 +369,15 @@ export async function POST(request) {
             idExterno: ventaData.id || existingData.idExterno || null,
           };
 
-          await setDoc(doc(db, "ventas", existingVentaDoc.id), payloadActualizacion, { merge: true });
+          await updateVentaEngine({
+            actor: { uid: "", email: "ecommerce" },
+            ventaId: existingVentaDoc.id,
+            ventaData: {
+              ...payloadActualizacion,
+              version: existingData.version,
+            },
+            origen: "ecommerce_externo",
+          });
 
           console.log(`Venta ${numeroPedidoExistente} actualizada con ID:`, existingVentaDoc.id);
           ventasGuardadas.push({

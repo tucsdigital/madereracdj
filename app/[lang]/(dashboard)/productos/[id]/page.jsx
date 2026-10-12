@@ -12,12 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  Boxes,
   Save,
   Loader2,
   CheckCircle,
   AlertCircle,
-  Plus,
   X,
   Image as ImageIcon,
   Tag,
@@ -49,6 +47,7 @@ import {
   isComboProduct,
   normalizeComboComponents,
 } from "@/lib/combos";
+import ComboComponentBuilder from "@/components/productos/ComboComponentBuilder";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
 
@@ -118,7 +117,7 @@ const ProductoDetailPage = () => {
   const [discountInputs, setDiscountInputs] = useState({ amount: "", percentage: "" });
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [comboItems, setComboItems] = useState([]);
-  const [comboSearch, setComboSearch] = useState("");
+  const [comboBuilderValid, setComboBuilderValid] = useState(true);
 
   const [editForm, setEditForm] = useState({
     codigo: "",
@@ -184,20 +183,6 @@ const ProductoDetailPage = () => {
         .filter((item) => item.categoria !== "Obras" && !isComboProduct(item)),
     [catalogoProductos]
   );
-
-  const comboSuggestions = useMemo(() => {
-    const term = String(comboSearch || "").trim().toLowerCase();
-    const selectedIds = new Set(comboItems.map((item) => item.productoId));
-    return comboCatalogo
-      .filter((item) => !selectedIds.has(String(item.id)))
-      .filter((item) => {
-        if (!term) return true;
-        return [item.nombre, item.codigo, item.categoria]
-          .map((value) => String(value || "").toLowerCase())
-          .some((value) => value.includes(term));
-      })
-      .slice(0, 8);
-  }, [comboCatalogo, comboItems, comboSearch]);
 
   const comboStockPreview = useMemo(() => {
     const productoById = new Map(comboCatalogo.map((item) => [String(item.id), item]));
@@ -437,38 +422,6 @@ const ProductoDetailPage = () => {
     }
   };
 
-  const addComboItem = (productoToAdd) => {
-    if (!productoToAdd?.id) return;
-    const nextItems = normalizeComboComponents([
-      ...comboItems,
-      {
-        productoId: productoToAdd.id,
-        nombre: productoToAdd.nombre || "",
-        codigo: productoToAdd.codigo || "",
-        cantidad: 1,
-      },
-    ]);
-    setComboItems(nextItems);
-    setEditForm((prev) => ({ ...prev, componentesCombo: nextItems }));
-    setComboSearch("");
-  };
-
-  const updateComboItemQty = (productoId, cantidad) => {
-    const nextItems = normalizeComboComponents(
-      comboItems.map((item) =>
-        item.productoId === productoId ? { ...item, cantidad } : item
-      )
-    );
-    setComboItems(nextItems);
-    setEditForm((prev) => ({ ...prev, componentesCombo: nextItems }));
-  };
-
-  const removeComboItem = (productoId) => {
-    const nextItems = comboItems.filter((item) => item.productoId !== productoId);
-    setComboItems(nextItems);
-    setEditForm((prev) => ({ ...prev, componentesCombo: nextItems }));
-  };
-
   const handleAddNewValue = (tipo, valor) => {
     if (!valor.trim()) return;
     
@@ -566,6 +519,9 @@ const ProductoDetailPage = () => {
     setMessage("");
     
     try {
+      if (editForm.categoria === "Combos" && !comboBuilderValid) {
+        throw new Error("Corregí las cantidades de los componentes antes de guardar.");
+      }
       // Validación de campos obligatorios
       const camposObligatorios = ['nombre', 'descripcion', 'categoria', 'unidadMedida', 'deposito', 'estado', 'estadoTienda'];
       
@@ -750,14 +706,47 @@ const ProductoDetailPage = () => {
       }
 
       if (editForm.categoria === "Combos") {
-        const componentesCombo = normalizeComboComponents(comboItems);
+        const componentesNormalizados = normalizeComboComponents(comboItems);
+        if (componentesNormalizados.length === 0 || componentesNormalizados.length !== comboItems.length) {
+          throw new Error("Cada componente debe tener una cantidad entera mayor que cero.");
+        }
+        const componentesCombo = componentesNormalizados.map((componente) => {
+          const base = productoById.get(String(componente.productoId));
+          if (!base || base.categoria === "Obras" || isComboProduct(base)) {
+            throw new Error(`El componente ${componente.nombre || componente.productoId} ya no es un producto simple disponible. Quitalo y agregá otro.`);
+          }
+          return {
+            ...componente,
+            nombre: base.nombre || componente.nombre,
+            codigo: base.codigo || componente.codigo,
+            categoria: base.categoria || "",
+            unidadMedida: base.unidadMedida || base.unidad || "",
+          };
+        });
         const comboStock = computeComboStock({ componentesCombo }, productoById);
+        const componentesPrevios = normalizeComboComponents(producto.componentesCombo);
+        const recipeKey = (items) => JSON.stringify(
+          normalizeComboComponents(items).map(({ productoId, cantidad }) => ({ productoId, cantidad }))
+        );
+        const recipeChanged = recipeKey(componentesPrevios) !== recipeKey(componentesCombo);
+        const costoComponentes = componentesCombo.map((componente) => {
+          const base = productoById.get(String(componente.productoId));
+          const costo = Number(base?.costo ?? base?.valorCompra ?? base?.costoCompra);
+          return Number.isFinite(costo) && costo > 0 ? costo * componente.cantidad : null;
+        });
+        const costoComponentesCalculado = costoComponentes.every((costo) => costo !== null)
+          ? costoComponentes.reduce((total, costo) => total + costo, 0)
+          : null;
         updates.esCombo = true;
         updates.tipoProducto = "combo";
         updates.componentesCombo = componentesCombo;
         updates.comboComponentIds = getComboComponentIds({ componentesCombo });
         updates.unidadMedida = "Unidad";
         updates.stock = comboStock;
+        updates.versionComposicion = Math.max(1, Number(producto.versionComposicion) || 1) + (recipeChanged ? 1 : 0);
+        updates.costoComponentesCalculado = costoComponentesCalculado;
+        updates.costo = costoComponentesCalculado;
+        if (recipeChanged) updates.composicionActualizadaEn = new Date().toISOString();
         if (!blockPriceEdits) {
           const precioVenta = Number(editForm.precioVenta);
           if (Number.isFinite(precioVenta) && precioVenta >= 0) {
@@ -813,8 +802,21 @@ const ProductoDetailPage = () => {
       
       updates.fechaActualizacion = new Date().toISOString();
 
-      const hasStockChange = Object.prototype.hasOwnProperty.call(updates, "stock");
-      if (hasStockChange) {
+      const hasStockChange =
+        editForm.categoria !== "Combos" &&
+        !isComboProduct(producto) &&
+        Object.prototype.hasOwnProperty.call(updates, "stock");
+      if (editForm.categoria === "Combos") {
+        if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado.");
+        const idToken = await user.getIdToken();
+        const response = await fetch(`/api/erp/combos/${encodeURIComponent(productId)}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ combo: updates }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result?.ok) throw new Error(result?.error || "No se pudo actualizar el combo.");
+      } else if (hasStockChange) {
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(productoRef);
           if (!snap.exists()) throw new Error("Producto no encontrado");
@@ -878,7 +880,7 @@ const ProductoDetailPage = () => {
       setMessageType("success");
       
       // Recargar producto para mostrar cambios
-      await cargarProducto();
+      await Promise.all([cargarProducto(), cargarDatosPrecargados()]);
       
     } catch (error) {
       setMessage("Error al actualizar: " + error.message);
@@ -1560,82 +1562,21 @@ const ProductoDetailPage = () => {
 
           {editForm.categoria === "Combos" && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Boxes className="w-5 h-5" />
-                  Componentes del Combo
-                </CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Productos del combo</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm text-fuchsia-900">
-                  El stock del combo se calcula automáticamente según el stock disponible de sus componentes.
-                  Stock disponible actual: <strong>{comboStockPreview}</strong>
-                </div>
-
-                <Input
-                  value={comboSearch}
-                  onChange={(e) => setComboSearch(e.target.value)}
-                  placeholder="Buscar producto por nombre o código para agregar al combo"
+              <CardContent>
+                <ComboComponentBuilder
+                  productos={comboCatalogo}
+                  value={comboItems}
+                  disabled={saving}
+                  salePrice={editForm.precioVenta}
+                  onValidityChange={setComboBuilderValid}
+                  onChange={(items) => {
+                    setComboItems(items);
+                    setEditForm((previous) => ({ ...previous, componentesCombo: items }));
+                  }}
                 />
-
-                {comboSuggestions.length > 0 && (
-                  <div className="grid gap-2 rounded-xl border border-gray-200 bg-white p-3">
-                    {comboSuggestions.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => addComboItem(item)}
-                        className="flex items-center justify-between rounded-lg border border-transparent px-3 py-2 text-left transition hover:border-fuchsia-300 hover:bg-fuchsia-50"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900">{item.nombre}</div>
-                          <div className="text-xs text-gray-500">
-                            {item.codigo || "Sin código"} · Stock {item.stock ?? 0}
-                          </div>
-                        </div>
-                        <Plus className="w-4 h-4 text-fuchsia-600" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {comboItems.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-fuchsia-300 px-4 py-6 text-sm text-gray-500">
-                    Este combo todavía no tiene componentes cargados.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {comboItems.map((item) => (
-                      <div
-                        key={item.productoId}
-                        className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900">{item.nombre || item.productoId}</div>
-                          <div className="text-xs text-gray-500">{item.codigo || "Sin código"}</div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.cantidad}
-                            onChange={(e) => updateComboItemQty(item.productoId, e.target.value)}
-                            className="w-24"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => removeComboItem(item.productoId)}
-                            className="border-red-200 text-red-600 hover:bg-red-50"
-                          >
-                            Quitar
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}

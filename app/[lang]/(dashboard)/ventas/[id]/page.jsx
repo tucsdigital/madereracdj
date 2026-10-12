@@ -29,7 +29,11 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
 import ComboComponentRows from "@/components/ventas/ComboComponentRows";
-import { isComboProduct } from "@/lib/combos";
+import {
+  applyDerivedComboStock,
+  isComboProduct,
+  normalizeComboComponents,
+} from "@/lib/combos";
 
 const ModalCambiarCliente = dynamic(
   () => import("@/components/clientes/ModalCambiarCliente"),
@@ -500,7 +504,7 @@ const VentaDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      const productosData = snapProductos.docs.map((doc) => mapFirestoreDoc(doc));
+      const productosData = applyDerivedComboStock(snapProductos.docs.map((doc) => mapFirestoreDoc(doc)));
       console.log("=== DEBUG CARGA PRODUCTOS ===");
       console.log("Productos cargados:", productosData);
       console.log("Cantidad de productos:", productosData.length);
@@ -711,7 +715,7 @@ const VentaDetalle = () => {
     try {
       // Obtener productos actualizados desde Firebase
       const productosSnap = await getDocs(collection(db, "productos"));
-      const productosActualizados = productosSnap.docs.map((doc) => mapFirestoreDoc(doc));
+      const productosActualizados = applyDerivedComboStock(productosSnap.docs.map((doc) => mapFirestoreDoc(doc)));
 
       // Actualizar precios de productos en ventaEdit
       const productosConPreciosActualizados = (ventaEdit.productos || []).map(
@@ -724,7 +728,9 @@ const VentaDetalle = () => {
           );
           if (productoActualizado) {
             let nuevoPrecio = 0;
-            if (productoActualizado.categoria === "Maderas") {
+            if (isComboProduct(productoActualizado)) {
+              nuevoPrecio = Number(productoActualizado.precioVenta ?? productoActualizado.valorVenta ?? productoActualizado.precioCalculado ?? 0) || 0;
+            } else if (productoActualizado.categoria === "Maderas") {
               const altoParsed = parseNumericValue(productoVenta.alto ?? productoActualizado.alto);
               const anchoParsed = parseNumericValue(productoVenta.ancho ?? productoActualizado.ancho);
               const largoParsed = parseNumericValue(productoVenta.largo ?? productoActualizado.largo);
@@ -2294,6 +2300,25 @@ const VentaDetalle = () => {
             </div>
           </div>
         </div>
+        {!ventaAnulada && (venta?.requiereRevision || venta?.stockNegativo || venta?.advertencias?.stockInsuficiente?.length > 0) && (
+          <div className="mb-5 rounded-xl border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 no-print">
+            <div className="font-semibold">Revisión de inventario</div>
+            {Array.isArray(venta?.advertencias?.stockInsuficiente) && venta.advertencias.stockInsuficiente.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                {venta.advertencias.stockInsuficiente.slice(0, 6).map((item) => (
+                  <div key={`${item.productoId}-${item.requerido}`} className="text-xs">
+                    {item.productoNombre || item.productoId}: requiere {item.requerido}, disponibles {item.stockDisponible ?? item.stockAntes}; después de la venta quedarían {item.stockDespues}.
+                  </div>
+                ))}
+                {venta.advertencias.stockInsuficiente.length > 6 && (
+                  <div className="text-xs">y {venta.advertencias.stockInsuficiente.length - 6} componente(s) más.</div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-1 text-xs">La operación tiene advertencias que requieren control.</div>
+            )}
+          </div>
+        )}
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
@@ -3322,6 +3347,7 @@ const VentaDetalle = () => {
                           const itemAgregado = productosMismoOrigen[0];
                           const cantidadActual = itemAgregado?.cantidad || 0;
                           const precio = (() => {
+                            if (isComboProduct(prod)) return Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0;
                             if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
                             if (prod.categoria === "Ferretería") return prod.valorVenta || 0;
                             return (
@@ -3380,9 +3406,15 @@ const VentaDetalle = () => {
                                   )}
                                   {prod.stock !== undefined && (
                                     <div className="flex items-center justify-between">
-                                      <span className="text-xs text-muted-foreground">Stock:</span>
+                                      <span className="text-xs text-muted-foreground">{isComboProduct(prod) ? "Combos armables:" : "Stock:"}</span>
                                       <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
-                                  </div>
+                                    </div>
+                                  )}
+                                  {isComboProduct(prod) && (
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                      <span>Incluye</span>
+                                      <span>{normalizeComboComponents(prod.componentesCombo).length} productos</span>
+                                    </div>
                                   )}
                                 </div>
 
@@ -3440,9 +3472,35 @@ const VentaDetalle = () => {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (isComboProduct(prod)) {
+                                          setVentaEdit((prev) => ({
+                                            ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                originalId: prod.id,
+                                                codigo: prod.codigo || "",
+                                                nombre: prod.nombre,
+                                                detalle: prod.detalle || "",
+                                                precio: Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0,
+                                                unidad: "Unidad",
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: "Combos",
+                                                esCombo: true,
+                                                tipoProducto: "combo",
+                                                componentesCombo: normalizeComboComponents(prod.componentesCombo),
+                                                versionComposicion: Number(prod.versionComposicion) || 1,
+                                              },
+                                            ],
+                                          }));
+                                          return;
+                                        }
                                         if (prod.categoria === "Maderas") {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;

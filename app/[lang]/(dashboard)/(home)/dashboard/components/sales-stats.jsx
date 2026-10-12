@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
@@ -18,57 +18,33 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import CajaDelDia from "./caja-del-dia";
 import { getObraReferenceDate } from "@/lib/obras-fechas";
 
 const SalesStats = () => {
-  const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
+  const { mesSeleccionado, setMesSeleccionado, isInRange } = useDateRange();
   const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, allObras, clientes: clientesData, loading } = useDashboardData();
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const canGoToNextMonth =
+    mesSeleccionado && mesSeleccionado < currentMonth;
 
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
 
-  const isoToDate = (iso) => {
-    if (!iso || typeof iso !== "string") return null;
-    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return null;
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const d = Number(m[3]);
-    if (!y || !mo || !d) return null;
-    const dt = new Date(y, mo - 1, d, 12, 0, 0);
-    return Number.isNaN(dt.getTime()) ? null : dt;
+  const changeMonth = (amount) => {
+    if (!mesSeleccionado) return;
+    setMesSeleccionado(
+      new Date(mesSeleccionado.getFullYear(), mesSeleccionado.getMonth() + amount, 1)
+    );
   };
 
-  const dateToIso = (dt) => {
-    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return "";
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, "0");
-    const d = String(dt.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  };
-
-  const fromDate = useMemo(() => isoToDate(fechaDesde), [fechaDesde]);
-  const toDate = useMemo(() => isoToDate(fechaHasta), [fechaHasta]);
-
-  const setDesdeDate = (dt) => {
-    if (!dt) return;
-    const next = dateToIso(dt);
-    if (!next) return;
-    setFechaDesde(next);
-    if (fechaHasta && next > fechaHasta) {
-      setFechaHasta(next);
-    }
-  };
-
-  const setHastaDate = (dt) => {
-    if (!dt) return;
-    const next = dateToIso(dt);
-    if (!next) return;
-    setFechaHasta(next);
-    if (fechaDesde && next < fechaDesde) {
-      setFechaDesde(next);
-    }
+  const selectMonthFromCalendar = (date) => {
+    if (!date) return;
+    setMesSeleccionado(date);
+    setMonthPickerOpen(false);
   };
 
   // Datos del contexto (ya filtrados por rango de fechas)
@@ -560,22 +536,6 @@ const SalesStats = () => {
     [fpSegments, totalFormasPago]
   );
 
-  const QuickRangeButton = ({ value, label, icon }) => (
-    <button
-      type="button"
-      onClick={() => setRangoRapido(value)}
-      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md backdrop-blur-sm ${
-        rangoRapido === value
-          ? "bg-gradient-to-r from-slate-600 to-gray-600 text-white border-0 shadow-lg scale-105"
-          : "bg-card/60 border border-border/60 text-default-700 hover:bg-card/80 hover:shadow-lg hover:scale-[1.02]"
-      }`}
-      aria-pressed={rangoRapido === value}
-    >
-      {icon ? <Icon icon={icon} className="w-3.5 h-3.5" /> : null}
-      {label}
-    </button>
-  );
-
   const Skeleton = () => (
     <div className="space-y-4">
       {/* Skeletons para KPI Cards (Ventas, Monto, Ticket, Presup.) */}
@@ -660,7 +620,7 @@ const SalesStats = () => {
     <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
       <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-700 via-gray-700 to-zinc-700 dark:from-slate-100 dark:via-gray-100 dark:to-zinc-100 flex items-center gap-3">
             <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon
@@ -670,82 +630,71 @@ const SalesStats = () => {
             </div>
             Estadísticas de Ventas
           </CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <QuickRangeButton
-              value="month"
-              label="Mes"
-              icon="heroicons:calendar-days"
-            />
-            <QuickRangeButton value="7d" label="7d" icon="heroicons:bolt" />
-            <QuickRangeButton
-              value="30d"
-              label="30d"
-              icon="heroicons:calendar-days"
-            />
-            <QuickRangeButton value="90d" label="90d" icon="heroicons:clock" />
-            <QuickRangeButton
-              value="ytd"
-              label="YTD"
-              icon="heroicons:chart-pie"
-            />
-            <QuickRangeButton
-              value="custom"
-              label="Custom"
-              icon="heroicons:adjustments-horizontal"
-            />
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/70 p-2 shadow-sm sm:justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => changeMonth(-1)}
+              className="h-10 w-10 shrink-0 rounded-xl text-default-700 hover:bg-muted"
+              aria-label="Ver mes anterior"
+              title="Mes anterior"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </Button>
+
+            <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-10 min-w-36 flex-1 gap-2 rounded-xl px-3 font-semibold capitalize text-foreground hover:bg-muted sm:flex-initial"
+                  aria-label="Elegir mes de las estadísticas"
+                >
+                  <CalendarDays className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span>
+                    {mesSeleccionado
+                      ? format(mesSeleccionado, "MMMM yyyy", { locale: es })
+                      : "Elegir mes"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  month={mesSeleccionado || currentMonth}
+                  selected={mesSeleccionado || undefined}
+                  onSelect={selectMonthFromCalendar}
+                  onMonthChange={(month) => {
+                    if (month <= currentMonth) {
+                      setMesSeleccionado(month);
+                    }
+                  }}
+                  disabled={{ after: now }}
+                  toMonth={currentMonth}
+                  initialFocus
+                />
+                <p className="px-4 pb-3 text-center text-xs text-muted-foreground">
+                  Elegí cualquier día para ver las estadísticas de ese mes.
+                </p>
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => changeMonth(1)}
+              disabled={!canGoToNextMonth}
+              className="h-10 w-10 shrink-0 rounded-xl text-default-700 hover:bg-muted"
+              aria-label="Ver mes siguiente"
+              title="Mes siguiente"
+            >
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+            </Button>
           </div>
         </div>
-        {rangoRapido === "custom" && (
-          <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-default-600 whitespace-nowrap font-medium">
-                Desde
-              </span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="justify-start border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-[160px] bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40 font-normal"
-                  >
-                    {fromDate ? format(fromDate, "dd/MM/yyyy", { locale: es }) : "Elegir fecha"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fromDate || undefined}
-                    onSelect={setDesdeDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-default-600 whitespace-nowrap font-medium">
-                Hasta
-              </span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="justify-start border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-[160px] bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40 font-normal"
-                  >
-                    {toDate ? format(toDate, "dd/MM/yyyy", { locale: es }) : "Elegir fecha"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={toDate || undefined}
-                    onSelect={setHastaDate}
-                    initialFocus
-                    disabled={fromDate ? (d) => d < fromDate : undefined}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-        )}
       </CardHeader>
       <CardContent className="relative pt-2 px-6 pb-6 space-y-4">
         {/* Caja del día: ingresos de hoy (ventas, pagos de ventas viejas, pagos de obras), independiente del rango de fechas */}
