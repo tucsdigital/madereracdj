@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Boxes, Check, Minus, Package, Plus, Ruler, Search, SlidersHorizontal, X } from "lucide-react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Boxes, Minus, Package, Plus, Ruler, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/provider/auth.provider";
-import { normalizeDimensionQuery, parseDimensionQuery } from "@/lib/product-search";
+import { dimensionSearchVariants, parseDimensionQuery } from "@/lib/product-search";
 import { calcularPrecioComponenteVenta } from "@/lib/pricing";
 import {
   getComboStockAnalysis,
+  isDiscreteComboUnit,
+  isValidComboQuantity,
   isComboProduct,
+  normalizeComboQuantity,
   normalizeComboComponents,
 } from "@/lib/combos";
 
@@ -36,6 +38,31 @@ const formatDimensions = (producto) =>
     .map((value) => value.toLocaleString("es-AR", { maximumFractionDigits: 2 }))
     .join(" × ");
 const getCalculatedPrice = (producto) => calcularPrecioComponenteVenta(producto);
+const getProductUnit = (producto) => String(
+  producto?.unidadMedida || producto?.unidad || producto?.unidadVenta || "Unidad"
+).trim() || "Unidad";
+const normalizeUnit = (value) => String(value || "").trim().toUpperCase().replace(/[²]/g, "2").replace(/[.\s]/g, "");
+const getMeasuredAmountPerItem = (producto) => {
+  if (producto?.categoria !== "Maderas") return null;
+  const unit = normalizeUnit(getProductUnit(producto));
+  const alto = Number(producto?.alto) > 0 ? Number(producto.alto) : Number(producto?.ancho) || 0;
+  const largo = Number(producto?.largo) || 0;
+  if (unit === "M2" && alto > 0 && largo > 0) return { amount: alto * largo, unit: "M²" };
+  if (["ML", "METROLINEAL"].includes(unit) && largo > 0) return { amount: largo, unit: "ML" };
+  return null;
+};
+const formatQuantity = (value) => Number(value || 0).toLocaleString("es-AR", { maximumFractionDigits: 3 });
+const quantityStep = (unit) => isDiscreteComboUnit(unit) ? 1 : 0.001;
+const quantityIncrement = (unit) => isDiscreteComboUnit(unit) ? 1 : 0.01;
+const minimumQuantity = (unit) => isDiscreteComboUnit(unit) ? 1 : 0.001;
+const parseQuantity = (raw) => {
+  const parsed = Number(String(raw ?? "").trim().replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const isValidQuantity = (raw, unit) => {
+  const quantity = parseQuantity(raw);
+  return quantity !== null && isValidComboQuantity(quantity, unit);
+};
 
 export default function ComboComponentBuilder({
   productos = [],
@@ -48,28 +75,22 @@ export default function ComboComponentBuilder({
   onSuggestedPrice,
 }) {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("");
   const [stockFilter, setStockFilter] = useState("todos");
   const [quantityDrafts, setQuantityDrafts] = useState({});
-  const [remoteProducts, setRemoteProducts] = useState(null);
-  const [remotePage, setRemotePage] = useState(0);
-  const [remoteHasMore, setRemoteHasMore] = useState(false);
-  const [remoteLoading, setRemoteLoading] = useState(false);
-  const [remoteError, setRemoteError] = useState("");
+  const [resultLimit, setResultLimit] = useState(20);
   const [resolvedProducts, setResolvedProducts] = useState({});
-  const { user } = useAuth();
-  const normalizedDimensions = useMemo(() => normalizeDimensionQuery(search), [search]);
-  const isDimensionSearch = Boolean(parseDimensionQuery(search));
+  const deferredSearch = useDeferredValue(debouncedSearch);
 
   const componentes = useMemo(() => normalizeComboComponents(value), [value]);
   const productById = useMemo(() => {
     const products = new Map((Array.isArray(productos) ? productos : []).map((p) => [String(p.id), p]));
     Object.values(resolvedProducts).forEach((p) => products.set(String(p.id), p));
-    (Array.isArray(remoteProducts) ? remoteProducts : []).forEach((p) => products.set(String(p.id), p));
     return products;
-  }, [productos, remoteProducts, resolvedProducts]);
-  const componentIds = useMemo(
-    () => new Set(componentes.map((component) => component.productoId)),
+  }, [productos, resolvedProducts]);
+  const componentById = useMemo(
+    () => new Map(componentes.map((component) => [component.productoId, component])),
     [componentes]
   );
   const suggestedPrice = useMemo(() => {
@@ -84,70 +105,31 @@ export default function ComboComponentBuilder({
     }
     return Math.round(total * 100) / 100;
   }, [componentes, productById]);
-  const selectedIdsParam = useMemo(() => Array.from(componentIds).join(","), [componentIds]);
   const eligibleProducts = useMemo(
     () =>
-      (Array.isArray(productos) ? productos : []).filter(
-        (producto) => producto?.categoria !== "Obras" && !isComboProduct(producto)
-      ),
+      (Array.isArray(productos) ? productos : [])
+        .filter((producto) => producto?.categoria !== "Obras" && !isComboProduct(producto))
+        .map((producto) => ({
+          ...producto,
+          _comboSearchText: [producto.nombre, producto.codigo, producto.descripcion, producto.unidadMedida, producto.unidad, producto.subcategoria, producto.subCategoria]
+            .map(normalizeText)
+            .join(" "),
+        }))
+        .sort((a, b) => {
+          const stockDifference = (Number(b.stock) || 0) - (Number(a.stock) || 0);
+          return stockDifference || String(a.nombre || "").localeCompare(String(b.nombre || ""), "es", { sensitivity: "base" });
+        }),
     [productos]
   );
 
   useEffect(() => {
-    if (!search.trim() && !category && stockFilter === "todos") {
-      setRemoteProducts(null);
-      setRemoteHasMore(false);
-      setRemotePage(0);
-      setRemoteError("");
-      return undefined;
-    }
-    let active = true;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setRemoteLoading(true);
-      setRemoteError("");
-      try {
-        const token = user && typeof user.getIdToken === "function" ? await user.getIdToken() : "";
-        const params = new URLSearchParams({ limit: "12", page: String(remotePage), stock: stockFilter });
-        if (search.trim()) params.set("q", search.trim());
-        if (category) params.set("categoria", category);
-        if (selectedIdsParam) params.set("selected", selectedIdsParam);
-        const response = await fetch(`/api/erp/combos/componentes?${params.toString()}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error("No se pudo consultar el catálogo");
-        const data = await response.json();
-        if (!active) return;
-        const selectedIds = new Set(selectedIdsParam.split(",").filter(Boolean));
-        setRemoteProducts(Array.isArray(data.items) ? data.items : []);
-        setResolvedProducts((previous) => ({
-          ...Object.fromEntries(Object.entries(previous).filter(([id]) => selectedIds.has(id))),
-          ...Object.fromEntries((Array.isArray(data.items) ? data.items : []).map((item) => [String(item.id), item])),
-          ...Object.fromEntries((Array.isArray(data.selectedItems) ? data.selectedItems : []).map((item) => [String(item.id), item])),
-        }));
-        setRemoteHasMore(Boolean(data.hasMore));
-      } catch (error) {
-        if (error?.name !== "AbortError" && active) {
-          setRemoteProducts(null);
-          setRemoteHasMore(false);
-          setRemoteError(error?.message || "No se pudo consultar el catálogo.");
-        }
-      } finally {
-        if (active) setRemoteLoading(false);
-      }
-    }, 220);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search, category, stockFilter, remotePage, selectedIdsParam, user]);
+    const timer = setTimeout(() => setDebouncedSearch(search), 100);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
-    setRemotePage(0);
-  }, [search, category, stockFilter]);
+    setResultLimit(20);
+  }, [deferredSearch, category, stockFilter]);
 
   const categories = useMemo(
     () => Array.from(new Set([
@@ -158,11 +140,10 @@ export default function ComboComponentBuilder({
     [eligibleProducts]
   );
   const filteredProducts = useMemo(() => {
-    const term = normalizeText(search);
-    const fromServer = Boolean(remoteProducts);
-    const source = remoteProducts || eligibleProducts;
-    return source
-      .filter((producto) => !componentIds.has(String(producto.id)))
+    const term = normalizeText(deferredSearch);
+    const dimensions = parseDimensionQuery(deferredSearch);
+    const dimensionVariants = dimensionSearchVariants(dimensions);
+    const stockFiltered = eligibleProducts
       .filter((producto) => !category || producto.categoria === category)
       .filter((producto) => {
         const stock = Number(producto.stock) || 0;
@@ -171,12 +152,20 @@ export default function ComboComponentBuilder({
         return true;
       })
       .filter((producto) => {
-        if (fromServer || !term) return true;
-        return [producto.nombre, producto.codigo, producto.descripcion, producto.subcategoria, producto.subCategoria]
-          .some((field) => normalizeText(field).includes(term));
-      })
-      .slice(0, remoteProducts ? undefined : 10);
-  }, [eligibleProducts, remoteProducts, componentIds, category, stockFilter, search]);
+        if (dimensions) {
+          return producto.categoria === "Maderas" && dimensionVariants.some((variant) =>
+            Object.entries(variant).every(([field, value]) => Math.abs(Number(producto[field]) - value) < 0.01)
+          );
+        }
+        if (!term) return true;
+        return producto._comboSearchText.includes(term);
+      });
+    return stockFiltered;
+  }, [eligibleProducts, category, stockFilter, deferredSearch]);
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, resultLimit),
+    [filteredProducts, resultLimit]
+  );
 
   const stockAnalysis = useMemo(
     () => getComboStockAnalysis({ componentesCombo: componentes }, productById),
@@ -188,7 +177,8 @@ export default function ComboComponentBuilder({
     : null;
   const hasInvalidDraft = componentes.some((component) => {
     const draft = quantityDrafts[component.productoId];
-    return draft !== undefined && (!/^\d+$/.test(draft) || Number(draft) < 1);
+    const product = productById.get(component.productoId);
+    return draft !== undefined && !isValidQuantity(draft, getProductUnit(product || component));
   });
   const hasInvalidComponent = componentes.some((component) => {
     const producto = productById.get(component.productoId);
@@ -214,27 +204,38 @@ export default function ComboComponentBuilder({
         productoId: String(producto.id),
         nombre: producto.nombre || "",
         codigo: producto.codigo || "",
+        categoria: producto.categoria || "",
+        unidadMedida: getProductUnit(producto),
         cantidad: 1,
       },
     ]);
-    setSearch("");
   };
 
   const updateQuantity = (productoId, rawValue) => {
     setQuantityDrafts((previous) => ({ ...previous, [productoId]: rawValue }));
-    if (!/^\d+$/.test(rawValue) || Number(rawValue) < 1) return;
+    const component = componentes.find((item) => item.productoId === productoId);
+    const product = productById.get(productoId);
+    const unit = getProductUnit(product || component);
+    if (!isValidQuantity(rawValue, unit)) return;
+    const quantity = normalizeComboQuantity(parseQuantity(rawValue));
     emit(componentes.map((component) =>
-      component.productoId === productoId ? { ...component, cantidad: Number(rawValue) } : component
+      component.productoId === productoId ? { ...component, cantidad: quantity, unidadMedida: unit } : component
     ));
   };
 
   const commitQuantity = (productoId) => {
     const draft = quantityDrafts[productoId];
     if (draft === undefined) return;
-    if (!/^\d+$/.test(draft) || Number(draft) < 1) {
-      const current = componentes.find((component) => component.productoId === productoId);
-      setQuantityDrafts((previous) => ({ ...previous, [productoId]: String(current?.cantidad || 1) }));
+    const component = componentes.find((item) => item.productoId === productoId);
+    const product = productById.get(productoId);
+    const unit = getProductUnit(product || component);
+    if (!isValidQuantity(draft, unit)) {
+      setQuantityDrafts((previous) => ({ ...previous, [productoId]: String(component?.cantidad || 1) }));
       return;
+    }
+    const parsed = normalizeComboQuantity(parseQuantity(draft));
+    if (parsed !== component?.cantidad) {
+      emit(componentes.map((item) => item.productoId === productoId ? { ...item, cantidad: parsed, unidadMedida: unit } : item));
     }
     setQuantityDrafts((previous) => {
       const next = { ...previous };
@@ -251,6 +252,12 @@ export default function ComboComponentBuilder({
       delete next[productoId];
       return next;
     });
+  };
+
+  const adjustQuantity = (productoId, current, direction, unit) => {
+    const step = quantityIncrement(unit);
+    const next = Math.max(minimumQuantity(unit), Number(current) + direction * step);
+    updateQuantity(productoId, String(normalizeComboQuantity(next)));
   };
 
   const stockTone = stockAnalysis.stock > 0
@@ -325,13 +332,7 @@ export default function ComboComponentBuilder({
                 </button>
               )}
             </label>
-            {isDimensionSearch && normalizedDimensions && (
-              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-sky-200/70 bg-sky-50/80 px-2.5 py-1 text-[11px] font-medium text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-300">
-                <Ruler className="h-3 w-3" />
-                Medidas {normalizedDimensions}
-              </div>
-            )}
-            {!isDimensionSearch && remoteLoading && (
+            {search !== debouncedSearch && (
               <div className="mt-2.5 text-[11px] text-muted-foreground">Buscando en el catálogo…</div>
             )}
           </div>
@@ -377,9 +378,8 @@ export default function ComboComponentBuilder({
 
             <div className="flex items-center justify-between border-t border-border/50 pt-2.5">
               <span className="text-[11px] font-medium text-muted-foreground">
-                {remoteLoading ? "Actualizando resultados" : search || category || stockFilter !== "todos" ? `${filteredProducts.length}${remoteHasMore ? "+" : ""} resultados` : "Catálogo"}
+                {search || category || stockFilter !== "todos" ? `${filteredProducts.length} resultados` : `${filteredProducts.length} productos`}
               </span>
-              {remoteError && <span className="text-[11px] text-destructive">{remoteError}</span>}
             </div>
 
             <div className="max-h-[340px] min-h-[130px] divide-y divide-border/50 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-card/50" aria-label="Resultados de productos">
@@ -389,26 +389,28 @@ export default function ComboComponentBuilder({
                   <p className="text-xs font-medium text-foreground">¿Qué producto necesitás?</p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">Probá con una medida, un nombre o un código.</p>
                 </div>
-              ) : remoteLoading && filteredProducts.length === 0 ? (
-                <div className="flex min-h-[130px] items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
-                  Buscando productos…
-                </div>
-              ) : filteredProducts.length === 0 ? (
+              ) : visibleProducts.length === 0 ? (
                 <div className="flex min-h-[130px] flex-col items-center justify-center px-4 text-center">
                   <Package className="mb-2 h-5 w-5 text-muted-foreground/70" />
                   <p className="text-xs font-medium text-foreground">No encontramos coincidencias</p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">Probá con otra medida o cambiá los filtros.</p>
                 </div>
-              ) : filteredProducts.map((producto) => {
+              ) : visibleProducts.map((producto) => {
                 const price = getCalculatedPrice(producto);
+                const selectedComponent = componentById.get(String(producto.id));
+                const unit = getProductUnit(producto);
+                const measuredAmount = getMeasuredAmountPerItem(producto);
                 return (
-                  <div key={producto.id} className="group flex items-center gap-3 px-3 py-3 transition-colors hover:bg-background sm:px-3.5 motion-safe:duration-150">
+                  <div key={producto.id} className="group flex flex-wrap items-center gap-3 px-3 py-3 transition-colors hover:bg-background sm:px-3.5 motion-safe:duration-150">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${producto.categoria === "Maderas" ? "bg-orange-500/10 text-orange-700 dark:text-orange-300" : "bg-primary/10 text-primary"}`}>
                       {producto.categoria === "Maderas" ? <Ruler className="h-4 w-4" /> : <Package className="h-4 w-4" />}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-[45%]">
                       <div className="truncate text-xs font-semibold text-foreground">{producto.nombre || "Producto sin nombre"}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{unit}</span>
+                        {measuredAmount && <span>{formatQuantity(measuredAmount.amount)} {measuredAmount.unit} por unidad comercial</span>}
+                      </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-[9px] text-muted-foreground">Precio calculado</div>
@@ -416,28 +418,71 @@ export default function ComboComponentBuilder({
                         {price > 0 ? formatMoney(price) : "Sin precio"}
                       </div>
                     </div>
-                    <Button
+                    {selectedComponent ? (
+                      <div className="flex shrink-0 items-center gap-1 rounded-xl border border-primary/20 bg-primary/[0.04] p-1" aria-label={`Cantidad de ${producto.nombre} por combo`}>
+                        <button
+                          type="button"
+                          onClick={() => adjustQuantity(String(producto.id), selectedComponent.cantidad, -1, unit)}
+                          disabled={disabled || selectedComponent.cantidad <= minimumQuantity(unit)}
+                          aria-label={`Reducir cantidad de ${producto.nombre}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-background disabled:opacity-40"
+                        ><Minus className="h-3 w-3" /></button>
+                        <input
+                          type="number"
+                          min={minimumQuantity(unit)}
+                          step={quantityStep(unit)}
+                          inputMode={isDiscreteComboUnit(unit) ? "numeric" : "decimal"}
+                          value={quantityDrafts[String(producto.id)] ?? selectedComponent.cantidad}
+                          onChange={(event) => updateQuantity(String(producto.id), event.target.value)}
+                          onBlur={() => commitQuantity(String(producto.id))}
+                          disabled={disabled}
+                          aria-label={`Cantidad de ${producto.nombre} en ${unit} por combo`}
+                          className="h-7 w-14 border-0 bg-transparent p-0 text-center text-xs font-semibold tabular-nums outline-none focus:ring-0"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adjustQuantity(String(producto.id), selectedComponent.cantidad, 1, unit)}
+                          disabled={disabled}
+                          aria-label={`Aumentar cantidad de ${producto.nombre}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-background disabled:opacity-40"
+                        ><Plus className="h-3 w-3" /></button>
+                        <button
+                          type="button"
+                          onClick={() => removeComponent(String(producto.id))}
+                          disabled={disabled}
+                          aria-label={`Quitar ${producto.nombre} del combo`}
+                          className="ml-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                        ><X className="h-3 w-3" /></button>
+                      </div>
+                    ) : <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() => addComponent(producto)}
-                      disabled={disabled || remoteLoading}
+                      disabled={disabled}
                       aria-label={`Agregar ${producto.nombre || "producto"}`}
                       className="h-8 w-8 shrink-0 rounded-lg border-border/70 text-muted-foreground shadow-none transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary group-hover:scale-[1.03] motion-safe:duration-150"
                     >
                       <Plus className="h-4 w-4" />
-                    </Button>
+                    </Button>}
+                    {selectedComponent && (
+                      <div className="basis-full pl-12 text-[10px] text-muted-foreground">
+                        {measuredAmount
+                          ? `Incluye ${formatQuantity(measuredAmount.amount * selectedComponent.cantidad)} ${measuredAmount.unit} en el combo`
+                          : `Incluye ${formatQuantity(selectedComponent.cantidad)} ${unit} en el combo`}
+                      </div>
+                    )}
                   </div>
                 );
               })}
-              {remoteHasMore && (
+              {filteredProducts.length > visibleProducts.length && (
                 <button
                   type="button"
-                  onClick={() => setRemotePage((page) => page + 1)}
-                  disabled={remoteLoading}
+                  onClick={() => setResultLimit((limit) => limit + 20)}
+                  disabled={disabled}
                   className="w-full px-3 py-2.5 text-center text-[11px] font-medium text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
                 >
-                  {remoteLoading ? "Cargando…" : "Ver más resultados"}
+                  Ver más resultados
                 </button>
               )}
             </div>
@@ -458,17 +503,6 @@ export default function ComboComponentBuilder({
             </span>
           </div>
 
-          {stockAnalysis.limitantes.length > 0 && componentes.length > 0 && (
-            <div className={`flex items-start gap-2.5 border-b px-4 py-3 sm:px-5 ${stockAnalysis.stock > 0 ? "border-sky-200/60 bg-sky-50/60 text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200" : "border-amber-200/60 bg-amber-50/60 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"}`}>
-              {stockAnalysis.stock > 0 ? <SlidersHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
-              <p className="text-[11px] leading-relaxed">
-                {stockAnalysis.stock > 0
-                  ? <>La disponibilidad la marca <strong>{stockAnalysis.limitantes.map((item) => item.nombre || productById.get(item.productoId)?.nombre || item.productoId).join(", ")}</strong>.</>
-                  : <>El stock actual es cero. Podés guardar el combo igual; su disponibilidad se actualizará cuando haya existencias.</>}
-              </p>
-            </div>
-          )}
-
           {componentes.length === 0 ? (
             <div className="flex min-h-[245px] flex-col items-center justify-center px-6 py-8 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/70 text-muted-foreground"><Package className="h-5 w-5" /></div>
@@ -485,12 +519,16 @@ export default function ComboComponentBuilder({
                 const stockReservado = Math.max(0, Number(producto?.stockReservado) || 0);
                 const unitCost = getCost(producto);
                 const calculatedPrice = producto ? getCalculatedPrice(producto) : 0;
+                const unit = producto ? getProductUnit(producto) : component.unidadMedida || "Unidad";
+                const measuredAmount = producto ? getMeasuredAmountPerItem(producto) : null;
                 const dimensions = formatDimensions(producto);
                 const displayName = producto?.nombre || component.nombre || "Componente no encontrado";
                 const nameDigits = normalizeText(displayName).replace(/\D/g, "");
                 const dimensionsDigits = String(dimensions || "").replace(/\D/g, "");
                 const nameHasDimensions = Boolean(dimensionsDigits && nameDigits.includes(dimensionsDigits));
                 const draft = quantityDrafts[component.productoId] ?? String(component.cantidad);
+                const unitStep = quantityStep(unit);
+                const unitMinimum = minimumQuantity(unit);
                 return (
                   <div key={component.productoId} className={`px-3.5 py-3.5 transition-colors sm:px-4 ${invalidProduct ? "bg-destructive/[0.035]" : "hover:bg-muted/20"} motion-safe:duration-150`}>
                     <div className="flex items-start gap-3">
@@ -503,7 +541,7 @@ export default function ComboComponentBuilder({
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-muted-foreground">
                           {invalidProduct ? <span className="text-destructive">Ya no se puede usar en combos</span> : <>
                             {producto?.categoria && <span>{producto.categoria}</span>}
-                            {producto?.unidadMedida && <span>{producto.unidadMedida}</span>}
+                            <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{unit}</span>
                             {dimensions && !nameHasDimensions && <span className="inline-flex items-center gap-0.5"><Ruler className="h-2.5 w-2.5" />{dimensions}</span>}
                           </>}
                         </div>
@@ -511,16 +549,16 @@ export default function ComboComponentBuilder({
                       <div className="flex shrink-0 items-center rounded-xl border border-border/70 bg-background p-0.5 shadow-sm">
                         <button
                           type="button"
-                          onClick={() => updateQuantity(component.productoId, String(Math.max(1, component.cantidad - 1)))}
-                          disabled={disabled || component.cantidad <= 1}
+                          onClick={() => adjustQuantity(component.productoId, component.cantidad, -1, unit)}
+                          disabled={disabled || component.cantidad <= unitMinimum}
                           aria-label={`Disminuir cantidad de ${producto?.nombre || component.nombre}`}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-35"
                         ><Minus className="h-3 w-3" /></button>
                         <input
                           type="number"
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
+                          min={unitMinimum}
+                          step={unitStep}
+                          inputMode={isDiscreteComboUnit(unit) ? "numeric" : "decimal"}
                           value={draft}
                           onChange={(event) => updateQuantity(component.productoId, event.target.value)}
                           onBlur={() => commitQuantity(component.productoId)}
@@ -530,7 +568,7 @@ export default function ComboComponentBuilder({
                         />
                         <button
                           type="button"
-                          onClick={() => updateQuantity(component.productoId, String(component.cantidad + 1))}
+                          onClick={() => adjustQuantity(component.productoId, component.cantidad, 1, unit)}
                           disabled={disabled}
                           aria-label={`Aumentar cantidad de ${producto?.nombre || component.nombre}`}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-35"
@@ -553,7 +591,12 @@ export default function ComboComponentBuilder({
                           {stock} disponibles
                         </span>
                         {stockReservado > 0 && <span className="text-[10px] text-muted-foreground">{stockReservado} reservados de {stockTotal}</span>}
-                        <span className="text-[10px] text-muted-foreground">· {component.cantidad} por combo</span>
+                          <span className="text-[10px] text-muted-foreground">· {formatQuantity(component.cantidad)} {unit} por combo</span>
+                          {measuredAmount && (
+                            <span className="text-[10px] text-muted-foreground">
+                              ({formatQuantity(measuredAmount.amount * component.cantidad)} {measuredAmount.unit})
+                            </span>
+                          )}
                       </div>
                       {showCosts && (
                         <span className="text-[10px] tabular-nums text-muted-foreground">
@@ -564,8 +607,10 @@ export default function ComboComponentBuilder({
                         {calculatedPrice > 0 ? `${formatMoney(calculatedPrice)} c/u · ${formatMoney(calculatedPrice * component.cantidad)} / combo` : "Precio no disponible"}
                       </span>
                     </div>
-                    {hasInvalidDraft && quantityDrafts[component.productoId] !== undefined && (!/^\d+$/.test(quantityDrafts[component.productoId]) || Number(quantityDrafts[component.productoId]) < 1) && (
-                      <div className="ml-10 mt-1 text-[10px] text-destructive">Usá una cantidad entera mayor que cero.</div>
+                    {hasInvalidDraft && quantityDrafts[component.productoId] !== undefined && !isValidQuantity(quantityDrafts[component.productoId], unit) && (
+                      <div className="ml-10 mt-1 text-[10px] text-destructive">
+                        {isDiscreteComboUnit(unit) ? "Usá una cantidad entera mayor que cero." : `Ingresá una cantidad válida en ${unit}.`}
+                      </div>
                     )}
                   </div>
                 );
@@ -581,12 +626,6 @@ export default function ComboComponentBuilder({
           {hasInvalidComponent && (
             <div className="border-t border-destructive/15 bg-destructive/[0.04] px-4 py-2.5 text-[11px] text-destructive">
               Quitá los productos eliminados, de Obras o que ahora sean combos.
-            </div>
-          )}
-          {componentes.length > 0 && !hasInvalidDraft && !hasInvalidComponent && (
-            <div className="flex items-center gap-1.5 border-t border-border/50 px-4 py-2.5 text-[10px] text-muted-foreground">
-              <Check className="h-3 w-3 text-emerald-600" />
-              El stock informa cuántas unidades se pueden armar, pero no impide guardar el combo.
             </div>
           )}
         </div>

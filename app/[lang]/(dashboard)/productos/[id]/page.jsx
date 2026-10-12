@@ -44,6 +44,7 @@ import {
   applyDerivedComboStock,
   computeComboStock,
   getComboComponentIds,
+  isValidComboQuantity,
   isComboProduct,
   normalizeComboComponents,
 } from "@/lib/combos";
@@ -708,12 +709,15 @@ const ProductoDetailPage = () => {
       if (editForm.categoria === "Combos") {
         const componentesNormalizados = normalizeComboComponents(comboItems);
         if (componentesNormalizados.length === 0 || componentesNormalizados.length !== comboItems.length) {
-          throw new Error("Cada componente debe tener una cantidad entera mayor que cero.");
+          throw new Error("Cada componente debe tener una cantidad válida para su unidad de medida.");
         }
         const componentesCombo = componentesNormalizados.map((componente) => {
           const base = productoById.get(String(componente.productoId));
           if (!base || base.categoria === "Obras" || isComboProduct(base)) {
             throw new Error(`El componente ${componente.nombre || componente.productoId} ya no es un producto simple disponible. Quitalo y agregá otro.`);
+          }
+          if (!isValidComboQuantity(componente.cantidad, base.unidadMedida || base.unidad)) {
+            throw new Error(`${base.nombre || componente.nombre} requiere una cantidad válida para su unidad (${base.unidadMedida || base.unidad || "Unidad"}).`);
           }
           return {
             ...componente,

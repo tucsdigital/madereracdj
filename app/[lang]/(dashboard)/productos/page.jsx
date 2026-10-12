@@ -71,6 +71,7 @@ import { useAuth } from "@/provider/auth.provider";
 import {
   applyDerivedComboStock,
   getComboComponentIds,
+  isValidComboQuantity,
   isComboProduct,
   normalizeComboComponents,
 } from "@/lib/combos";
@@ -233,7 +234,15 @@ const combosSchema = yup.object().shape({
     .of(
       yup.object().shape({
         productoId: yup.string().required(),
-        cantidad: yup.number().integer("La cantidad debe ser entera").min(1).required(),
+        unidadMedida: yup.string().notRequired(),
+        cantidad: yup
+          .number()
+          .typeError("Ingresá una cantidad válida.")
+          .moreThan(0, "La cantidad debe ser mayor que cero.")
+          .required()
+          .test("cantidad-segun-unidad", "La cantidad no es válida para la unidad de este producto.", function (cantidad) {
+            return isValidComboQuantity(cantidad, this.parent?.unidadMedida);
+          }),
       })
     )
     .min(1, "Debes agregar al menos un componente al combo"),
@@ -329,17 +338,17 @@ function FormularioProducto({ onClose, onSuccess, user }) {
 
   const cargarDatosPrecargados = async () => {
     try {
-      if (categoria === "Combos") {
-        setCatalogoProductos([]);
-        setSubCategoriasUnicas(["General"]);
-        setUnidadesMedidaUnicas(["Unidad"]);
-        return;
-      }
       const productosSnap = await getDocs(collection(db, "productos"));
       const productos = applyDerivedComboStock(
         productosSnap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }))
       );
       setCatalogoProductos(productos);
+
+      if (categoria === "Combos") {
+        setSubCategoriasUnicas(["General"]);
+        setUnidadesMedidaUnicas(["Unidad"]);
+        return;
+      }
       
       const productosCategoria = productos.filter(p => p.categoria === categoria);
       
@@ -462,7 +471,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
           return { ...componente };
         });
         if (componentesCombo.length === 0 || componentesCombo.length !== comboItems.length) {
-          throw new Error("Revisá las cantidades: todos los componentes deben tener una cantidad entera mayor a cero.");
+          throw new Error("Revisá las cantidades según la unidad de cada componente.");
         }
         payload.valorVenta = toNumber(payload.valorVenta);
         payload.precioVenta = payload.valorVenta;
