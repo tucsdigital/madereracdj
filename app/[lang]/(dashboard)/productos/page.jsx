@@ -223,7 +223,11 @@ const combosSchema = yup.object().shape({
   codigo: yup.string().notRequired(),
   costo: yup.number().nullable().notRequired(),
   valorVenta: yup.number().positive().required("El valor de venta es obligatorio"),
-  stockMinimo: yup.number().min(0).required("El stock mínimo es obligatorio"),
+  stockMinimo: yup
+    .number()
+    .transform((value, originalValue) => originalValue === "" || originalValue == null ? 0 : value)
+    .min(0)
+    .default(0),
   componentesCombo: yup
     .array()
     .of(
@@ -280,6 +284,8 @@ function FormularioProducto({ onClose, onSuccess, user }) {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [comboItems, setComboItems] = useState([]);
   const [comboBuilderValid, setComboBuilderValid] = useState(true);
+  const [comboSuggestedPrice, setComboSuggestedPrice] = useState(null);
+  const [comboPriceManual, setComboPriceManual] = useState(false);
   
   const schema = esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
   const {
@@ -291,7 +297,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
     watch,
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { estado: "Activo", estadoTienda: "Activo" },
+    defaultValues: { estado: "Activo", estadoTienda: "Activo", stockMinimo: 0 },
   });
   const comboSalePrice = watch("valorVenta");
   useEffect(() => {
@@ -306,11 +312,20 @@ function FormularioProducto({ onClose, onSuccess, user }) {
       setValue("unidadMedida", "pie");
     } else if (categoria === "Combos") {
       setValue("unidadMedida", "Unidad");
+      setValue("subcategoria", "General", { shouldValidate: true });
+      setValue("stockMinimo", 0, { shouldValidate: true });
       setValue("componentesCombo", comboItems);
     } else {
       setValue("unidadMedida", "");
     }
   }, [categoria, comboItems, setValue]);
+
+  const handleComboSuggestedPrice = useCallback((price) => {
+    setComboSuggestedPrice(price);
+    if (!comboPriceManual && Number.isFinite(price) && price > 0) {
+      setValue("valorVenta", price, { shouldValidate: true, shouldDirty: false });
+    }
+  }, [comboPriceManual, setValue]);
 
   const cargarDatosPrecargados = async () => {
     try {
@@ -452,6 +467,11 @@ function FormularioProducto({ onClose, onSuccess, user }) {
         payload.valorVenta = toNumber(payload.valorVenta);
         payload.precioVenta = payload.valorVenta;
         payload.stockMinimo = toNumber(payload.stockMinimo) ?? 0;
+        if (payload.valorVenta == null || payload.valorVenta <= 0) {
+          if (Number.isFinite(comboSuggestedPrice) && comboSuggestedPrice > 0) {
+            payload.valorVenta = comboSuggestedPrice;
+          }
+        }
         payload.unidadMedida = "Unidad";
         payload.unidad = "Unidad";
         payload.tipoProducto = "combo";
@@ -568,6 +588,8 @@ function FormularioProducto({ onClose, onSuccess, user }) {
       reset();
       setCategoria("");
       setComboItems([]);
+      setComboPriceManual(false);
+      setComboSuggestedPrice(null);
       setTimeout(() => {
         onSuccess && onSuccess();
         onClose();
@@ -649,6 +671,11 @@ function FormularioProducto({ onClose, onSuccess, user }) {
             onValueChange={(value) => {
               setCategoria(value);
               setValue("categoria", value, { shouldValidate: true, shouldDirty: true });
+              if (value === "Combos") {
+                setComboPriceManual(false);
+                setComboSuggestedPrice(null);
+                setValue("stockMinimo", 0, { shouldValidate: true });
+              }
             }}
             disabled={isSubmitting}
           >
@@ -1325,13 +1352,42 @@ function FormularioProducto({ onClose, onSuccess, user }) {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Precio de venta *</label>
-                  <Input {...register("valorVenta")} type="number" min="0.01" step="0.01" placeholder="0" disabled={isSubmitting} />
+                  <Input
+                    {...register("valorVenta", {
+                      onChange: () => setComboPriceManual(true),
+                    })}
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Se calcula según los componentes"
+                    disabled={isSubmitting}
+                  />
                   {errors.valorVenta && <span className="text-xs text-destructive">{errors.valorVenta.message}</span>}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      {Number.isFinite(comboSuggestedPrice) && comboSuggestedPrice > 0
+                        ? `Sugerido por composición: $${comboSuggestedPrice.toLocaleString("es-AR")}`
+                        : "Agregá componentes con precio para calcular una sugerencia."}
+                    </span>
+                    {comboPriceManual && Number.isFinite(comboSuggestedPrice) && comboSuggestedPrice > 0 && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => {
+                          setComboPriceManual(false);
+                          setValue("valorVenta", comboSuggestedPrice, { shouldValidate: true, shouldDirty: true });
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Usar precio sugerido
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Stock mínimo *</label>
+                  <label className="text-sm font-medium">Stock mínimo (opcional)</label>
                   <Input {...register("stockMinimo")} type="number" min="0" step="1" placeholder="0" disabled={isSubmitting} />
-                  {errors.stockMinimo && <span className="text-xs text-destructive">{errors.stockMinimo.message}</span>}
                 </div>
               </div>
               <ComboComponentBuilder
@@ -1339,6 +1395,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 value={comboItems}
                 disabled={isSubmitting}
                 salePrice={comboSalePrice}
+                onSuggestedPrice={handleComboSuggestedPrice}
                 onValidityChange={setComboBuilderValid}
                 onChange={(items) => {
                   setComboItems(items);

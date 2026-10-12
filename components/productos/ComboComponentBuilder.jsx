@@ -45,6 +45,7 @@ export default function ComboComponentBuilder({
   disabled = false,
   showCosts = true,
   salePrice = 0,
+  onSuggestedPrice,
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -71,6 +72,18 @@ export default function ComboComponentBuilder({
     () => new Set(componentes.map((component) => component.productoId)),
     [componentes]
   );
+  const suggestedPrice = useMemo(() => {
+    if (componentes.length === 0) return null;
+    let total = 0;
+    for (const component of componentes) {
+      const producto = productById.get(component.productoId);
+      if (!producto || producto.categoria === "Obras" || isComboProduct(producto)) return null;
+      const unitPrice = getCalculatedPrice(producto);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) return null;
+      total += unitPrice * component.cantidad;
+    }
+    return Math.round(total * 100) / 100;
+  }, [componentes, productById]);
   const selectedIdsParam = useMemo(() => Array.from(componentIds).join(","), [componentIds]);
   const eligibleProducts = useMemo(
     () =>
@@ -185,6 +198,10 @@ export default function ComboComponentBuilder({
   React.useEffect(() => {
     onValidityChange?.(!hasInvalidDraft && !hasInvalidComponent);
   }, [hasInvalidDraft, hasInvalidComponent, onValidityChange]);
+
+  React.useEffect(() => {
+    onSuggestedPrice?.(suggestedPrice);
+  }, [onSuggestedPrice, suggestedPrice]);
 
   const emit = (next) => onChange?.(normalizeComboComponents(next));
 
@@ -447,7 +464,7 @@ export default function ComboComponentBuilder({
               <p className="text-[11px] leading-relaxed">
                 {stockAnalysis.stock > 0
                   ? <>La disponibilidad la marca <strong>{stockAnalysis.limitantes.map((item) => item.nombre || productById.get(item.productoId)?.nombre || item.productoId).join(", ")}</strong>.</>
-                  : <>Con el stock actual todavía no se puede armar este combo.</>}
+                  : <>El stock actual es cero. Podés guardar el combo igual; su disponibilidad se actualizará cuando haya existencias.</>}
               </p>
             </div>
           )}
@@ -569,7 +586,7 @@ export default function ComboComponentBuilder({
           {componentes.length > 0 && !hasInvalidDraft && !hasInvalidComponent && (
             <div className="flex items-center gap-1.5 border-t border-border/50 px-4 py-2.5 text-[10px] text-muted-foreground">
               <Check className="h-3 w-3 text-emerald-600" />
-              La disponibilidad se calcula con el stock disponible de cada producto.
+              El stock informa cuántas unidades se pueden armar, pero no impide guardar el combo.
             </div>
           )}
         </div>
