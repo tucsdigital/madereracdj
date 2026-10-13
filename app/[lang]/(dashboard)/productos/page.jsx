@@ -222,7 +222,13 @@ const ferreteriaSchema = yup.object().shape({
 const combosSchema = yup.object().shape({
   ...baseSchema,
   codigo: yup.string().notRequired(),
-  costo: yup.number().nullable().notRequired(),
+  costo: yup
+    .number()
+    .transform((value, originalValue) =>
+      originalValue === "" || originalValue == null || Number.isNaN(value) ? null : value
+    )
+    .nullable()
+    .notRequired(),
   valorVenta: yup.number().positive().required("El valor de venta es obligatorio"),
   stockMinimo: yup
     .number()

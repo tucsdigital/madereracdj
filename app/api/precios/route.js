@@ -90,8 +90,31 @@ async function enrichProductsStock(products, baseMap = new Map()) {
           0,
           stockTotal - (Number(reservedByProductId.get(String(enriched.id))) || 0)
         );
+    const componentesCombo = isComboProduct(enriched)
+      ? normalizeComboComponents(enriched.componentesCombo).map((component) => {
+          const source = productoById.get(String(component.productoId)) || {};
+          const rawImage = Array.isArray(source.imagenes) ? source.imagenes[0] : source.imagenes;
+          const componentImage = typeof rawImage === "object" && rawImage
+            ? rawImage.url || rawImage.src || rawImage.imageUrl || rawImage.imagen || ""
+            : rawImage;
+          return {
+            ...component,
+            nombre: String(source.nombre || component.nombre || "Producto"),
+            codigo: String(source.codigo || component.codigo || ""),
+            categoria: String(source.categoria || component.categoria || ""),
+            unidadMedida: String(source.unidadMedida || source.unidad || component.unidadMedida || "Unidad"),
+            descripcion: String(source.descripcion || ""),
+            imagen: String(source.imagen || componentImage || source.srcUrl || ""),
+            alto: Number(source.alto) || null,
+            ancho: Number(source.ancho) || null,
+            largo: Number(source.largo) || null,
+            espesor: Number(source.espesor) || null,
+          };
+        })
+      : [];
     return {
       ...enriched,
+      ...(isComboProduct(enriched) ? { componentesCombo } : {}),
       stockTotal,
       stockReservado: Math.max(0, stockTotal - stockDisponible),
       stockDisponible,

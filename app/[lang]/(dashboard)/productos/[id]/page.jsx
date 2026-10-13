@@ -119,6 +119,7 @@ const ProductoDetailPage = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [comboItems, setComboItems] = useState([]);
   const [comboBuilderValid, setComboBuilderValid] = useState(true);
+  const [editSuggestedPrice, setEditSuggestedPrice] = useState(null);
 
   const [editForm, setEditForm] = useState({
     codigo: "",
@@ -1575,12 +1576,29 @@ const ProductoDetailPage = () => {
                   value={comboItems}
                   disabled={saving}
                   salePrice={editForm.precioVenta}
+                  onSuggestedPrice={setEditSuggestedPrice}
                   onValidityChange={setComboBuilderValid}
                   onChange={(items) => {
                     setComboItems(items);
                     setEditForm((previous) => ({ ...previous, componentesCombo: items }));
                   }}
                 />
+                {Number.isFinite(editSuggestedPrice) && editSuggestedPrice > 0 && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                    <span>Precio sugerido por composición: <strong className="text-foreground">${editSuggestedPrice.toLocaleString("es-AR")}</strong></span>
+                    {!blockPriceEdits && Number(editForm.precioVenta) !== editSuggestedPrice && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => setEditForm((previous) => ({ ...previous, precioVenta: String(editSuggestedPrice) }))}
+                      >
+                        Usar precio sugerido
+                      </Button>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
