@@ -13,6 +13,14 @@ import { db, onAuthStateChangedFirebase } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+const getStockValue = (value) => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "string" && value.trim() === "") return 0;
+
+  const stock = Number(value);
+  return Number.isFinite(stock) ? stock : 0;
+};
+
 function StockComprasPage() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState("inventario");
@@ -331,12 +339,12 @@ function StockComprasPage() {
 
       // Filtro por estado de stock
       const cumpleEstado = !filtroEstado || (() => {
-        const stock = Number(p.stock) || 0;
+        const stock = getStockValue(p.stock);
         const min = Number(p.min) || 0;
         
         switch (filtroEstado) {
           case "sin_stock":
-            return stock === 0;
+            return stock <= 0;
           case "bajo_stock":
             return stock > 0 && stock <= min;
           case "ok_stock":
@@ -354,12 +362,12 @@ function StockComprasPage() {
         if (b.id === productoIdFromUrl) return 1;
       }
       
-      // Ordenar por stock: primero los que tienen stock, luego los que no
-      const stockA = Number(a.stock) || 0;
-      const stockB = Number(b.stock) || 0;
+      // Ordenar por stock: primero los que tienen stock positivo, luego los agotados
+      const stockA = getStockValue(a.stock);
+      const stockB = getStockValue(b.stock);
       
-      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
-      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
+      if (stockA > 0 && stockB <= 0) return -1; // a tiene stock, b no
+      if (stockA <= 0 && stockB > 0) return 1;  // b tiene stock, a no
       
       // Si ambos tienen stock o ambos no tienen stock, mantener orden original
       return 0;
@@ -534,9 +542,9 @@ function StockComprasPage() {
     // Validación especial para salidas
     if (movTipo === "salida") {
       const producto = productos.find(p => p.id === movProductoId);
-      if (producto && Number(producto.stock) < Number(qty || 0)) {
+      if (producto && getStockValue(producto.stock) < Number(qty || 0)) {
         setMovStatus("error"); 
-        setMovMsg(`Stock insuficiente. Stock actual: ${producto.stock}, intenta vender: ${movCantidad}`);
+        setMovMsg(`Stock insuficiente. Stock actual: ${getStockValue(producto.stock)}, intenta vender: ${movCantidad}`);
         return;
       }
     }
@@ -545,7 +553,7 @@ function StockComprasPage() {
     if (movTipo === "ajuste") {
       const producto = productos.find(p => p.id === movProductoId);
       if (!ajusteAbsoluto) {
-        const nuevoStock = calcularStockResultante(Number(producto.stock) || 0, movTipo, Number(qty || 0));
+        const nuevoStock = calcularStockResultante(getStockValue(producto.stock), movTipo, Number(qty || 0));
         if (nuevoStock < 0) {
           setMovStatus("error"); 
           setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
@@ -624,9 +632,10 @@ function StockComprasPage() {
     // Prellenar observaciones según el tipo de producto
     if (producto) {
       let observacionSugerida = "";
-      if (producto.stock === 0) {
+      const stock = getStockValue(producto.stock);
+      if (stock <= 0) {
         observacionSugerida = "Reposición de stock agotado";
-      } else if (producto.stock <= (producto.min || 0)) {
+      } else if (stock <= (Number(producto.min) || 0)) {
         observacionSugerida = "Reposición de stock bajo";
       } else {
         observacionSugerida = "Movimiento de stock";
@@ -705,7 +714,7 @@ function StockComprasPage() {
         const ids = Array.from(selectedProductoIds);
         for (const id of ids) {
           const prod = productosById.get(id);
-          const stockAct = Number(prod?.stock) || 0;
+          const stockAct = getStockValue(prod?.stock);
           const nuevoStock = calcularStockResultante(stockAct, "ajuste", Number(qty || 0));
           if (nuevoStock < 0) {
             setBulkStatus("error");
@@ -1025,7 +1034,9 @@ function StockComprasPage() {
                       <TableBody>
                         {productosPaginados.map((p) => {
                           const isSelected = selectedProductoIds.has(p.id);
-                          const isLow = Number(p.stock) <= (Number(p.min) || 0);
+                          const stock = getStockValue(p.stock);
+                          const stockMinimo = Number(p.min) || 0;
+                          const isLow = stock > 0 && stock <= stockMinimo;
                           return (
                             <TableRow
                               key={p.id}
@@ -1049,17 +1060,17 @@ function StockComprasPage() {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold">{p.nombre}</span>
-                                  {p.stock === 0 && (
+                                  {stock <= 0 && (
                                     <span className="bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20 px-2 py-0.5 rounded text-xs">
                                       Sin stock
                                     </span>
                                   )}
-                                  {p.stock > 0 && p.stock <= (p.min || 0) && (
+                                  {stock > 0 && stock <= stockMinimo && (
                                     <span className="bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 px-2 py-0.5 rounded text-xs">
                                       Bajo
                                     </span>
                                   )}
-                                  {p.stock > (p.min || 0) && (
+                                  {stock > stockMinimo && (
                                     <span className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 px-2 py-0.5 rounded text-xs">
                                       OK
                                     </span>
@@ -1070,7 +1081,7 @@ function StockComprasPage() {
                               <TableCell>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-help">{p.stock}</span>
+                                    <span className="cursor-help">{stock}</span>
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     Última actualización:{" "}
@@ -1088,9 +1099,9 @@ function StockComprasPage() {
                                   p.unidadVentaHerramienta}
                               </TableCell>
                               <TableCell>
-                                {p.stock === 0 ? (
+                                {stock <= 0 ? (
                                   <span className="text-red-700 dark:text-red-300 font-semibold">Sin stock</span>
-                                ) : p.stock <= (p.min || 0) ? (
+                                ) : stock <= stockMinimo ? (
                                   <span className="text-amber-700 dark:text-amber-300 font-semibold">Bajo</span>
                                 ) : (
                                   <span className="text-emerald-700 dark:text-emerald-300 font-semibold">OK</span>
@@ -1445,15 +1456,15 @@ function StockComprasPage() {
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-blue-800 dark:text-blue-200">Producto Seleccionado</h4>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      productos.find(p => p.id === movProductoId)?.stock === 0 
+                      getStockValue(productos.find(p => p.id === movProductoId)?.stock) <= 0
                         ? 'bg-red-500/15 text-red-800 dark:text-red-200' 
-                        : productos.find(p => p.id === movProductoId)?.stock <= (productos.find(p => p.id === movProductoId)?.min || 0)
+                        : getStockValue(productos.find(p => p.id === movProductoId)?.stock) <= (Number(productos.find(p => p.id === movProductoId)?.min) || 0)
                         ? 'bg-amber-500/10 text-amber-800 dark:text-amber-200'
                         : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                     }`}>
-                      {productos.find(p => p.id === movProductoId)?.stock === 0 
+                      {getStockValue(productos.find(p => p.id === movProductoId)?.stock) <= 0
                         ? 'Sin stock' 
-                        : productos.find(p => p.id === movProductoId)?.stock <= (productos.find(p => p.id === movProductoId)?.min || 0)
+                        : getStockValue(productos.find(p => p.id === movProductoId)?.stock) <= (Number(productos.find(p => p.id === movProductoId)?.min) || 0)
                         ? 'Stock bajo'
                         : 'Stock OK'
                       }
@@ -1462,7 +1473,7 @@ function StockComprasPage() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div><span className="font-medium">Nombre:</span> {productos.find(p => p.id === movProductoId)?.nombre}</div>
                     <div><span className="font-medium">Categoría:</span> {productos.find(p => p.id === movProductoId)?.categoria}</div>
-                    <div><span className="font-medium">Stock actual:</span> <span className="font-bold">{productos.find(p => p.id === movProductoId)?.stock || 0}</span></div>
+                    <div><span className="font-medium">Stock actual:</span> <span className="font-bold">{getStockValue(productos.find(p => p.id === movProductoId)?.stock)}</span></div>
                     <div><span className="font-medium">Stock mínimo:</span> {productos.find(p => p.id === movProductoId)?.min || 0}</div>
                   </div>
                 </div>
@@ -1488,14 +1499,14 @@ function StockComprasPage() {
                   Cantidad
                   {movTipo === "salida" && movProductoId && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (Máx: {productos.find(p => p.id === movProductoId)?.stock || 0})
+                      (Máx: {getStockValue(productos.find(p => p.id === movProductoId)?.stock)})
                     </span>
                   )}
                 </label>
                 <Input 
                   type="text"
                   inputMode="numeric"
-                  className={`w-full ${movTipo === "salida" && Number(movCantidad || 0) > (productos.find(p => p.id === movProductoId)?.stock || 0) ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`w-full ${movTipo === "salida" && Number(movCantidad || 0) > getStockValue(productos.find(p => p.id === movProductoId)?.stock) ? 'border-red-500 focus:border-red-500' : ''}`}
                   value={movCantidad}
                   onChange={e => {
                     const raw = e.target.value;
@@ -1506,7 +1517,7 @@ function StockComprasPage() {
                   disabled={movTipo === "ajuste" && ajusteAbsoluto}
                   placeholder={movTipo === "ajuste" ? "0" : "1"}
                 />
-                {movTipo === "salida" && Number(movCantidad || 0) > (productos.find(p => p.id === movProductoId)?.stock || 0) && (
+                {movTipo === "salida" && Number(movCantidad || 0) > getStockValue(productos.find(p => p.id === movProductoId)?.stock) && (
                   <p className="text-red-700 dark:text-red-300 text-xs mt-1">⚠️ Cantidad excede el stock disponible</p>
                 )}
               </div>
@@ -1564,7 +1575,7 @@ function StockComprasPage() {
                 <div className="bg-muted/50 p-3 rounded-lg border border-border/60">
                   <h5 className="font-medium text-sm mb-2">Resumen del movimiento:</h5>
                   <div className="text-sm">
-                    <p><span className="font-medium">Stock actual:</span> {productos.find(p => p.id === movProductoId)?.stock || 0}</p>
+                    <p><span className="font-medium">Stock actual:</span> {getStockValue(productos.find(p => p.id === movProductoId)?.stock)}</p>
                     <p>
                       <span className="font-medium">Movimiento:</span>{" "}
                       {movTipo === "ajuste" && ajusteAbsoluto
@@ -1581,7 +1592,7 @@ function StockComprasPage() {
                       }`}>
                         {movTipo === "ajuste" && ajusteAbsoluto
                           ? (stockFinal === "" ? "?" : Number(stockFinal))
-                          : calcularStockResultante(productos.find(p => p.id === movProductoId)?.stock || 0, movTipo, Number(movCantidad || 0))}
+                          : calcularStockResultante(getStockValue(productos.find(p => p.id === movProductoId)?.stock), movTipo, Number(movCantidad || 0))}
                       </span>
                     </p>
                   </div>
@@ -1595,7 +1606,7 @@ function StockComprasPage() {
                 onClick={handleMovGuardar} 
                 disabled={(() => {
                   const prod = productos.find(p => p.id === movProductoId);
-                  const stockAct = Number(prod?.stock) || 0;
+                  const stockAct = getStockValue(prod?.stock);
                   const qty = movCantidad === "" ? NaN : Number(movCantidad);
                   const isSalidaOver = movTipo === "salida" && Number(qty || 0) > stockAct;
                   const isEntradaInvalid = movTipo === "entrada" && !(qty > 0);
@@ -1624,9 +1635,9 @@ function StockComprasPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                   <div><b>Categoría:</b> {detalleProducto.categoria}</div>
                   <div><b>Unidad:</b> {detalleProducto.unidadMedida || detalleProducto.unidadVenta || detalleProducto.unidadVentaHerraje || detalleProducto.unidadVentaQuimico || detalleProducto.unidadVentaHerramienta}</div>
-                  <div><b>Stock actual:</b> {detalleProducto.stock}</div>
+                  <div><b>Stock actual:</b> {getStockValue(detalleProducto.stock)}</div>
                   <div><b>Mínimo:</b> {detalleProducto.min || "-"}</div>
-                  <div><b>Estado:</b> {detalleProducto.stock === 0 ? "Sin stock" : detalleProducto.stock <= (detalleProducto.min || 0) ? "Bajo" : "OK"}</div>
+                  <div><b>Estado:</b> {getStockValue(detalleProducto.stock) <= 0 ? "Sin stock" : getStockValue(detalleProducto.stock) <= (Number(detalleProducto.min) || 0) ? "Bajo" : "OK"}</div>
                   <div><b>Última actualización:</b> {detalleProducto.fechaActualizacion ? formatFechaHora(detalleProducto.fechaActualizacion) : "-"}</div>
                 </div>
                 <div className="mt-2 flex-1 min-h-0">
