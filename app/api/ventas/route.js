@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -110,7 +111,9 @@ export async function POST(request) {
       );
     }
 
-    const body = await request.json();
+    const rawBody = await request.text();
+    verifyCommerceRequest(request, rawBody);
+    const body = JSON.parse(rawBody);
     console.log("Datos recibidos:", JSON.stringify(body, null, 2));
 
     if (!body.success || !body.data || !Array.isArray(body.data)) {
@@ -357,6 +360,10 @@ export async function POST(request) {
 
         if (existingVentaDoc) {
           const existingData = existingVentaDoc.data() || {};
+          if (existingData.ecommerceLifecycle) {
+            ventasGuardadas.push({ id: existingVentaDoc.id, numeroPedido: existingData.numeroPedido, status: "managed_by_orders" });
+            continue;
+          }
           const numeroPedidoExistente =
             existingData.numeroPedido || ventaData.numeroPedido || `VENTA-${existingVentaDoc.id}`;
           const payloadActualizacion = {

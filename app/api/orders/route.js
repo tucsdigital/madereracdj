@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { quoteOrder } from "@/lib/ecommerce-quote";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -10,6 +11,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  runTransaction,
 } from "firebase/firestore";
 import crypto from "crypto";
 import { createVentaEngine } from "@/lib/erp/ventas-engine";
@@ -426,7 +428,27 @@ export async function POST(request) {
       );
     }
 
-    const orderData = JSON.parse(rawBody || "{}");
+    let orderData = JSON.parse(rawBody || "{}");
+    const requestFingerprint = crypto.createHash("sha256").update(JSON.stringify({
+      items: orderData.items?.map((item) => ({ id: item.id, quantity: item.quantity })),
+      email: orderData.customerInfo?.email, deliveryInfo: orderData.deliveryInfo,
+      paymentMethod: orderData.paymentMethod,
+    })).digest("hex");
+    if (!/^[a-zA-Z0-9_-]{16,100}$/.test(String(orderData.orderId || ""))) {
+      return withCors(NextResponse.json({ error: "Identificador de pedido inválido" }, { status: 400 }));
+    }
+    const previous = await getDoc(doc(db, "orders", orderData.orderId));
+    if (previous.exists() && previous.data().requestFingerprint !== requestFingerprint) {
+      return withCors(NextResponse.json({ error: "La referencia ya pertenece a otro pedido" }, { status: 409 }));
+    }
+    if (previous.exists() && previous.data().ventaId) {
+      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data() }));
+    }
+    const quote = previous.exists() ? previous.data() : await quoteOrder(orderData);
+    if (!Number.isFinite(Number(orderData.pricing?.total ?? orderData.total)) || Math.abs(Number(orderData.pricing?.total ?? orderData.total) - quote.total) > 0.01) {
+      return withCors(NextResponse.json({ error: "El importe cambió. Revisá el resumen actualizado antes de confirmar.", quote }, { status: 409 }));
+    }
+    orderData = { ...orderData, ...quote, status: "pending", createdAt: new Date().toISOString() };
     console.log("Datos de orden recibidos:", JSON.stringify(orderData, null, 2));
 
     const camposRequeridos = ["orderId", "userId", "customerInfo", "deliveryInfo", "items", "total", "status"];
@@ -540,6 +562,7 @@ export async function POST(request) {
     const createdAtResolved = orderData.createdAt || existingOrder?.createdAt || new Date().toISOString();
 
     const orderForFirestore = {
+      requestFingerprint,
       orderId: orderData.orderId,
       userId: orderData.userId,
       total: orderData.total,
@@ -605,7 +628,16 @@ export async function POST(request) {
       },
     };
 
-    await setDoc(orderRef, orderForFirestore, { merge: true });
+    await runTransaction(db, async (transaction) => {
+      const current = await transaction.get(orderRef);
+      if (current.exists()) {
+        if (current.data().requestFingerprint !== requestFingerprint) throw new Error("La referencia ya pertenece a otro pedido");
+        // Nunca sobrescribir un pago confirmado ni los importes de un pedido existente.
+        Object.assign(orderData, current.data());
+        return;
+      }
+      transaction.set(orderRef, orderForFirestore);
+    });
 
     const nowIso = new Date().toISOString();
     let ventaResult = null;
@@ -635,7 +667,10 @@ export async function POST(request) {
             descuentos,
             descuentoTotal: descuentos,
             descuentoEfectivo: pricing?.transferDiscount || 0,
-            totalSinEfectivo: parseNullableNumber(pricing?.total) ?? Math.max(0, subtotal - descuentos + costoEnvio),
+             totalSinEfectivo: Math.max(0, subtotal - descuentos + costoEnvio),
+             totalConEfectivo: paymentMethod === "transferencia" ? orderData.total : null,
+             ecommerceLifecycle: true,
+             reservaExpiresAt: new Date(Date.now() + (paymentMethod === "transferencia" ? 86400000 : 1800000)).toISOString(),
             fecha: formatFechaLegible(createdAtIso),
             fechaCreacion: createdAtIso,
             formaPago: paymentMethod || "",

@@ -1976,8 +1976,14 @@ const VentaDetalle = () => {
       // Actualizar en Firebase
       const before = buildPagoSnapshot(venta);
       const after = buildPagoSnapshot(ventaActualizada);
-      const docRef = doc(db, "ventas", venta.id);
-      await updateDoc(docRef, paymentFields);
+      const response = await fetch(`/api/erp/ventas/${encodeURIComponent(venta.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+        body: JSON.stringify({ venta: ventaActualizada, origen: "ui_ventas_delete_pago" }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo actualizar el pago");
+      ventaActualizada.version = result.version;
 
       if (before.estadoPago !== after.estadoPago && user) {
         const numeroPedido = String(venta?.numeroPedido || venta?.numero || "");
