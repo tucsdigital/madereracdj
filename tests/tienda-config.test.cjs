@@ -98,7 +98,7 @@ test("con dominios autorizados solo se aceptan imágenes de R2 o rutas propias d
   assert.ok(validateTiendaConfig({ banners: [{ id: "b", titulo: "B", enlace: "/shop", imagen: "https://media.ejemplo.com.evil.com/x.webp" }] }, { imageHosts: hosts }).errors.length > 0);
 });
 
-test("transferencia: normaliza descuento, CBU, alias y plazo; la vista p�blica no expone datos bancarios", () => {
+test("transferencia: normaliza descuento, CBU, alias y plazo; la vista pública no expone datos bancarios", () => {
   const cfg = normalizeTiendaConfig({ transferencia: { descuentoPct: "7,5 %", cbu: "0000 0031 0000 0123 4567 89", alias: "mader as.cab", plazoHoras: 9999, titular: "  Maderas  " } });
   assert.equal(cfg.transferencia.descuentoPct, 7.5);
   assert.equal(cfg.transferencia.cbu, "0000003100000123456789");
