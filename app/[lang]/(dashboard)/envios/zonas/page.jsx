@@ -86,16 +86,7 @@ const ZonasEnvioPage = () => {
         setShippingRules(normalizeShippingRules(d?.shippingRules));
         setWarnings(Array.isArray(d?.warnings) ? d.warnings : []);
         const tiers = Array.isArray(d?.shippingTiers) ? d.shippingTiers : [];
-        setShippingTiers(
-          tiers.length
-            ? tiers.sort((a, b) => a.km - b.km)
-            : [
-                { km: 20, price: 25000 },
-                { km: 30, price: 30000 },
-                { km: 40, price: 35000 },
-                { km: 50, price: 45000 },
-              ]
-        );
+        setShippingTiers(tiers.sort((a, b) => a.km - b.km));
         if (locs.length > 0) {
           setCenter([locs[0].lat, locs[0].lng]);
           setZoom(12);
@@ -844,11 +835,17 @@ const ZonasEnvioPage = () => {
             <CardTitle>Tarifas por radio</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {shippingTiers.length === 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Todavía no hay tarifas guardadas: todo envío se pedirá por cotización. Cargá tus tramos reales con “Agregar tramo”.
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
-                  const next = [...shippingTiers, { km: 10, price: 10000 }].sort((a, b) => Number(a.km) - Number(b.km));
+                  const last = shippingTiers[shippingTiers.length - 1];
+                  const next = [...shippingTiers, { km: (Number(last?.km) || 0) + 10, price: Number(last?.price) || 0 }].sort((a, b) => Number(a.km) - Number(b.km));
                   setShippingTiers(next);
                   setTiersDirty(true);
                   setTiersError("");

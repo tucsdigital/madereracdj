@@ -41,6 +41,43 @@ Todo el cálculo vive en `lib/shipping.js`, que usan el checkout (`/api/checkout
 - `PUT /api/envios/zonas` exige sesión del sistema. Cada cambio queda en `settingsHistory` (antes/después, usuario y fecha). Guardar sólo reglas conserva sucursales y tarifas, y viceversa.
 - La pantalla muestra avisos si el radio de una sucursal supera el último tramo.
 
+## Tienda web (contenido administrable)
+
+Menú del sistema → **Tienda web** (`/tienda-web`). Controla lo que antes estaba escrito en el código de la tienda:
+
+- **Secciones del inicio:** título, subtítulo, orden, visibilidad, fondo, enlace y regla de contenido (ofertas, nuevos ingresos, combos, una categoría, descuento mínimo o selección manual de productos). Se pueden crear, duplicar, reordenar y eliminar. Una sección sin productos no se muestra.
+- **Banners del carrusel:** imagen de escritorio y móvil, enlace, orden y fechas de inicio/fin para campañas.
+- **Categorías destacadas** ("Comprá por material").
+- **Contacto:** un único WhatsApp y los mensajes de los botones (flotante, menú, asesoramiento/obras). Si se deja vacío, esos botones se ocultan.
+
+Funcionamiento:
+- Los cambios se guardan como **borrador** (`settings/tienda.draft`) y recién se ven en la tienda al **publicar** (`settings/tienda.published`). Publicar exige que no haya errores de validación y registra antes/después en `settingsHistory` (tipo `tienda`).
+- "Cargar valores actuales" vuelca en el borrador los textos que hoy tiene la tienda para empezar a editarlos.
+- API pública de sólo lectura: `GET /api/tienda/contenido` (caché de 60 s en el servidor; la tienda lo refresca cada 5 min). API de administración: `GET/PUT/POST /api/tienda/config`, siempre con sesión.
+- La tienda conserva el contenido anterior como **respaldo local** (`src/lib/tienda-content.ts`): si el sistema no responde, o todavía no se publicó nada, se ve igual que antes. Si se publican cero banners o cero categorías, esos bloques se ocultan.
+- Las imágenes se **suben desde el panel a R2** (ver más abajo). Una URL sólo se acepta si pertenece al dominio público de R2 configurado (`R2_PUBLIC_BASE`) o es una ruta propia de la tienda (`/images/...`). Los enlaces sólo pueden empezar con `/` o `https://`.
+
+### Imágenes de la tienda web (R2)
+
+Variables de entorno **del sistema** (en `.env.local` y en el hosting; nunca en el código):
+
+```
+R2_BUCKET=
+R2_PUBLIC_BASE=      # URL pública del bucket, preferentemente un dominio propio (ej. https://media.tudominio.com)
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_ENDPOINT=         # https://<cuenta>.r2.cloudflarestorage.com
+```
+
+- Las usan también los comprobantes de pago y la asistencia (mismo módulo `lib/r2-storage.js`): hay que cargarlas antes de publicar o esas funciones dejan de subir archivos. Se eliminó `lib/r2-config.local.js`, que tenía las claves escritas en el código; **rotar esas claves en Cloudflare**, porque quedaron expuestas en el historial.
+- `POST /api/tienda/media` (con sesión): acepta JPG, PNG, WebP y AVIF por su contenido real (no SVG), hasta 8 MB y mínimo 200 px. Reduce a 2400 px como máximo y convierte a WebP (calidad 82) con `sharp`; un archivo con cabecera válida pero dañado se rechaza. Guarda en `tienda/<banners|categorias|secciones>/<fecha>-<código>.webp` con caché inmutable de un año y registra la URL en la colección `tiendaMedia` (biblioteca).
+- Si faltan variables, el panel desactiva **Subir imagen** e indica cuáles faltan.
+- **Revisar imágenes sin usar** borra de R2 sólo imágenes del prefijo `tienda/` que no usan ni el borrador ni lo publicado, previa confirmación.
+- Cambiar `R2_PUBLIC_BASE` después de cargar contenido invalida las URLs ya guardadas (y la validación las rechazaría): definir el dominio definitivo antes.
+- Los productos siguen usando `/api/upload` con Vercel Blob, sin cambios.
+
+Pendiente fuera de esta etapa: pop-up de oferta, beneficios, footer y textos de las páginas de obras, y vista previa antes de publicar.
+
 ## Verificación
 
 `node --test tests/ecommerce-payment.test.mjs tests/ecommerce-inventory.test.cjs`
