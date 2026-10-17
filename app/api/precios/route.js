@@ -3,6 +3,8 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricing";
 import { getExternalProductoFields } from "@/lib/producto-utils";
+import { applyStorePricing } from "@/lib/tienda-precios";
+import { getPublishedPrecios } from "@/lib/tienda-precios-server";
 import { getProductMeasure } from "@/lib/product-measure";
 import {
   computeComboAvailableStock,
@@ -158,6 +160,7 @@ export function OPTIONS() {
 // GET /api/precios?codigo=ABC123 o ?nombre=...
 export async function GET(request) {
   try {
+    const precios = await getPublishedPrecios();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const codigo = searchParams.get("codigo");
@@ -181,7 +184,8 @@ export async function GET(request) {
       const baseMap = new Map(baseProductos.map((producto) => [String(producto.id), producto]));
       const productosConStock = await enrichProductsStock(baseProductos, baseMap);
       const items = [];
-      productosConStock.forEach((prod) => {
+      productosConStock.forEach((original) => {
+        const prod = applyStorePricing(original, precios);
         const normalized = normalizarProductoEntrada(prod);
         const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
         const integration = getIntegrationFields(prod);
@@ -248,7 +252,7 @@ export async function GET(request) {
       return withCors(NextResponse.json({ error: "Producto no encontrado" }, { status: 404 }));
     }
 
-    producto = await enrichComboStock(producto);
+    producto = applyStorePricing(await enrichComboStock(producto), precios);
     const normalized = normalizarProductoEntrada(producto);
     const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
     const integration = getIntegrationFields(producto);
@@ -271,6 +275,7 @@ export async function GET(request) {
 // POST /api/precios  Body: { items: [{ producto: {...}, cantidad } | { id, cantidad } ] }
 export async function POST(request) {
   try {
+    const precios = await getPublishedPrecios();
     const body = await request.json();
     const items = Array.isArray(body?.items) ? body.items : [];
     const redondear = body?.redondear == null ? true : Boolean(body.redondear);
@@ -306,7 +311,7 @@ export async function POST(request) {
     const enrichedById = new Map(enrichedProducts.map((product) => [String(product.id), product]));
     const out = resolvedEntries.map((entry) => {
       if (entry.error) return { error: entry.error, estadoTienda: entry.estadoTienda, mensaje: entry.mensaje, input: entry.item };
-      const prod = enrichedById.get(String(entry.product.id)) || entry.product;
+      const prod = applyStorePricing(enrichedById.get(String(entry.product.id)) || entry.product, precios);
       const cantidad = typeof entry.item.cantidad === "number" ? entry.item.cantidad : parseFloat(String(entry.item.cantidad || "1"));
       const normalized = normalizarProductoEntrada(prod);
       const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });

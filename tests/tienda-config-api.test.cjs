@@ -31,6 +31,7 @@ function setup() {
   const state = { doc: undefined, history: [], writes: 0 };
   const mocks = {
     "next/server": { NextResponse },
+    "@/lib/tienda-precios-server": { invalidatePreciosCache() {} },
     "@/lib/firebase-admin": {
       verifyFirebaseToken: async (h) => { if (!h) throw Object.assign(new Error("x"), { status: 401 }); return { uid: "u1", email: "admin@ejemplo.com" }; },
       getAdminDb: () => ({

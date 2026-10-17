@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import { normalizeTiendaConfig, tiendaIssues, validateTiendaConfig } from "@/lib/tienda-config";
 import { allowedImageHosts } from "@/lib/tienda-media";
+import { invalidatePreciosCache } from "@/lib/tienda-precios-server";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,7 @@ export async function PUT(request) {
       published: config, publishedAt: at, publishedBy: String(actor?.email || actor?.uid || ""),
       version: current.version + 1, draft: null, draftUpdatedAt: null, draftBy: null,
     }, { merge: true });
+    invalidatePreciosCache();
     return NextResponse.json(await estado());
   } catch (error) {
     return fail(error);

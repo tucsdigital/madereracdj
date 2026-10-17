@@ -1,817 +1,252 @@
 "use client";
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  ArrowLeft,
-  Save,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  X,
-  Image as ImageIcon,
-  Tag,
-  Percent,
-  Truck,
-  Star,
-  Gift,
-  Zap,
-  GripVertical,
-} from "lucide-react";
-import { db } from "@/lib/firebase";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Boxes, DollarSign, FileText, Image as ImageIcon, Layers, Loader2, Package, Ruler, Store } from "lucide-react";
+import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
 import { shouldRestrictProductPricing } from "@/lib/access-control";
+import { applyDerivedComboStock, computeComboStock, getComboComponentIds, isComboProduct, isValidComboQuantity, normalizeComboComponents } from "@/lib/combos";
 import {
-  applyDerivedComboStock,
-  computeComboStock,
-  getComboComponentIds,
-  isValidComboQuantity,
-  isComboProduct,
-  normalizeComboComponents,
-} from "@/lib/combos";
+  DEFAULT_UNITS, KIND_HELP, KIND_LABEL, SECTION_OF_FIELD, WOOD_UNITS,
+  buildProductUpdates, computePiecePrice, diffForm, getMeasureFields, getPriceModel, getUnitKey, kindForCategory,
+  parseNumber, previewStorePrice, productToForm, storedUnit, uniqueOptions, validateProductForm,
+} from "@/lib/producto-tipos";
+import { Btn, Chip, Segmented, inputClass } from "@/components/panel-ui/ui";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ComboComponentBuilder from "@/components/productos/ComboComponentBuilder";
-import { useQuill } from "react-quilljs";
-import "quill/dist/quill.snow.css";
+import EditCard from "@/components/productos/edit/EditCard";
+import { FormField, NumberInput, SelectAdd, TextArea, TextInput, ToggleCard } from "@/components/productos/edit/Fields";
+import SaveBar from "@/components/productos/edit/SaveBar";
+import DescriptionEditor from "@/components/productos/edit/DescriptionEditor";
+import Gallery from "@/components/productos/edit/Gallery";
 
-const ProductoDetailPage = () => {
+const money = (n) => `$${Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}`;
+const recipeKey = (items) => JSON.stringify(normalizeComboComponents(items).map(({ productoId, cantidad }) => ({ productoId, cantidad })));
+
+export default function ProductoDetailPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const productId = params.id;
   const { user } = useAuth();
   const blockPriceEdits = shouldRestrictProductPricing(user);
-  const descriptionEditorModules = useMemo(
-    () => ({
-      toolbar: [
-        [{ header: [2, 3, false] }],
-        ["bold", "italic", "underline"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        ["link"],
-        ["clean"],
-      ],
-    }),
-    []
-  );
-  const { quill: descriptionQuill, quillRef: descriptionQuillRef } = useQuill({
-    theme: "snow",
-    modules: descriptionEditorModules,
-    placeholder: "Descripción detallada del producto",
-  });
-  const syncingDescriptionRef = useRef(false);
-
-  const normalizeDescriptionHtml = (value) => {
-    const html = String(value ?? "").trim();
-    return html === "<p><br></p>" ? "" : html;
-  };
-  const normalizeDescriptionPlainText = (value) =>
-    String(value ?? "").replace(/\r\n/g, "\n");
-  const isHtmlDescription = (value) =>
-    /<\/?[a-z][\s\S]*>/i.test(String(value ?? ""));
 
   const [producto, setProducto] = useState(null);
   const [productoCollection, setProductoCollection] = useState("productos");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("");
-
-  // Estados para datos precargados
-  const [proveedores, setProveedores] = useState([]);
-  const [categorias, setCategorias] = useState([]);
-  const [subcategorias, setSubcategorias] = useState([]);
-  const [subcategoriasPorCategoria, setSubcategoriasPorCategoria] = useState({});
-  const [tiposMadera, setTiposMadera] = useState([]);
-  const [usos, setUsos] = useState([]);
-  const [depositos, setDepositos] = useState([]);
-  const [unidadesMedida, setUnidadesMedida] = useState([]);
-
-  // Estados para agregar nuevos valores
-  const [showAddProveedor, setShowAddProveedor] = useState(false);
-  const [showAddCategoria, setShowAddCategoria] = useState(false);
-  const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
-  const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
-  const [showAddUso, setShowAddUso] = useState(false);
-  const [showAddDeposito, setShowAddDeposito] = useState(false);
-  const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
-  const [newValue, setNewValue] = useState("");
-  const [discountMode, setDiscountMode] = useState("amount");
-  const [lastUpdatedDiscountField, setLastUpdatedDiscountField] = useState("amount");
-  const [discountInputs, setDiscountInputs] = useState({ amount: "", percentage: "" });
-  const [catalogoProductos, setCatalogoProductos] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const [initial, setInitial] = useState(null);
+  const [form, setForm] = useState(null);
   const [comboItems, setComboItems] = useState([]);
-  const [comboBuilderValid, setComboBuilderValid] = useState(true);
-  const [editSuggestedPrice, setEditSuggestedPrice] = useState(null);
+  const [initialRecipe, setInitialRecipe] = useState("[]");
+  const [comboValid, setComboValid] = useState(true);
+  const [suggested, setSuggested] = useState(null);
+  const [catalog, setCatalog] = useState([]);
+  const [extra, setExtra] = useState({});
+  const [status, setStatus] = useState("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const savedTimer = useRef(null);
 
-  const [editForm, setEditForm] = useState({
-    codigo: "",
-    nombre: "",
-    categoria: "",
-    descripcion: "",
-    detalle: "",
-    proveedor: "",
-    uso: "",
-    unidadMedida: "",
-    deposito: "deposito_1",
-    estado: "",
-    estadoTienda: "",
-    subcategoria: "",
-    tipoMaterial: "",
-    largo: "",
-    ancho: "",
-    espesor: "",
-    peso: "",
-    rendimiento: "",
-    costo: "",
-    stock: "",
-    minimoCompra: 1,
-    pack: "",
-    precioVenta: "",
-    stockMinimo: "",
-    valorCompra: "",
-    esCombo: false,
-    tipoProducto: "",
-    componentesCombo: [],
-    imagenes: [],
-    discount: { amount: 0, percentage: 0 },
-    rating: 0,
-    freeShipping: false,
-    featuredBrand: false,
-    newArrival: false,
-    specialOffer: false,
-    mundialOffer: false,
-  });
-
-  // Estados para nuevos campos
-  const [uploadingGallery, setUploadingGallery] = useState(false);
-  const subcategoriasDisponibles = useMemo(() => {
-    const categoria = String(editForm.categoria || "").trim();
-    if (!categoria) return subcategorias;
-    return subcategoriasPorCategoria[categoria] || [];
-  }, [editForm.categoria, subcategorias, subcategoriasPorCategoria]);
-
-  const normalizeImagenes = (value) => {
-    if (Array.isArray(value)) return value.filter(Boolean).map((v) => String(v).trim()).filter(Boolean);
-    if (typeof value === "string") {
-      return value
-        .split("|")
-        .map((v) => v.trim())
-        .filter(Boolean);
-    }
-    return [];
-  };
-
-  const comboCatalogo = useMemo(
-    () =>
-      (Array.isArray(catalogoProductos) ? catalogoProductos : [])
-        .filter((item) => item.categoria !== "Obras" && !isComboProduct(item)),
-    [catalogoProductos]
-  );
-
-  const comboStockPreview = useMemo(() => {
-    const productoById = new Map(comboCatalogo.map((item) => [String(item.id), item]));
-    return computeComboStock({ componentesCombo: comboItems }, productoById);
-  }, [comboCatalogo, comboItems]);
-
-  useEffect(() => {
-    if (productId) {
-      cargarProducto();
-      cargarDatosPrecargados();
-    }
-  }, [productId]);
-
-  useEffect(() => {
-    if (!descriptionQuill) return;
-    const handleTextChange = () => {
-      if (syncingDescriptionRef.current) return;
-      const html = normalizeDescriptionHtml(descriptionQuill.root.innerHTML);
-      setEditForm((prev) =>
-        prev.descripcion === html ? prev : { ...prev, descripcion: html }
-      );
-    };
-    descriptionQuill.on("text-change", handleTextChange);
-    return () => {
-      descriptionQuill.off("text-change", handleTextChange);
-    };
-  }, [descriptionQuill]);
-
-  useEffect(() => {
-    if (!descriptionQuill) return;
-    const formDescripcion = String(editForm.descripcion ?? "");
-    const formHtml = normalizeDescriptionHtml(formDescripcion);
-    const formIsHtml = isHtmlDescription(formDescripcion);
-
-    if (formIsHtml) {
-      const editorHtml = normalizeDescriptionHtml(descriptionQuill.root.innerHTML);
-      if (editorHtml === formHtml) return;
-    } else {
-      const editorText = normalizeDescriptionPlainText(
-        descriptionQuill.getText().replace(/\n$/, "")
-      );
-      const formText = normalizeDescriptionPlainText(formDescripcion);
-      if (editorText === formText) return;
-    }
-
-    syncingDescriptionRef.current = true;
-    if (!formDescripcion) {
-      descriptionQuill.setText("");
-    } else if (formIsHtml) {
-      descriptionQuill.clipboard.dangerouslyPasteHTML(formHtml || "");
-    } else {
-      descriptionQuill.setText(normalizeDescriptionPlainText(formDescripcion));
-    }
-    syncingDescriptionRef.current = false;
-  }, [descriptionQuill, editForm.descripcion]);
-
-  const cargarProducto = async () => {
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
-      const colHint = String(searchParams?.get("col") ?? "").trim();
-      const colecciones = ["productos", "productos_obras"];
-      const order = colecciones.includes(colHint)
-        ? [colHint, ...colecciones.filter((c) => c !== colHint)]
-        : colecciones;
-      let productoSnap = null;
-      let encontradaEn = null;
-
-      for (const col of order) {
-        const ref = doc(db, col, productId);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          productoSnap = snap;
-          encontradaEn = col;
-          break;
-        }
+      const hint = String(searchParams?.get("col") ?? "").trim();
+      const order = ["productos", "productos_obras"];
+      const cols = order.includes(hint) ? [hint, ...order.filter((c) => c !== hint)] : order;
+      for (const col of cols) {
+        const snap = await getDoc(doc(db, col, productId));
+        if (!snap.exists()) continue;
+        const data = { id: snap.id, ...snap.data(), __collection: col };
+        const kind = kindForCategory(data.categoria, col);
+        const effective = isComboProduct(data) ? "combo" : kind;
+        const initialForm = productToForm(data, { collection: col, kind: effective });
+        setProductoCollection(col);
+        setProducto(data);
+        setInitial(initialForm);
+        setForm(initialForm);
+        const items = normalizeComboComponents(data.componentesCombo);
+        setComboItems(items);
+        setInitialRecipe(recipeKey(items));
+        return;
       }
-
-      if (productoSnap && encontradaEn) {
-        const productoData = productoSnap.data();
-        setProductoCollection(encontradaEn);
-        setProducto({ id: productoSnap.id, ...productoData, __collection: encontradaEn });
-        
-        setEditForm({
-          codigo: productoData.codigo || "",
-          nombre: productoData.nombre || "",
-          categoria: productoData.categoria || "",
-          descripcion: productoData.descripcion || "",
-          detalle: productoData.detalle || "",
-          proveedor: productoData.proveedor || "",
-          uso: productoData.uso || "",
-          unidadMedida: productoData.unidadMedida || "",
-          deposito: productoData.deposito || "deposito_1",
-          estado: productoData.estado || "Activo",
-          estadoTienda: productoData.estadoTienda || "Activo",
-          subcategoria: productoData.subcategoria || productoData.subCategoria || "",
-          tipoMaterial: productoData.tipoMaterial ?? productoData.tipoMadera ?? "",
-          largo: productoData.largo ?? "",
-          ancho: productoData.ancho ?? "",
-          espesor: productoData.espesor ?? productoData.alto ?? "",
-          peso: productoData.peso ?? "",
-          rendimiento: productoData.rendimiento ?? productoData.rendimientoM2 ?? "",
-          costo: productoData.costo ?? productoData.Costo ?? productoData.valorCompra ?? "",
-          stock: productoData.stock ?? "",
-          minimoCompra: productoData.minimoCompra ?? productoData.minCompra ?? 1,
-          pack: productoData.pack ?? productoData.packSize ?? "",
-          precioVenta: productoData.precioVenta ?? productoData.valorVenta ?? productoData.precioCalculado ?? "",
-          stockMinimo: productoData.stockMinimo ?? "",
-          valorCompra: productoData.valorCompra ?? "",
-          esCombo: isComboProduct(productoData),
-          tipoProducto: productoData.tipoProducto || (isComboProduct(productoData) ? "combo" : "simple"),
-          componentesCombo: normalizeComboComponents(productoData.componentesCombo),
-          imagenes: normalizeImagenes(productoData.imagenes),
-          discount: productoData.discount || { amount: 0, percentage: 0 },
-          rating: productoData.rating || 0,
-          freeShipping: productoData.freeShipping || false,
-          featuredBrand: productoData.featuredBrand || false,
-          newArrival: productoData.newArrival || false,
-          specialOffer: productoData.specialOffer || false,
-          mundialOffer: productoData.mundialOffer || false,
-        });
-        setComboItems(normalizeComboComponents(productoData.componentesCombo));
-        const porcentajeDescuento = Number(productoData.discount?.percentage) || 0;
-        const montoDescuento = Number(productoData.discount?.amount) || 0;
-        const discountFieldInicial = porcentajeDescuento > 0 ? "percentage" : montoDescuento > 0 ? "amount" : "amount";
-        setDiscountMode(discountFieldInicial);
-        setLastUpdatedDiscountField(discountFieldInicial);
-        setDiscountInputs({
-          amount: montoDescuento > 0 ? String(montoDescuento) : "",
-          percentage: porcentajeDescuento > 0 ? String(porcentajeDescuento) : "",
-        });
-      } else {
-        setMessage("Producto no encontrado");
-        setMessageType("error");
-      }
+      setLoadError("No encontramos este producto.");
     } catch (error) {
-      setMessage("Error al cargar producto: " + error.message);
-      setMessageType("error");
+      setLoadError("No se pudo cargar el producto: " + error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, searchParams]);
 
-  const cargarDatosPrecargados = async () => {
+  const loadCatalog = useCallback(async () => {
     try {
-      const [productosSnap, obrasSnap] = await Promise.all([
-        getDocs(collection(db, "productos")),
-        getDocs(collection(db, "productos_obras")),
-      ]);
-      const productos = applyDerivedComboStock([
-        ...productosSnap.docs.map((d) => ({ id: d.id, ...d.data(), __collection: "productos" })),
-        ...obrasSnap.docs.map((d) => ({ id: d.id, ...d.data(), __collection: "productos_obras" })),
-      ]);
-      setCatalogoProductos(productos);
-      
-      // Extraer proveedores únicos
-      const proveedoresUnicos = [...new Set(
-        productos
-          .filter(p => p.proveedor)
-          .map(p => p.proveedor)
-      )].sort();
-      setProveedores(proveedoresUnicos);
-
-      const categoriasUnicas = [...new Set(
-        [
-          ...productos
-            .filter(p => p.categoria)
-            .map(p => p.categoria),
-          "Combos",
-        ]
-      )].sort();
-      const categoriaActual = String(editForm.categoria || "").trim();
-      const categoriasConActual = categoriaActual && !categoriasUnicas.includes(categoriaActual)
-        ? [...categoriasUnicas, categoriaActual].sort()
-        : categoriasUnicas;
-      setCategorias(categoriasConActual);
-
-      const mapaSubcategorias = productos.reduce((acc, p) => {
-        const categoria = String(p.categoria || "").trim();
-        const subcategoria = String(p.subcategoria || p.subCategoria || "").trim();
-        if (!categoria || !subcategoria) return acc;
-        if (!acc[categoria]) acc[categoria] = new Set();
-        acc[categoria].add(subcategoria);
-        return acc;
-      }, {});
-      const subcategoriasPorCategoriaOrdenadas = Object.fromEntries(
-        Object.entries(mapaSubcategorias).map(([categoria, subcatsSet]) => [
-          categoria,
-          [...subcatsSet].sort(),
-        ])
-      );
-      setSubcategoriasPorCategoria(subcategoriasPorCategoriaOrdenadas);
-
-      // Extraer subcategorías únicas
-      const subcategoriasUnicas = [...new Set(
-        productos
-          .filter(p => p.subcategoria || p.subCategoria)
-          .map(p => p.subcategoria || p.subCategoria)
-      )].sort();
-      setSubcategorias(subcategoriasUnicas);
-
-      // Extraer tipos de material únicos (tipoMaterial o tipoMadera)
-      const tiposMaterialUnicos = [...new Set(
-        productos.map(p => p.tipoMaterial ?? p.tipoMadera).filter(Boolean)
-      )].sort();
-      setTiposMadera(tiposMaterialUnicos);
-
-      const usosUnicos = [...new Set(
-        productos
-          .filter(p => p.uso)
-          .map(p => p.uso)
-      )].sort();
-      setUsos(usosUnicos);
-
-      const depositosUnicos = [...new Set(
-        productos
-          .filter(p => p.deposito)
-          .map(p => p.deposito)
-      )].sort();
-      setDepositos(
-        depositosUnicos.length > 0
-          ? depositosUnicos
-          : ["deposito_1", "deposito_2"]
-      );
-
-      // Extraer unidades de medida únicas
-      const unidadesMedidaUnicas = [...new Set(
-        [
-          ...productos
-            .filter(p => p.unidadMedida)
-            .map(p => p.unidadMedida),
-          "Unidad",
-        ]
-      )].sort();
-      setUnidadesMedida(unidadesMedidaUnicas);
+      const snap = await getDocs(collection(db, "productos"));
+      setCatalog(applyDerivedComboStock(snap.docs.map((d) => ({ id: d.id, ...d.data(), __collection: "productos" }))));
     } catch (error) {
-      console.error("Error al cargar datos precargados:", error);
+      console.error("Error al cargar el catálogo:", error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!productId) return;
+    load();
+    loadCatalog();
+    return () => clearTimeout(savedTimer.current);
+  }, [productId, load, loadCatalog]);
+
+  const kind = useMemo(() => {
+    if (!form) return "general";
+    if (productoCollection === "productos_obras") return "obra";
+    return kindForCategory(form.categoria, productoCollection);
+  }, [form, productoCollection]);
+  const unitKey = form ? getUnitKey(kind, form.unidadMedida) : "Unidad";
+  const priceModel = getPriceModel(kind, unitKey);
+  const measureFields = form ? getMeasureFields(kind, unitKey) : [];
+
+  const comboCatalog = useMemo(() => catalog.filter((item) => item.categoria !== "Obras" && !isComboProduct(item)), [catalog]);
+  const comboStock = useMemo(() => computeComboStock({ componentesCombo: comboItems }, new Map(comboCatalog.map((i) => [String(i.id), i]))), [comboCatalog, comboItems]);
+
+  const options = useMemo(() => {
+    const pick = (fn) => uniqueOptions(catalog.map(fn));
+    const subs = {};
+    for (const p of catalog) {
+      const c = String(p.categoria || "").trim();
+      const s = String(p.subcategoria || p.subCategoria || "").trim();
+      if (c && s) (subs[c] ||= new Set()).add(s);
+    }
+    return {
+      categorias: uniqueOptions([...catalog.map((p) => p.categoria), "Combos"]),
+      subcategorias: subs,
+      proveedores: pick((p) => p.proveedor),
+      usos: pick((p) => p.uso),
+      materiales: pick((p) => p.tipoMaterial ?? p.tipoMadera),
+      depositos: pick((p) => p.deposito),
+      unidades: uniqueOptions([...DEFAULT_UNITS, ...catalog.filter((p) => !/madera/i.test(p.categoria || "")).map((p) => p.unidadMedida)]),
+    };
+  }, [catalog]);
+  const withExtra = (key, list) => uniqueOptions([...list, ...(extra[key] || [])]);
+  const addExtra = (key) => (value) => setExtra((prev) => ({ ...prev, [key]: [...(prev[key] || []), value] }));
+
+  const set = useCallback((key, value) => setForm((prev) => ({ ...prev, [key]: value })), []);
+  const setDescription = useCallback((html) => setForm((prev) => (prev && prev.descripcion !== html ? { ...prev, descripcion: html } : prev)), []);
+
+  const changedFields = useMemo(() => diffForm(initial, form), [initial, form]);
+  const recipeChanged = kind === "combo" && recipeKey(comboItems) !== initialRecipe;
+  const changeCount = changedFields.length + (recipeChanged ? 1 : 0);
+  const dirty = changeCount > 0;
+  const changedSections = useMemo(() => {
+    const set = new Set(changedFields.map((k) => SECTION_OF_FIELD[k]));
+    if (recipeChanged) set.add("composicion");
+    return set;
+  }, [changedFields, recipeChanged]);
+
+  const validation = useMemo(
+    () => (form ? validateProductForm(form, { kind, collection: productoCollection, blockPriceEdits }) : { errors: {}, warnings: {}, valid: true }),
+    [form, kind, productoCollection, blockPriceEdits]
+  );
+  const errors = showErrors ? validation.errors : {};
+  const warnings = validation.warnings;
+  const errorCount = Object.keys(validation.errors).length;
+
+  useEffect(() => {
+    if (status === "saving" || status === "saved") return;
+    if (!dirty) setStatus("idle");
+    else if (status === "idle") setStatus("dirty");
+    else if (status === "error" && validation.valid && (comboValid || kind !== "combo")) setStatus("dirty");
+  }, [dirty, status, validation.valid, comboValid, kind]);
+
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const goBack = () => {
+    if (dirty && !window.confirm("Tenés cambios sin guardar. ¿Salir igual?")) return;
+    router.push("/productos");
   };
 
-  const handleAddNewValue = (tipo, valor) => {
-    if (!valor.trim()) return;
-    
-    switch (tipo) {
-      case "categoria":
-        if (!categorias.includes(valor)) {
-          setCategorias(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => {
-          const subcats = subcategoriasPorCategoria[valor] || [];
-          const shouldResetSubcategoria = prev.subcategoria && !subcats.includes(prev.subcategoria);
-          return {
-            ...prev,
-            categoria: valor,
-            subcategoria: shouldResetSubcategoria ? "" : prev.subcategoria,
-          };
-        });
-        setShowAddCategoria(false);
-        break;
-      case 'proveedor':
-        if (!proveedores.includes(valor)) {
-          setProveedores(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, proveedor: valor }));
-        setShowAddProveedor(false);
-        break;
-      case 'subcategoria':
-        if (!subcategorias.includes(valor)) {
-          setSubcategorias(prev => [...prev, valor].sort());
-        }
-        if (editForm.categoria) {
-          setSubcategoriasPorCategoria((prev) => {
-            const actuales = prev[editForm.categoria] || [];
-            if (actuales.includes(valor)) return prev;
-            return {
-              ...prev,
-              [editForm.categoria]: [...actuales, valor].sort(),
-            };
-          });
-        }
-        setEditForm(prev => ({ ...prev, subcategoria: valor }));
-        setShowAddSubcategoria(false);
-        break;
-      case "tipoMaterial":
-      case "tipoMadera":
-        if (!tiposMadera.includes(valor)) {
-          setTiposMadera(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, tipoMaterial: valor }));
-        setShowAddTipoMadera(false);
-        break;
-      case "uso":
-        if (!usos.includes(valor)) {
-          setUsos(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, uso: valor }));
-        setShowAddUso(false);
-        break;
-      case "deposito":
-        if (!depositos.includes(valor)) {
-          setDepositos(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, deposito: valor }));
-        setShowAddDeposito(false);
-        break;
-      case 'unidadMedida':
-        if (!unidadesMedida.includes(valor)) {
-          setUnidadesMedida(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, unidadMedida: valor }));
-        setShowAddUnidadMedida(false);
-        break;
-    }
-    setNewValue("");
+  const discard = () => {
+    setForm(initial);
+    setComboItems(normalizeComboComponents(producto?.componentesCombo));
+    setShowErrors(false);
+    setStatus("idle");
   };
 
-  const handleCategoriaChange = (value) => {
-    setEditForm((prev) => {
-      const subcats = subcategoriasPorCategoria[value] || [];
-      const shouldResetSubcategoria = prev.subcategoria && !subcats.includes(prev.subcategoria);
-      const isCombo = value === "Combos";
-      return {
-        ...prev,
-        categoria: value,
-        subcategoria: shouldResetSubcategoria ? "" : prev.subcategoria,
-        unidadMedida: isCombo ? "Unidad" : prev.unidadMedida,
-        esCombo: isCombo,
-        tipoProducto: isCombo ? "combo" : prev.tipoProducto,
-      };
+  const handleCategoria = (value) => {
+    setForm((prev) => {
+      const subs = options.subcategorias[value] ? [...options.subcategorias[value]] : [];
+      const next = { ...prev, categoria: value, subcategoria: prev.subcategoria && !subs.includes(prev.subcategoria) ? "" : prev.subcategoria };
+      if (kindForCategory(value, productoCollection) === "combo") next.unidadMedida = "Unidad";
+      return next;
     });
   };
 
+  const handleUnit = (key) => set("unidadMedida", kind === "madera" ? storedUnit(kind, key, form.unidadMedida) : key);
+
+  const focusFirstError = (errs) => {
+    const first = Object.keys(errs)[0];
+    if (!first) return;
+    const el = document.getElementById(`f-${first}`) || document.getElementById(SECTION_OF_FIELD[first] || "");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => el?.focus?.(), 250);
+  };
+
   const handleSave = async () => {
-    setSaving(true);
-    setMessage("");
-    
+    if (status === "saving") return;
+    setShowErrors(true);
+    if (uploading) { setSaveMessage("Esperá a que terminen de subir las imágenes."); setStatus("error"); return; }
+    if (!validation.valid) { setSaveMessage(""); setStatus("error"); focusFirstError(validation.errors); return; }
+    if (kind === "combo" && (!comboValid || comboItems.length === 0)) {
+      setSaveMessage(comboItems.length === 0 ? "El combo necesita al menos un producto." : "Corregí las cantidades del combo.");
+      setStatus("error");
+      document.getElementById("composicion")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setStatus("saving");
+    setSaveMessage("");
     try {
-      if (editForm.categoria === "Combos" && !comboBuilderValid) {
-        throw new Error("Corregí las cantidades de los componentes antes de guardar.");
-      }
-      // Validación de campos obligatorios
-      const camposObligatorios = ['nombre', 'descripcion', 'categoria', 'unidadMedida', 'deposito', 'estado', 'estadoTienda'];
-      
-      if (productoCollection !== "productos_obras") {
-        camposObligatorios.push('subcategoria');
-        if (!blockPriceEdits) {
-          camposObligatorios.push('precioVenta');
-        }
-      }
-      
-      // Verificar campos vacíos
-      const camposVacios = camposObligatorios.filter(campo => {
-        if (campo === 'subcategoria') {
-          return !editForm.subcategoria;
-        }
-        if (campo === "descripcion") {
-          return !normalizeDescriptionHtml(editForm.descripcion);
-        }
-        return !editForm[campo];
-      });
-      
-      if (camposVacios.length > 0) {
-        setMessage(`Error: Los siguientes campos son obligatorios: ${camposVacios.join(', ')}`);
-        setMessageType("error");
-        setSaving(false);
-        return;
-      }
-
-      if (editForm.categoria === "Combos" && comboItems.length === 0) {
-        setMessage("Error: el combo debe tener al menos un componente");
-        setMessageType("error");
-        setSaving(false);
-        return;
-      }
-      
       const productoRef = doc(db, productoCollection, productId);
-      const updates = {};
-      const productoById = new Map(
-        comboCatalogo.map((item) => [String(item.id), item])
-      );
-      
-      // Solo actualizar campos que han cambiado
-      if (editForm.codigo !== producto.codigo) {
-        updates.codigo = editForm.codigo;
-      }
-      if (editForm.nombre !== producto.nombre) {
-        updates.nombre = editForm.nombre;
-      }
-      if (editForm.categoria !== (producto.categoria || "")) {
-        updates.categoria = editForm.categoria;
-      }
-      if (editForm.descripcion !== producto.descripcion) {
-        updates.descripcion = editForm.descripcion;
-      }
-      if (editForm.detalle !== (producto.detalle || "")) {
-        updates.detalle = editForm.detalle;
-      }
-      if (editForm.proveedor !== producto.proveedor) {
-        updates.proveedor = editForm.proveedor;
-      }
-      if (editForm.uso !== (producto.uso || "")) {
-        updates.uso = editForm.uso;
-      }
-      if (editForm.unidadMedida !== producto.unidadMedida) {
-        updates.unidadMedida = editForm.unidadMedida;
-      }
-      if (editForm.deposito !== (producto.deposito || "deposito_1")) {
-        updates.deposito = editForm.deposito;
-      }
-      if (editForm.estado !== producto.estado) {
-        updates.estado = editForm.estado;
-      }
-      if (editForm.estadoTienda !== producto.estadoTienda) {
-        updates.estadoTienda = editForm.estadoTienda;
-      }
-      
-      // Siempre subcategoria (minúscula) para productos normales
-      const subActual = String(producto.subcategoria ?? producto.subCategoria ?? "");
-      if (productoCollection === "productos_obras") {
-        if (editForm.subcategoria !== subActual) {
-          updates.subCategoria = editForm.subcategoria;
-        }
-        if (String(producto.subcategoria ?? "") !== "") {
-          updates.subcategoria = "";
-        }
-      } else {
-        if (editForm.subcategoria !== subActual) {
-          updates.subcategoria = editForm.subcategoria;
-        }
-        if (String(producto.subCategoria ?? "") !== "") {
-          updates.subCategoria = "";
-        }
-      }
-      if (editForm.tipoMaterial !== (producto.tipoMaterial ?? producto.tipoMadera)) {
-        updates.tipoMaterial = editForm.tipoMaterial;
-      }
-      if (String(editForm.largo ?? "") !== String(producto.largo ?? "")) {
-        if (editForm.largo === "" || editForm.largo == null) {
-          updates.largo = null;
-        } else {
-          const v = Number(editForm.largo);
-          if (Number.isFinite(v)) updates.largo = v;
-        }
-      }
-      if (String(editForm.ancho ?? "") !== String(producto.ancho ?? "")) {
-        if (editForm.ancho === "" || editForm.ancho == null) {
-          updates.ancho = null;
-        } else {
-          const v = Number(editForm.ancho);
-          if (Number.isFinite(v)) updates.ancho = v;
-        }
-      }
-      if (String(editForm.espesor) !== String(producto.espesor ?? producto.alto ?? "")) {
-        const v = editForm.espesor === "" || editForm.espesor == null ? null : Number(editForm.espesor);
-        updates.espesor = Number.isFinite(v) ? v : null;
-      }
-      if (String(editForm.peso ?? "") !== String(producto.peso ?? "")) {
-        if (editForm.peso === "" || editForm.peso == null) {
-          updates.peso = null;
-        } else {
-          const v = Number(editForm.peso);
-          if (Number.isFinite(v)) {
-            const clamped = Math.min(100, Math.max(0, v));
-            updates.peso = clamped;
-          }
-        }
-      }
-      if (String(editForm.rendimiento ?? "") !== String(producto.rendimiento ?? producto.rendimientoM2 ?? "")) {
-        if (editForm.rendimiento === "" || editForm.rendimiento == null) {
-          updates.rendimiento = null;
-        } else {
-          const v = Number(editForm.rendimiento);
-          if (Number.isFinite(v) && v >= 0) updates.rendimiento = v;
-        }
-      }
-      if (!blockPriceEdits && String(editForm.costo ?? "") !== String(producto.costo ?? producto.Costo ?? producto.valorCompra ?? "")) {
-        if (editForm.costo === "" || editForm.costo == null) {
-          updates.costo = null;
-        } else {
-          const v = Number(editForm.costo);
-          if (Number.isFinite(v) && v >= 0) updates.costo = v;
-        }
-      }
-      if (String(editForm.stock ?? "") !== String(producto.stock ?? "")) {
-        if (editForm.stock === "" || editForm.stock == null) {
-          updates.stock = 0;
-        } else {
-          const v = Number(editForm.stock);
-          if (Number.isFinite(v) && v >= 0) updates.stock = v;
-        }
-      }
-      if (String(editForm.minimoCompra ?? "") !== String(producto.minimoCompra ?? producto.minCompra ?? 1)) {
-        if (editForm.minimoCompra === "" || editForm.minimoCompra == null) {
-          updates.minimoCompra = 1;
-        } else {
-          const v = Number(editForm.minimoCompra);
-          if (Number.isFinite(v) && v >= 0) updates.minimoCompra = v;
-        }
-      }
-      if (String(editForm.pack ?? "") !== String(producto.pack ?? producto.packSize ?? "")) {
-        updates.pack = String(editForm.pack ?? "").trim();
-      }
-      if (!blockPriceEdits && String(editForm.precioVenta) !== String(producto.precioVenta ?? producto.valorVenta ?? producto.precioCalculado ?? "")) {
-        const v = Number(editForm.precioVenta);
-        if (Number.isFinite(v) && v >= 0) updates.precioVenta = v;
-      }
-      if (String(editForm.stockMinimo ?? "") !== String(producto.stockMinimo ?? "")) {
-        if (editForm.stockMinimo === "" || editForm.stockMinimo == null) {
-          updates.stockMinimo = null;
-        } else {
-          const v = Number(editForm.stockMinimo);
-          if (Number.isFinite(v) && v >= 0) updates.stockMinimo = v;
-        }
-      }
-      if (!blockPriceEdits && String(editForm.valorCompra ?? "") !== String(producto.valorCompra ?? "")) {
-        if (editForm.valorCompra === "" || editForm.valorCompra == null) {
-          updates.valorCompra = null;
-        } else {
-          const v = Number(editForm.valorCompra);
-          if (Number.isFinite(v) && v >= 0) updates.valorCompra = v;
-        }
-      }
+      const updates = buildProductUpdates({ producto, form, kind, collection: productoCollection, blockPriceEdits });
 
-      if (editForm.categoria === "Combos") {
-        const componentesNormalizados = normalizeComboComponents(comboItems);
-        if (componentesNormalizados.length === 0 || componentesNormalizados.length !== comboItems.length) {
-          throw new Error("Cada componente debe tener una cantidad válida para su unidad de medida.");
-        }
-        const componentesCombo = componentesNormalizados.map((componente) => {
-          const base = productoById.get(String(componente.productoId));
-          if (!base || base.categoria === "Obras" || isComboProduct(base)) {
-            throw new Error(`El componente ${componente.nombre || componente.productoId} ya no es un producto simple disponible. Quitalo y agregá otro.`);
-          }
-          if (!isValidComboQuantity(componente.cantidad, base.unidadMedida || base.unidad)) {
-            throw new Error(`${base.nombre || componente.nombre} requiere una cantidad válida para su unidad (${base.unidadMedida || base.unidad || "Unidad"}).`);
-          }
-          return {
-            ...componente,
-            nombre: base.nombre || componente.nombre,
-            codigo: base.codigo || componente.codigo,
-            categoria: base.categoria || "",
-            unidadMedida: base.unidadMedida || base.unidad || "",
-          };
+      if (kind === "combo") {
+        const byId = new Map(comboCatalog.map((item) => [String(item.id), item]));
+        const normalized = normalizeComboComponents(comboItems);
+        if (!normalized.length || normalized.length !== comboItems.length) throw new Error("Cada producto del combo necesita una cantidad válida.");
+        const componentes = normalized.map((c) => {
+          const base = byId.get(String(c.productoId));
+          if (!base) throw new Error(`${c.nombre || c.productoId} ya no está disponible como producto simple. Quitalo y agregá otro.`);
+          if (!isValidComboQuantity(c.cantidad, base.unidadMedida || base.unidad)) throw new Error(`${base.nombre} necesita una cantidad válida para su unidad (${base.unidadMedida || base.unidad || "Unidad"}).`);
+          return { ...c, nombre: base.nombre || c.nombre, codigo: base.codigo || c.codigo, categoria: base.categoria || "", unidadMedida: base.unidadMedida || base.unidad || "" };
         });
-        const comboStock = computeComboStock({ componentesCombo }, productoById);
-        const componentesPrevios = normalizeComboComponents(producto.componentesCombo);
-        const recipeKey = (items) => JSON.stringify(
-          normalizeComboComponents(items).map(({ productoId, cantidad }) => ({ productoId, cantidad }))
-        );
-        const recipeChanged = recipeKey(componentesPrevios) !== recipeKey(componentesCombo);
-        const costoComponentes = componentesCombo.map((componente) => {
-          const base = productoById.get(String(componente.productoId));
-          const costo = Number(base?.costo ?? base?.valorCompra ?? base?.costoCompra);
-          return Number.isFinite(costo) && costo > 0 ? costo * componente.cantidad : null;
+        const costs = componentes.map((c) => {
+          const b = byId.get(String(c.productoId));
+          const cost = Number(b?.costo ?? b?.valorCompra ?? b?.costoCompra);
+          return Number.isFinite(cost) && cost > 0 ? cost * c.cantidad : null;
         });
-        const costoComponentesCalculado = costoComponentes.every((costo) => costo !== null)
-          ? costoComponentes.reduce((total, costo) => total + costo, 0)
-          : null;
-        updates.esCombo = true;
-        updates.tipoProducto = "combo";
-        updates.componentesCombo = componentesCombo;
-        updates.comboComponentIds = getComboComponentIds({ componentesCombo });
-        updates.unidadMedida = "Unidad";
-        updates.stock = comboStock;
-        updates.versionComposicion = Math.max(1, Number(producto.versionComposicion) || 1) + (recipeChanged ? 1 : 0);
-        updates.costoComponentesCalculado = costoComponentesCalculado;
-        updates.costo = costoComponentesCalculado;
-        if (recipeChanged) updates.composicionActualizadaEn = new Date().toISOString();
-        if (!blockPriceEdits) {
-          const precioVenta = Number(editForm.precioVenta);
-          if (Number.isFinite(precioVenta) && precioVenta >= 0) {
-            updates.precioVenta = precioVenta;
-          }
-        }
+        const totalCost = costs.every((c) => c !== null) ? costs.reduce((a, b) => a + b, 0) : null;
+        const recipeDiff = recipeKey(componentes) !== recipeKey(producto.componentesCombo);
+        Object.assign(updates, {
+          esCombo: true,
+          tipoProducto: "combo",
+          componentesCombo: componentes,
+          comboComponentIds: getComboComponentIds({ componentesCombo: componentes }),
+          unidadMedida: "Unidad",
+          stock: computeComboStock({ componentesCombo: componentes }, byId),
+          versionComposicion: Math.max(1, Number(producto.versionComposicion) || 1) + (recipeDiff ? 1 : 0),
+          costoComponentesCalculado: totalCost,
+          costo: totalCost,
+        });
+        if (recipeDiff) updates.composicionActualizadaEn = new Date().toISOString();
       } else if (isComboProduct(producto)) {
-        updates.esCombo = false;
-        updates.tipoProducto = "simple";
-        updates.componentesCombo = [];
-        updates.comboComponentIds = [];
+        Object.assign(updates, { esCombo: false, tipoProducto: "simple", componentesCombo: [], comboComponentIds: [] });
       }
-
-      // Nuevos campos para tienda
-      const imagenesActuales = normalizeImagenes(producto.imagenes);
-      const imagenesEditadas = normalizeImagenes(editForm.imagenes);
-      if (JSON.stringify(imagenesEditadas) !== JSON.stringify(imagenesActuales)) {
-        updates.imagenes = imagenesEditadas;
-      }
-      const discountEditado = {
-        amount: Math.max(0, Number(editForm.discount?.amount) || 0),
-        percentage: Math.max(0, Math.min(100, Number(editForm.discount?.percentage) || 0)),
-      };
-      const discountCampoActivo = lastUpdatedDiscountField || discountMode;
-      const discountNormalizado = discountCampoActivo === "amount"
-        ? { amount: discountEditado.amount, percentage: 0 }
-        : { amount: 0, percentage: discountEditado.percentage };
-      const discountOriginal = {
-        amount: Math.max(0, Number(producto.discount?.amount) || 0),
-        percentage: Math.max(0, Math.min(100, Number(producto.discount?.percentage) || 0)),
-      };
-      if (JSON.stringify(discountNormalizado) !== JSON.stringify(discountOriginal)) {
-        updates.discount = discountNormalizado;
-      }
-      if (editForm.rating !== producto.rating) {
-        updates.rating = editForm.rating;
-      }
-      if (editForm.freeShipping !== producto.freeShipping) {
-        updates.freeShipping = editForm.freeShipping;
-      }
-      if (editForm.featuredBrand !== producto.featuredBrand) {
-        updates.featuredBrand = editForm.featuredBrand;
-      }
-      if (editForm.newArrival !== producto.newArrival) {
-        updates.newArrival = editForm.newArrival;
-      }
-      if (editForm.specialOffer !== producto.specialOffer) {
-        updates.specialOffer = editForm.specialOffer;
-      }
-      if (editForm.mundialOffer !== producto.mundialOffer) {
-        updates.mundialOffer = editForm.mundialOffer;
-      }
-      
       updates.fechaActualizacion = new Date().toISOString();
 
-      const hasStockChange =
-        editForm.categoria !== "Combos" &&
-        !isComboProduct(producto) &&
-        Object.prototype.hasOwnProperty.call(updates, "stock");
-      if (editForm.categoria === "Combos") {
+      if (kind === "combo") {
         if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado.");
         const idToken = await user.getIdToken();
         const response = await fetch(`/api/erp/combos/${encodeURIComponent(productId)}`, {
@@ -821,1229 +256,323 @@ const ProductoDetailPage = () => {
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result?.ok) throw new Error(result?.error || "No se pudo actualizar el combo.");
-      } else if (hasStockChange) {
+      } else if (Object.prototype.hasOwnProperty.call(updates, "stock") && !isComboProduct(producto)) {
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(productoRef);
           if (!snap.exists()) throw new Error("Producto no encontrado");
-          const productoActual = snap.data() || {};
-          const stockAntes = Number(productoActual.stock) || 0;
-          const stockDespues = Number(updates.stock) || 0;
-          const stockDelta = stockDespues - stockAntes;
-          if (stockDespues < 0) throw new Error("El stock no puede ser negativo");
-
+          const actual = snap.data() || {};
+          const antes = Number(actual.stock) || 0;
+          const despues = Number(updates.stock) || 0;
+          const delta = despues - antes;
           tx.update(productoRef, updates);
-
-          if (stockDelta !== 0) {
-            const precioUnitario = Number(
-              productoActual.precioVenta ??
-                productoActual.valorVenta ??
-                updates.precioVenta ??
-                producto.precioVenta ??
-                0
-            );
-            const costoUnitario = Number(
-              productoActual.costo ??
-                productoActual.valorCompra ??
-                updates.costo ??
-                producto.costo ??
-                0
-            );
-            const cantidad = Math.abs(stockDelta);
-            const movRef = doc(collection(db, "movimientos"));
-            tx.set(movRef, {
-              productoId: productId,
-              tipo: "ajuste",
-              cantidad,
-              modoAjuste: "absoluto",
-              stockAntes,
-              stockDelta,
-              stockDespues,
-              stockActualProducto: stockDespues,
-              stockFinalDeseado: stockDespues,
+          if (delta !== 0) {
+            const precio = Number(updates.valorVenta ?? updates.precioVenta ?? actual.valorVenta ?? actual.precioVenta ?? actual.precioCalculado ?? 0) || 0;
+            const costo = Number(updates.costo ?? actual.costo ?? actual.valorCompra ?? 0) || 0;
+            const cantidad = Math.abs(delta);
+            tx.set(doc(collection(db, "movimientos")), {
+              productoId: productId, tipo: "ajuste", cantidad, modoAjuste: "absoluto",
+              stockAntes: antes, stockDelta: delta, stockDespues: despues, stockActualProducto: despues, stockFinalDeseado: despues,
               motivo: "edicion_producto",
-              usuario: user?.displayName || user?.email || "Sistema",
-              usuarioUid: user?.uid || "",
-              usuarioEmail: user?.email || "",
+              usuario: user?.displayName || user?.email || "Sistema", usuarioUid: user?.uid || "", usuarioEmail: user?.email || "",
               observaciones: "Ajuste de stock por edición manual de producto",
               fecha: serverTimestamp(),
-              categoria: updates.categoria || productoActual.categoria || producto.categoria || "",
-              nombreProducto:
-                updates.nombre || productoActual.nombre || producto.nombre || "",
-              numeroPedido: null,
-              importeProducto: cantidad * (Number.isFinite(precioUnitario) ? precioUnitario : 0),
-              costoUnitario: Number.isFinite(costoUnitario) ? costoUnitario : 0,
-              costoTotal: cantidad * (Number.isFinite(costoUnitario) ? costoUnitario : 0),
-              origen: "edicion_producto",
+              categoria: updates.categoria || actual.categoria || producto.categoria || "",
+              nombreProducto: updates.nombre || actual.nombre || producto.nombre || "",
+              numeroPedido: null, importeProducto: cantidad * precio, costoUnitario: costo, costoTotal: cantidad * costo, origen: "edicion_producto",
             });
           }
         });
       } else {
         await updateDoc(productoRef, updates);
       }
-      
-      setMessage("Producto actualizado correctamente");
-      setMessageType("success");
-      
-      // Recargar producto para mostrar cambios
-      await Promise.all([cargarProducto(), cargarDatosPrecargados()]);
-      
+
+      await Promise.all([load(), loadCatalog()]);
+      setShowErrors(false);
+      setStatus("saved");
+      clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setStatus("idle"), 2500);
     } catch (error) {
-      setMessage("Error al actualizar: " + error.message);
-      setMessageType("error");
-    } finally {
-      setSaving(false);
+      setSaveMessage(error.message || "No se pudo guardar.");
+      setStatus("error");
     }
   };
-
-  const handleMultipleImageUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    
-    try {
-      setUploadingGallery(true);
-      const newUrls = [];
-      
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Error al subir imagen');
-        }
-        
-        const result = await response.json();
-        newUrls.push(result.url);
-      }
-      
-      setEditForm(prev => ({
-        ...prev,
-        imagenes: [...normalizeImagenes(prev.imagenes), ...newUrls]
-      }));
-      
-    } catch (error) {
-      setMessage("Error al subir imágenes: " + error.message);
-      setMessageType("error");
-    } finally {
-      setUploadingGallery(false);
-    }
-  };
-
-  const removeImage = (index) => {
-    setEditForm(prev => ({
-      ...prev,
-      imagenes: normalizeImagenes(prev.imagenes).filter((_, i) => i !== index)
-    }));
-  };
-
-  const moveImage = (fromIndex, toIndex) => {
-    if (fromIndex === toIndex) return;
-    
-    setEditForm(prev => {
-      const newImagenes = [...normalizeImagenes(prev.imagenes)];
-      const [movedImage] = newImagenes.splice(fromIndex, 1);
-      newImagenes.splice(toIndex, 0, movedImage);
-      
-      return {
-        ...prev,
-        imagenes: newImagenes
-      };
-    });
-  };
-
-  const updateDiscount = (field, value) => {
-    const rawValue = String(value ?? "");
-    setLastUpdatedDiscountField(field);
-    if (rawValue === "") {
-      setDiscountInputs((prev) => ({ ...prev, [field]: "" }));
-      setEditForm((prev) => ({
-        ...prev,
-        discount: {
-          ...prev.discount,
-          [field]: 0,
-        },
-      }));
-      return;
-    }
-    const numericValue = Number(rawValue);
-    const boundedValue = field === "percentage"
-      ? Math.max(0, Math.min(100, Number.isFinite(numericValue) ? numericValue : 0))
-      : Math.max(0, Number.isFinite(numericValue) ? numericValue : 0);
-    const normalizedInput = field === "percentage"
-      ? String(Math.trunc(boundedValue))
-      : String(boundedValue);
-    setDiscountInputs((prev) => ({
-      ...prev,
-      [field]: normalizedInput,
-    }));
-    setEditForm(prev => ({
-      ...prev,
-      discount: {
-        ...prev.discount,
-        [field]: boundedValue
-      }
-    }));
-  };
-
-  const handleDiscountModeChange = (mode) => {
-    setDiscountMode(mode);
-  };
-
-  const imagenesGaleria = normalizeImagenes(editForm.imagenes);
 
   if (loading) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-default-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Cargando producto…</div>;
+  }
+  if (loadError || !form) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="mx-auto max-w-md space-y-4 py-16 text-center">
+        <p className="text-sm text-default-600">{loadError || "No encontramos este producto."}</p>
+        <Link href="/productos"><Btn variant="primary"><ArrowLeft className="h-4 w-4" /> Volver a productos</Btn></Link>
       </div>
     );
   }
 
-  if (!producto) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Producto no encontrado</h1>
-        <p className="text-gray-600 mb-6">El producto que buscas no existe o fue eliminado.</p>
-        <Link href="/productos">
-          <Button variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver a Productos
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  const saving = status === "saving";
+  const preview = previewStorePrice(form, kind);
+  const piece = kind === "madera" ? computePiecePrice(form, unitKey) : 0;
+  const cost = parseNumber(form.costo);
+  const price = parseNumber(form.precio);
+  const margin = kind !== "madera" && kind !== "combo" && price && cost !== null && price > 0 ? { amount: price - cost, pct: ((price - cost) / price) * 100 } : null;
+  const subcats = withExtra(`sub-${form.categoria}`, options.subcategorias[form.categoria] ? [...options.subcategorias[form.categoria]] : []);
+  const isWood = kind === "madera";
+  const isCombo = kind === "combo";
+  const isObra = kind === "obra";
+  const mod = (id) => changedSections.has(id);
+  const unitOptions = isWood ? WOOD_UNITS : null;
 
   return (
-    <div className="py-8 px-2 max-w-8xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/productos">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Editar Producto</h1>
-            <p className="text-lg text-gray-500">
-              {producto.codigo} - {producto.nombre}
-            </p>
-          </div>
-        </div>
-
-        {/* Mensaje de estado */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm shadow-lg ${
-            messageType === "success"
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200"
-              : "bg-gradient-to-r from-red-50 to-pink-50 text-red-800 border border-red-200"
-          }`}>
-            <div className={`p-2 rounded-full ${messageType === "success" ? "bg-green-100" : "bg-red-100"}`}>
-              {messageType === "success" ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              )}
-            </div>
-            <div>
-              <div className="font-semibold">
-                {messageType === "success" ? "¡Éxito!" : "Error"}
+    <TooltipProvider delayDuration={150}>
+      <div className="mx-auto max-w-6xl space-y-6 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <Btn variant="secondary" aria-label="Volver a productos" onClick={goBack} className="h-10 w-10 px-0"><ArrowLeft className="h-4 w-4" /></Btn>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-semibold leading-tight">{form.nombre || "Producto sin nombre"}</h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-default-500">
+                {form.codigo ? <span>Código {form.codigo}</span> : null}
+                <Chip>{KIND_LABEL[kind]}</Chip>
+                <Chip tone={form.estado === "Activo" ? "ok" : "neutral"}>{form.estado || "Activo"}</Chip>
+                {!isObra ? <Chip tone={form.estadoTienda === "Activo" ? "ok" : "warn"}>{form.estadoTienda === "Activo" ? "Visible en la tienda" : "Oculto en la tienda"}</Chip> : null}
               </div>
-              <div className="text-sm opacity-90">{message}</div>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Información del producto */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  productoCollection === "productos_obras"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}>
-                  {productoCollection === "productos_obras" ? "🏗" : "📦"}
-                </div>
-                Información del Producto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <span className="font-medium text-gray-700">Código:</span>
-                <div className="font-bold text-lg text-gray-900">{producto.codigo}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Categoría:</span>
-                <div className="font-semibold text-gray-900">{editForm.categoria || "-"}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Stock:</span>
-                <span className={`ml-2 font-bold ${
-                  producto.stock > 10 ? "text-green-600" : 
-                  producto.stock > 0 ? "text-yellow-600" : "text-red-600"
-                }`}>
-                  {producto.stock || 0}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Estado:</span>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  producto.estado === "Activo" ? "bg-green-100 text-green-800" :
-                  producto.estado === "Inactivo" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-red-100 text-red-800"
-                }`}>
-                  {producto.estado}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Tienda:</span>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  producto.estadoTienda === "Activo" ? "bg-green-100 text-green-800" :
-                  producto.estadoTienda === "Inactivo" ? "bg-gray-200 text-gray-700" :
-                  "bg-yellow-100 text-yellow-700"
-                }`}>
-                  {producto.estadoTienda ? producto.estadoTienda : "No definido"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          {!isObra && form.estadoTienda === "Activo" && process.env.NEXT_PUBLIC_TIENDA_URL ? (
+            <a href={`${String(process.env.NEXT_PUBLIC_TIENDA_URL).replace(/\/+$/, "")}/shop/product/${encodeURIComponent(productId)}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium hover:bg-default-100">Ver en la tienda ↗</a>
+          ) : null}
         </div>
+        <p className="-mt-3 text-sm text-default-500">{KIND_HELP[kind]}</p>
 
-        {/* Formulario de edición */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Campos básicos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información Básica</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Código del Producto *
-                  </label>
-                  <Input
-                    value={editForm.codigo}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, codigo: e.target.value }))}
-                    placeholder="Ej: MAD-001"
-                    className="font-mono"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Nombre del Producto *
-                  </label>
-                  <Input
-                    value={editForm.nombre}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre del producto"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Categoría *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.categoria}
-                      onChange={(e) => handleCategoriaChange(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {categorias.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddCategoria(true)}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddCategoria && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva categoría"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue("categoria", newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddCategoria(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Subcategoría {productoCollection !== "productos_obras" ? "*" : "(opcional)"}
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.subcategoria}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
-                      disabled={!editForm.categoria}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">
-                        {editForm.categoria ? "Seleccionar subcategoría" : "Seleccionar categoría primero"}
-                      </option>
-                      {subcategoriasDisponibles.map((subcat) => (
-                        <option key={subcat} value={subcat}>
-                          {subcat}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddSubcategoria(true)}
-                      disabled={!editForm.categoria}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddSubcategoria && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva subcategoría"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('subcategoria', newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddSubcategoria(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Estado *
-                  </label>
-                  <select
-                    value={editForm.estado}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="space-y-6">
+            <EditCard id="general" title="Datos generales" description="Cómo se identifica y se clasifica el producto." icon={Package} modified={mod("general")}>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <FormField id="f-codigo" label="Código" required error={errors.codigo} tip="Código interno único. Lo ves en ventas, stock y presupuestos.">
+                  <TextInput id="f-codigo" value={form.codigo} error={errors.codigo} onChange={(e) => set("codigo", e.target.value)} />
+                </FormField>
+                <FormField id="f-nombre" label="Nombre" required error={errors.nombre} tip="Es el título que ve el cliente en la tienda.">
+                  <TextInput id="f-nombre" value={form.nombre} error={errors.nombre} onChange={(e) => set("nombre", e.target.value)} />
+                </FormField>
+                <FormField id="f-categoria" label="Categoría" required error={errors.categoria} tip={isCombo ? "Los combos usan la categoría Combos." : "Define el tipo de producto y qué datos se piden."}>
+                  <SelectAdd id="f-categoria" value={form.categoria} error={errors.categoria} options={withExtra("categorias", options.categorias)} onChange={handleCategoria} onAdd={addExtra("categorias")} addLabel="Nueva categoría" addPlaceholder="Nombre de la categoría" disabled={isObra} />
+                </FormField>
+                {!isCombo && !isObra ? (
+                  <FormField id="f-subcategoria" label="Subcategoría" required error={errors.subcategoria} tip="Agrupa el producto dentro de su categoría en la tienda.">
+                    <SelectAdd id="f-subcategoria" value={form.subcategoria} error={errors.subcategoria} options={subcats} onChange={(v) => set("subcategoria", v)} onAdd={form.categoria ? addExtra(`sub-${form.categoria}`) : undefined} addLabel="Nueva subcategoría" addPlaceholder="Nombre de la subcategoría" />
+                  </FormField>
+                ) : null}
+                {isWood ? (
+                  <FormField id="f-tipoMaterial" label="Tipo de madera" tip="Especie o material, por ejemplo Pino, Eucalipto o Paraíso.">
+                    <SelectAdd id="f-tipoMaterial" value={form.tipoMaterial} options={withExtra("materiales", options.materiales)} onChange={(v) => set("tipoMaterial", v)} onAdd={addExtra("materiales")} addLabel="Nuevo tipo de madera" addPlaceholder="Tipo de madera" />
+                  </FormField>
+                ) : null}
+                {isWood ? (
+                  <FormField id="f-uso" label="Uso" tip="Para qué se usa: estructura, revestimiento, deck…">
+                    <SelectAdd id="f-uso" value={form.uso} options={withExtra("usos", options.usos)} onChange={(v) => set("uso", v)} onAdd={addExtra("usos")} addLabel="Nuevo uso" addPlaceholder="Uso" />
+                  </FormField>
+                ) : null}
+                {!isCombo ? (
+                  <FormField id="f-proveedor" label="Proveedor" tip="A quién se lo comprás. Solo uso interno.">
+                    <SelectAdd id="f-proveedor" value={form.proveedor} options={withExtra("proveedores", options.proveedores)} onChange={(v) => set("proveedor", v)} onAdd={addExtra("proveedores")} addLabel="Nuevo proveedor" addPlaceholder="Nombre del proveedor" />
+                  </FormField>
+                ) : null}
+                <FormField id="f-deposito" label="Depósito" required error={errors.deposito} tip="Dónde se guarda el stock.">
+                  <SelectAdd id="f-deposito" value={form.deposito} error={errors.deposito} options={withExtra("depositos", options.depositos)} onChange={(v) => set("deposito", v)} onAdd={addExtra("depositos")} addLabel="Nuevo depósito" addPlaceholder="Nombre del depósito" />
+                </FormField>
+                {isWood ? (
+                  <FormField id="f-ubicacion" label="Ubicación en depósito" tip="Sector o estante donde está la madera, por ejemplo Playón A.">
+                    <TextInput id="f-ubicacion" value={form.ubicacion} onChange={(e) => set("ubicacion", e.target.value)} placeholder="Ej: Playón A" />
+                  </FormField>
+                ) : null}
+                <FormField id="f-estado" label="Estado" tip="Activo: se usa en ventas. Inactivo o descontinuado: deja de ofrecerse.">
+                  <select id="f-estado" className={inputClass} value={form.estado} onChange={(e) => set("estado", e.target.value)}>
                     <option value="Activo">Activo</option>
                     <option value="Inactivo">Inactivo</option>
                     <option value="Descontinuado">Descontinuado</option>
                   </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Estado de Tienda *
-                  </label>
-                  <select
-                    value={editForm.estadoTienda}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                  </select>
-                </div>
+                </FormField>
               </div>
+            </EditCard>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Proveedor
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.proveedor}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, proveedor: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar proveedor</option>
-                      {proveedores.map((prov) => (
-                        <option key={prov} value={prov}>
-                          {prov}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddProveedor(true)}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddProveedor && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nuevo proveedor"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('proveedor', newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddProveedor(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Uso
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.uso}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, uso: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar uso</option>
-                      {usos.map((uso) => (
-                        <option key={uso} value={uso}>
-                          {uso}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddUso(true)}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddUso && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nuevo uso"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue("uso", newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddUso(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
+            <EditCard id="descripcion" title="Descripción" description="El texto que ve el cliente en la ficha del producto." icon={FileText} modified={mod("descripcion")}>
+              <div className="space-y-5">
+                <FormField id="f-descripcion" required error={errors.descripcion}>
+                  <DescriptionEditor id="f-descripcion" value={form.descripcion} onChange={setDescription} invalid={Boolean(errors.descripcion)} />
+                </FormField>
+                <FormField id="f-detalle" label="Detalle adicional" tip="Nota breve complementaria, por ejemplo cuidados o recomendaciones.">
+                  <TextArea id="f-detalle" rows={2} value={form.detalle} onChange={(e) => set("detalle", e.target.value)} />
+                </FormField>
               </div>
+            </EditCard>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Unidad de Medida *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.unidadMedida}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar unidad</option>
-                      {unidadesMedida.map((unidad) => (
-                        <option key={unidad} value={unidad}>
-                          {unidad}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddUnidadMedida && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva unidad de medida"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddUnidadMedida(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
+            <EditCard id="imagenes" title="Imágenes" description="Fotos del producto para la tienda." icon={ImageIcon} modified={mod("imagenes")}>
+              <Gallery images={form.imagenes} onChange={(imgs) => set("imagenes", imgs)} disabled={saving} onBusyChange={setUploading} />
+            </EditCard>
+
+            {!isCombo ? (
+              <EditCard id="medidas" title={isWood || measureFields.length ? "Unidad y medidas" : "Unidad"} description="Cómo se vende y cuánto mide cada unidad." icon={Ruler} modified={mod("medidas")}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <FormField id="f-unidadMedida" label="Se vende por" required error={errors.unidadMedida} tip={isWood ? "Define cómo se calcula el precio de cada pieza." : "Unidad en la que se cuenta y se vende el producto."}>
+                    {unitOptions ? (
+                      <select id="f-unidadMedida" className={inputClass} value={unitKey} onChange={(e) => handleUnit(e.target.value)}>
+                        {unitOptions.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
+                      </select>
+                    ) : (
+                      <SelectAdd id="f-unidadMedida" value={form.unidadMedida} error={errors.unidadMedida} options={withExtra("unidades", options.unidades)} onChange={handleUnit} onAdd={addExtra("unidades")} addLabel="Nueva unidad" addPlaceholder="Unidad de medida" />
+                    )}
+                  </FormField>
+                  {measureFields.map((m) => (
+                    <FormField key={m.key} id={`f-${m.key}`} label={m.label} required={isWood} error={errors[m.key]} tip={m.help}>
+                      <NumberInput id={`f-${m.key}`} suffix={m.suffix} value={form[m.key]} error={errors[m.key]} onChange={(e) => set(m.key, e.target.value)} />
+                    </FormField>
+                  ))}
+                  {unitKey === "M2" ? (
+                    <FormField id="f-rendimiento" label="Rendimiento" tip="Metros cuadrados que rinde cada unidad, si querés informarlo.">
+                      <NumberInput id="f-rendimiento" suffix="m²" value={form.rendimiento} onChange={(e) => set("rendimiento", e.target.value)} />
+                    </FormField>
+                  ) : null}
+                  <FormField id="f-peso" label="Peso por unidad" error={errors.peso} tip="Se usa para calcular el costo de envío.">
+                    <NumberInput id="f-peso" suffix="kg" value={form.peso} error={errors.peso} onChange={(e) => set("peso", e.target.value)} />
+                  </FormField>
                 </div>
+              </EditCard>
+            ) : null}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Depósito *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.deposito}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, deposito: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar depósito</option>
-                      {depositos.map((deposito) => (
-                        <option key={deposito} value={deposito}>
-                          {deposito}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddDeposito(true)}
-                      className="px-3"
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddDeposito && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nuevo depósito"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue("deposito", newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddDeposito(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Detalle
-                </label>
-                <textarea
-                  value={editForm.detalle}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, detalle: e.target.value }))}
-                  placeholder="Detalle extendido para venta/presupuesto"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Descripción del Producto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="rounded-lg border border-gray-300 bg-white overflow-hidden">
-                  <div className="h-[360px] min-h-[280px] max-h-[680px] resize-y overflow-hidden">
-                    <div
-                      ref={descriptionQuillRef}
-                      className="h-full [&_.ql-container]:h-[calc(100%-42px)] [&_.ql-editor]:overflow-y-auto"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {editForm.categoria === "Combos" && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Productos del combo</CardTitle>
-              </CardHeader>
-              <CardContent>
+            {isCombo ? (
+              <EditCard id="composicion" title="Composición" description="Los productos que forman el combo. El stock y el costo se calculan con ellos." icon={Layers} modified={mod("composicion")}>
                 <ComboComponentBuilder
-                  productos={comboCatalogo}
+                  productos={comboCatalog}
                   value={comboItems}
                   disabled={saving}
-                  salePrice={editForm.precioVenta}
-                  onSuggestedPrice={setEditSuggestedPrice}
-                  onValidityChange={setComboBuilderValid}
-                  onChange={(items) => {
-                    setComboItems(items);
-                    setEditForm((previous) => ({ ...previous, componentesCombo: items }));
-                  }}
+                  showCosts={!blockPriceEdits}
+                  salePrice={form.precio}
+                  onSuggestedPrice={setSuggested}
+                  onValidityChange={setComboValid}
+                  onChange={setComboItems}
                 />
-                {Number.isFinite(editSuggestedPrice) && editSuggestedPrice > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                    <span>Precio sugerido por composición: <strong className="text-foreground">${editSuggestedPrice.toLocaleString("es-AR")}</strong></span>
-                    {!blockPriceEdits && Number(editForm.precioVenta) !== editSuggestedPrice && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={saving}
-                        onClick={() => setEditForm((previous) => ({ ...previous, precioVenta: String(editSuggestedPrice) }))}
-                      >
-                        Usar precio sugerido
-                      </Button>
-                    )}
+                {!blockPriceEdits && Number.isFinite(suggested) && suggested > 0 && Number(form.precio) !== suggested ? (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-default-100 px-4 py-3 text-sm">
+                    <span>Precio sugerido por composición: <strong>{money(suggested)}</strong></span>
+                    <Btn size="sm" disabled={saving} onClick={() => set("precio", String(suggested))}>Usar precio sugerido</Btn>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                ) : null}
+              </EditCard>
+            ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Datos Técnicos y Comerciales</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Largo</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editForm.largo}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, largo: e.target.value }))}
-                    placeholder="0"
-                  />
+            {!isObra && !blockPriceEdits ? (
+              <EditCard id="precio" title="Precio" description={isWood ? "Se carga por unidad de medida; el precio de la pieza se calcula solo." : "Lo que te cuesta y lo que paga el cliente."} icon={DollarSign} modified={mod("precio")}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {!isCombo ? (
+                    <FormField id="f-costo" label="Costo" error={errors.costo} tip="Lo que te cuesta cada unidad. Solo uso interno, el cliente no lo ve.">
+                      <NumberInput id="f-costo" prefix="$" value={form.costo} error={errors.costo} onChange={(e) => set("costo", e.target.value)} />
+                    </FormField>
+                  ) : null}
+                  <FormField id="f-precio" label={priceModel.label} required error={errors.precio} warning={warnings.precio} tip={priceModel.help}>
+                    <NumberInput id="f-precio" prefix="$" value={form.precio} error={errors.precio} warning={warnings.precio} onChange={(e) => set("precio", e.target.value)} />
+                  </FormField>
+                  {isWood ? (
+                    <FormField id="f-pieza" label="Precio de la pieza" tip="Resultado de multiplicar el precio por las medidas. Es el precio que ve el cliente por cada pieza.">
+                      <div className="flex h-10 items-center rounded-lg bg-default-100 px-3 text-sm font-medium">{piece > 0 ? money(piece) : "Completá precio y medidas"}</div>
+                    </FormField>
+                  ) : null}
+                  {margin ? (
+                    <FormField id="f-margen" label="Margen" tip="Diferencia entre precio de venta y costo.">
+                      <div className={`flex h-10 items-center rounded-lg bg-default-100 px-3 text-sm font-medium ${margin.amount < 0 ? "text-destructive" : ""}`}>{money(margin.amount)} ({margin.pct.toFixed(1)}%)</div>
+                    </FormField>
+                  ) : null}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Ancho</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editForm.ancho}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, ancho: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Espesor (mm)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editForm.espesor}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, espesor: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Peso (kg)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={editForm.peso}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, peso: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Rendimiento</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.0001"
-                    value={editForm.rendimiento}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, rendimiento: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    {editForm.categoria === "Combos" ? "Stock calculado" : "Stock"}
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={editForm.categoria === "Combos" ? comboStockPreview : editForm.stock}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, stock: e.target.value }))}
-                    placeholder="0"
-                    disabled={editForm.categoria === "Combos"}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Mínimo de compra</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={editForm.minimoCompra}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, minimoCompra: e.target.value }))}
-                    placeholder="1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Pack</label>
-                  <Input
-                    value={editForm.pack}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, pack: e.target.value }))}
-                    placeholder="Ej: Caja x12"
-                  />
-                </div>
-                {!blockPriceEdits && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Costo</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editForm.costo}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, costo: e.target.value }))}
-                      disabled={saving}
-                      placeholder="0"
-                    />
-                  </div>
+              </EditCard>
+            ) : null}
+            {!isObra && blockPriceEdits ? <p className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-default-500">Tu usuario no puede ver ni modificar precios y costos.</p> : null}
+
+            <EditCard id="stock" title="Stock y compra" description="Cuánto hay y cómo se puede comprar." icon={Boxes} modified={mod("stock")}>
+              <div className="grid gap-5 sm:grid-cols-2">
+                {isCombo ? (
+                  <FormField id="f-stock" label="Stock disponible" tip="Se calcula con el stock de los productos del combo. No se edita a mano.">
+                    <div className="flex h-10 items-center rounded-lg bg-default-100 px-3 text-sm font-medium">{comboStock} combos</div>
+                  </FormField>
+                ) : (
+                  <FormField id="f-stock" label="Stock" error={errors.stock} tip="Unidades disponibles. Al cambiarlo se registra un ajuste en movimientos.">
+                    <NumberInput id="f-stock" value={form.stock} error={errors.stock} onChange={(e) => set("stock", e.target.value)} />
+                  </FormField>
                 )}
-                {!blockPriceEdits && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Precio de venta *</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editForm.precioVenta}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, precioVenta: e.target.value }))}
-                      disabled={saving}
-                      placeholder="0"
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Stock mínimo</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={editForm.stockMinimo}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, stockMinimo: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                {!blockPriceEdits && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Valor compra</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editForm.valorCompra}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, valorCompra: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                )}
+                <FormField id="f-stockMinimo" label="Stock mínimo" error={errors.stockMinimo} tip="Debajo de este número el producto se marca con stock bajo.">
+                  <NumberInput id="f-stockMinimo" value={form.stockMinimo} error={errors.stockMinimo} onChange={(e) => set("stockMinimo", e.target.value)} />
+                </FormField>
+                <FormField id="f-minimoCompra" label="Compra mínima" error={errors.minimoCompra} warning={warnings.minimoCompra} tip="Cantidad mínima que puede comprar un cliente en la tienda.">
+                  <NumberInput id="f-minimoCompra" value={form.minimoCompra} error={errors.minimoCompra} warning={warnings.minimoCompra} onChange={(e) => set("minimoCompra", e.target.value)} />
+                </FormField>
+                <FormField id="f-pack" label="Unidades por pack" error={errors.pack} hint={form.packLegacy ? `Antes decía "${form.packLegacy}". Ingresá solo el número.` : undefined} tip="Si se vende en packs, cuántas unidades trae cada uno. Dejalo vacío si se vende suelto.">
+                  <NumberInput id="f-pack" value={form.pack} error={errors.pack} hint={form.packLegacy} onChange={(e) => set("pack", e.target.value)} />
+                </FormField>
               </div>
-            </CardContent>
-          </Card>
+            </EditCard>
 
-          {/* Campos específicos por categoría */}
-          {productoCollection !== "productos_obras" && editForm.categoria !== "Combos" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Material</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Tipo de material</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={editForm.tipoMaterial}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, tipoMaterial: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Seleccionar (opcional)</option>
-                        {tiposMadera.map((tipo) => (
-                          <option key={tipo} value={tipo}>{tipo}</option>
-                        ))}
+            {!isObra ? (
+              <EditCard id="tienda" title="Tienda online" description="Visibilidad, descuento y etiquetas." icon={Store} modified={mod("tienda")}>
+                <div className="space-y-5">
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <FormField id="f-estadoTienda" label="Visibilidad" tip="Activo: el producto se muestra y se puede comprar. Inactivo: queda oculto.">
+                      <select id="f-estadoTienda" className={inputClass} value={form.estadoTienda} onChange={(e) => set("estadoTienda", e.target.value)}>
+                        <option value="Activo">Visible en la tienda</option>
+                        <option value="Inactivo">Oculto</option>
                       </select>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAddTipoMadera(true)} className="px-3">+</Button>
-                    </div>
-                    {showAddTipoMadera && (
-                      <div className="flex gap-2 mt-2">
-                        <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="Nuevo tipo de material" className="flex-1" />
-                        <Button type="button" size="sm" onClick={() => handleAddNewValue("tipoMaterial", newValue)}>Agregar</Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => { setShowAddTipoMadera(false); setNewValue(""); }}>Cancelar</Button>
+                    </FormField>
+                    <FormField id="f-discountValue" label="Descuento" error={errors.discountValue} tip="Se resta del precio en la tienda. Elegí monto fijo o porcentaje.">
+                      <div className="flex gap-2">
+                        <Segmented value={form.discountMode} onChange={(v) => set("discountMode", v)} options={[{ value: "amount", label: "$" }, { value: "percentage", label: "%" }]} />
+                        <NumberInput id="f-discountValue" className="flex-1" value={form.discountValue} error={errors.discountValue} onChange={(e) => set("discountValue", e.target.value)} />
                       </div>
-                    )}
+                    </FormField>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <ToggleCard checked={form.newArrival} onChange={(v) => set("newArrival", v)} title="Novedad" description="Se muestra en Novedades." />
+                    <ToggleCard checked={form.featuredBrand} onChange={(v) => set("featuredBrand", v)} title="Destacado" description="Se muestra entre los destacados." />
+                    <ToggleCard checked={form.specialOffer} onChange={(v) => set("specialOffer", v)} title="Oferta especial" description="Se marca como oferta." />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-
-          {/* Campos para tienda */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuración de Tienda</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Rating */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Calificación del Producto
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setEditForm(prev => ({ ...prev, rating: star }))}
-                      className={`p-2 rounded-lg transition-colors ${
-                        editForm.rating >= star
-                          ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      }`}
-                    >
-                      <Star className="w-6 h-6 fill-current" />
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Selecciona la calificación del producto (1-5 estrellas)
-                </p>
-              </div>
-
-              {/* Galería de imágenes */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Galería de Imágenes
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Subí fotos cuadradas (1:1) de 1200 × 1200 px con el producto centrado. La primera imagen es la que se ve en la ficha y en las tarjetas de la tienda. Arrastrá y soltá para reordenar.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handleMultipleImageUpload(e.target.files)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('galleryInput').click()}
-                    disabled={uploadingGallery}
-                  >
-                    {uploadingGallery ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Subiendo...
-                      </>
-                    ) : (
-                      'Seleccionar'
-                    )}
-                  </Button>
-                </div>
-                {imagenesGaleria.length > 0 && (
-                  <div className="space-y-3 mt-3">
-                    {imagenesGaleria.map((url, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('text/plain', index.toString());
-                        }}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                          moveImage(fromIndex, index);
-                        }}
-                      >
-                        <div className="cursor-move text-gray-400 hover:text-gray-600">
-                          <GripVertical className="w-5 h-5" />
-                        </div>
-                        <img 
-                          src={url} 
-                          alt={`Imagen ${index + 1}`} 
-                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-700">
-                            Imagen {index + 1}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Posición: {index + 1} de {imagenesGaleria.length}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeImage(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <input
-                  id="galleryInput"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => handleMultipleImageUpload(e.target.files)}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Descuento */}
-              <div className="space-y-3 rounded-xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 p-4">
-                <label className="text-sm font-medium text-gray-700">
-                  Descuento
-                </label>
-                <div className="flex rounded-xl border border-gray-300 p-1 bg-white shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => handleDiscountModeChange("amount")}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      discountMode === "amount"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    Valor fijo ($)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDiscountModeChange("percentage")}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      discountMode === "percentage"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    Porcentaje (%)
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-600">
-                    {discountMode === "amount" ? "Monto ($)" : "Porcentaje (%)"}
-                  </label>
-                  <Input
-                    value={discountMode === "amount" ? discountInputs.amount : discountInputs.percentage}
-                    onChange={(e) => updateDiscount(discountMode, e.target.value)}
-                    placeholder={discountMode === "amount" ? "0.00" : "0"}
-                    type="number"
-                    step={discountMode === "amount" ? "0.01" : "1"}
-                    min="0"
-                    max={discountMode === "percentage" ? "100" : undefined}
-                  />
-                </div>
-              </div>
-
-              {/* Etiquetas */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">
-                  Etiquetas de Tienda
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.freeShipping}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, freeShipping: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <Truck className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Envío Gratis</span>
-                  </label>
-                  
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.featuredBrand}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, featuredBrand: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <Star className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Marca Destacada</span>
-                  </label>
-                  
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.newArrival}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, newArrival: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <Gift className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Nuevo Lanzamiento</span>
-                  </label>
-                  
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.specialOffer}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, specialOffer: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <Zap className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Oferta Especial</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editForm.mundialOffer}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, mundialOffer: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <Zap className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Promo Mundial</span>
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Botón guardar */}
-          <div className="flex justify-end">
-            <Button 
-              onClick={handleSave} 
-              disabled={saving}
-              className="px-8 py-3"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Guardar Cambios
-                </>
-              )}
-            </Button>
+              </EditCard>
+            ) : null}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
-export default ProductoDetailPage;
+          <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="aspect-square bg-default-100">
+                {form.imagenes[0] ? <img src={form.imagenes[0]} alt="Imagen principal" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-default-400"><ImageIcon className="h-10 w-10" /></div>}
+              </div>
+              <div className="space-y-3 p-4 text-sm">
+                <p className="font-medium leading-snug">{form.nombre || "Sin nombre"}</p>
+                {!isObra && !blockPriceEdits ? (
+                  <div>
+                    <p className="text-xs text-default-500">Así lo ve el cliente{isWood ? " (por pieza)" : ""}</p>
+                    {preview.base > 0 ? (
+                      <p className="text-lg font-semibold">
+                        {money(preview.final)}
+                        {preview.discounted ? <span className="ml-2 text-sm font-normal text-default-400 line-through">{money(preview.base)}</span> : null}
+                      </p>
+                    ) : <p className="text-default-500">Sin precio cargado</p>}
+                  </div>
+                ) : null}
+                <dl className="space-y-1.5 border-t border-border pt-3 text-xs text-default-600">
+                  <div className="flex justify-between"><dt>Stock</dt><dd className="font-medium text-foreground">{isCombo ? comboStock : form.stock || 0}</dd></div>
+                  {!isObra ? <div className="flex justify-between"><dt>Tienda</dt><dd className="font-medium text-foreground">{form.estadoTienda === "Activo" ? "Visible" : "Oculto"}</dd></div> : null}
+                  <div className="flex justify-between"><dt>Imágenes</dt><dd className="font-medium text-foreground">{form.imagenes.length}</dd></div>
+                </dl>
+              </div>
+            </div>
+            <nav aria-label="Secciones" className="hidden rounded-xl border border-border bg-card p-2 text-sm lg:block">
+              {[["general", "Datos generales"], ["descripcion", "Descripción"], ["imagenes", "Imágenes"], !isCombo && ["medidas", "Unidad y medidas"], isCombo && ["composicion", "Composición"], !isObra && !blockPriceEdits && ["precio", "Precio"], ["stock", "Stock y compra"], !isObra && ["tienda", "Tienda online"]].filter(Boolean).map(([id, label]) => (
+                <a key={id} href={`#${id}`} className="flex items-center justify-between rounded-lg px-3 py-2 text-default-600 hover:bg-default-100 hover:text-foreground">
+                  {label}{changedSections.has(id) ? <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="Modificado" /> : null}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        </div>
+
+        <SaveBar status={status} count={changeCount} errorCount={errorCount} message={saveMessage} onSave={handleSave} onDiscard={discard} />
+      </div>
+    </TooltipProvider>
+  );
+}

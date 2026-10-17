@@ -44,6 +44,7 @@ function fixture() {
   const cache = {};
   function load(name) {
     if (name === "@/lib/firebase-admin") return { getAdminDb: () => db };
+    if (name === "@/lib/tienda-precios-server") return { getPublishedPrecios: async () => null };
     if (name === "@/lib/settings") return { obtenerSettingsGeneral: async () => ({
       locations: [{ id: "local", nombre: "Local", lat: -34, lng: -58, radio: 10000 }],
       shippingTiers: [{ km: 10, price: 500 }], data: { transferenciaDescuentoPct: 10 },

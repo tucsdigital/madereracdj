@@ -1248,7 +1248,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-destructive">*</span>
-                    Valor de Compra
+                    Costo
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
@@ -1272,7 +1272,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-destructive">*</span>
-                    Valor de Venta
+                    Precio de venta
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
@@ -1460,7 +1460,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-destructive">*</span>
-                    Valor de Venta
+                    Precio de venta
                   </label>
                   <input
                     {...register("valorVenta")}

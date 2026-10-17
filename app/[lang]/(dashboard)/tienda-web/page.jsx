@@ -21,12 +21,16 @@ import { BannerList, CategoriaGrid, SeccionList } from "@/components/tienda-web/
 import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tienda-web/Editors";
 import ContactoForm from "@/components/tienda-web/ContactoForm";
 import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
+import PreciosForm from "@/components/tienda-web/PreciosForm";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query as fsQuery, where } from "firebase/firestore";
 
 const TABS = [
   { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
   { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
+  { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "transferencia", label: "Transferencia", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
 ];
 
@@ -59,6 +63,7 @@ export default function TiendaWebPage() {
   const [confirm, setConfirm] = useState(null);
   const [media, setMedia] = useState({ storage: null, items: [], loaded: false });
   const [catalog, setCatalog] = useState({ products: [], categories: [] });
+  const [priceProducts, setPriceProducts] = useState({ items: [], loading: false, all: false, loaded: false });
   const loadedFor = useRef(null);
 
   const authFetch = useCallback(async (url, options = {}) => {
@@ -90,6 +95,22 @@ export default function TiendaWebPage() {
       setCatalog({ products, categories: [...new Set(products.map((p) => p.categoria).filter(Boolean))].sort() });
     }).catch(() => {});
   }, [user, authFetch, apply]);
+
+  const loadPriceProducts = useCallback(async (all = false) => {
+    setPriceProducts((prev) => ({ ...prev, loading: true }));
+    try {
+      const ref = collection(db, "productos");
+      const snap = await getDocs(all ? ref : fsQuery(ref, where("estadoTienda", "==", "Activo")));
+      setPriceProducts({ items: snap.docs.map((d) => ({ id: d.id, ...d.data() })), loading: false, all, loaded: true });
+    } catch (e) {
+      setPriceProducts((prev) => ({ ...prev, loading: false, loaded: true }));
+      setNotice({ type: "error", text: "No se pudieron cargar los productos: " + e.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "precios" && !priceProducts.loaded && !priceProducts.loading) loadPriceProducts(false);
+  }, [tab, priceProducts.loaded, priceProducts.loading, loadPriceProducts]);
 
   const dirty = useMemo(() => Boolean(config && saved && JSON.stringify(normalizeTiendaConfig(config)) !== JSON.stringify(saved)), [config, saved]);
   const issues = useMemo(() => (config ? tiendaIssues(config, { imageHosts: meta.imageHosts }) : []), [config, meta.imageHosts]);
@@ -310,6 +331,18 @@ export default function TiendaWebPage() {
       {tab === "contacto" && (
         <ContactoForm contacto={config.contacto} error={issues.find((i) => i.scope === "contacto")?.message}
           onChange={(patch) => setConfig((prev) => ({ ...prev, contacto: { ...prev.contacto, ...patch } }))} />
+      )}
+      {tab === "precios" && (
+        <PreciosForm
+          precios={config.precios}
+          onChange={(next) => setConfig((prev) => ({ ...prev, precios: next }))}
+          products={priceProducts.items}
+          productsState={priceProducts}
+          onLoadAll={() => loadPriceProducts(true)}
+          categories={catalog.categories}
+          authFetch={authFetch}
+          onRestore={(before) => { setConfig((prev) => ({ ...prev, precios: before })); setNotice({ type: "ok", text: "Versión anterior cargada. Guardá para aplicarla." }); }}
+        />
       )}
       {tab === "transferencia" && (
         <TransferenciaForm transferencia={config.transferencia} issues={issues}
