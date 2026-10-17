@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
+import { getPublishedTransferencia } from "@/lib/tienda-transfer";
 
 export async function GET(request, { params }) {
   try {
@@ -16,7 +17,8 @@ export async function GET(request, { params }) {
       const reservation = doc.data();
       return reservation.estado === "activa" && Date.parse(reservation.expiresAt) > Date.now();
     });
-    return NextResponse.json({ ...order, numeroPedido: venta?.numeroPedido || null, reservaActiva, reservaExpiresAt: venta?.reservaExpiresAt || null, anulada: venta?.anulada === true });
+    const transferencia = order.paymentMethod === "transferencia" ? await getPublishedTransferencia(db) : null;
+    return NextResponse.json({ ...order, numeroPedido: venta?.numeroPedido || null, reservaActiva, reservaExpiresAt: venta?.reservaExpiresAt || null, anulada: venta?.anulada === true, transferencia });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }

@@ -97,3 +97,23 @@ test("con dominios autorizados solo se aceptan imágenes de R2 o rutas propias d
   // Un host que solo contiene el dominio autorizado como subcadena no engaña a la validación.
   assert.ok(validateTiendaConfig({ banners: [{ id: "b", titulo: "B", enlace: "/shop", imagen: "https://media.ejemplo.com.evil.com/x.webp" }] }, { imageHosts: hosts }).errors.length > 0);
 });
+
+test("transferencia: normaliza descuento, CBU, alias y plazo; la vista p�blica no expone datos bancarios", () => {
+  const cfg = normalizeTiendaConfig({ transferencia: { descuentoPct: "7,5 %", cbu: "0000 0031 0000 0123 4567 89", alias: "mader as.cab", plazoHoras: 9999, titular: "  Maderas  " } });
+  assert.equal(cfg.transferencia.descuentoPct, 7.5);
+  assert.equal(cfg.transferencia.cbu, "0000003100000123456789");
+  assert.equal(cfg.transferencia.alias, "maderas.cab");
+  assert.equal(cfg.transferencia.plazoHoras, 168);
+  assert.equal(cfg.transferencia.titular, "Maderas");
+  assert.equal(normalizeTiendaConfig({ transferencia: { descuentoPct: 500 } }).transferencia.descuentoPct, 90);
+  assert.equal(normalizeTiendaConfig({ transferencia: { descuentoPct: "abc" } }).transferencia.descuentoPct, 10);
+  const publico = publicTiendaConfig({ transferencia: { descuentoPct: 12, cbu: "0000003100000123456789", alias: "mi.alias" } });
+  assert.deepEqual(publico.transferencia, { descuentoPct: 12 });
+});
+
+test("transferencia: valida formatos y avisa si faltan los datos para transferir", () => {
+  const { errors } = validateTiendaConfig({ transferencia: { cbu: "123", alias: "a", cuit: "1" } });
+  for (const pattern of [/CBU/, /alias/, /CUIT/]) assert.ok(errors.some((e) => pattern.test(e)), `falta error ${pattern}`);
+  assert.ok(validateTiendaConfig(TIENDA_DEFAULTS).warnings.some((w) => /CBU ni alias/.test(w)));
+  assert.deepEqual(validateTiendaConfig({ transferencia: { cbu: "0000003100000123456789", alias: "maderas.cab", cuit: "30123456789" } }).errors, []);
+});

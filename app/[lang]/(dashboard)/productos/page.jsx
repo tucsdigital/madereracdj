@@ -1037,7 +1037,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-destructive">*</span>
-                    Ancho (cm)
+                    {String(watch("unidadMedida") || "").toUpperCase().replace("²", "2") === "M2" ? "Ancho nominal (referencia)" : "Ancho (pulgadas)"}
                   </label>
                   <Input
                     {...register("ancho")}
@@ -1058,7 +1058,7 @@ function FormularioProducto({ onClose, onSuccess, user }) {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-destructive">*</span>
-                    Alto (cm)
+                    {String(watch("unidadMedida") || "").toUpperCase().replace("²", "2") === "M2" ? "Ancho útil (metros)" : "Espesor (pulgadas)"}
                   </label>
                   <Input
                     {...register("alto")}

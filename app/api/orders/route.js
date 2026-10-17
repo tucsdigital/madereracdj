@@ -670,7 +670,7 @@ export async function POST(request) {
              totalSinEfectivo: Math.max(0, subtotal - descuentos + costoEnvio),
              totalConEfectivo: paymentMethod === "transferencia" ? orderData.total : null,
              ecommerceLifecycle: true,
-             reservaExpiresAt: new Date(Date.now() + (paymentMethod === "transferencia" ? 86400000 : 1800000)).toISOString(),
+             reservaExpiresAt: new Date(Date.now() + (paymentMethod === "transferencia" ? Math.max(1, Number(orderData.transferReserveHours) || 24) * 3600000 : 1800000)).toISOString(),
             fecha: formatFechaLegible(createdAtIso),
             fechaCreacion: createdAtIso,
             formaPago: paymentMethod || "",

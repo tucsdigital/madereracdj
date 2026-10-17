@@ -3,6 +3,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricing";
 import { getExternalProductoFields } from "@/lib/producto-utils";
+import { getProductMeasure } from "@/lib/product-measure";
 import {
   computeComboAvailableStock,
   getComboComponentIds,
@@ -109,6 +110,7 @@ async function enrichProductsStock(products, baseMap = new Map()) {
             ancho: Number(source.ancho) || null,
             largo: Number(source.largo) || null,
             espesor: Number(source.espesor) || null,
+            measure: getProductMeasure(source),
           };
         })
       : [];
@@ -187,7 +189,8 @@ export async function GET(request) {
         items.push({
           id: prod.id,
           producto: { ...prod, ...integration },
-          pricing,
+          measure: getProductMeasure(prod),
+           pricing,
           external,
           ...integration,
         });
@@ -254,6 +257,7 @@ export async function GET(request) {
       NextResponse.json({
         id: producto.id,
         producto: { ...producto, ...integration },
+        measure: getProductMeasure(producto),
         pricing,
         external,
         ...integration,
@@ -311,6 +315,7 @@ export async function POST(request) {
       return {
         id: prod.id ?? normalized.id,
         producto: { ...prod, ...integration },
+        measure: getProductMeasure(prod),
         pricing,
         external,
         ...integration,

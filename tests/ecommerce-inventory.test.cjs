@@ -129,7 +129,7 @@ test("un combo reserva sus componentes y los consume al confirmar", async () => 
 });
 test("cotización ignora precios manipulados y toma descuentos del sistema", async () => {
   const { data, quote } = fixture();
-  data.set("productos/pino", { nombre: "Pino", estadoTienda: "Activo", valorVenta: 1000, discount: { percentage: 10 } });
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000, discount: { percentage: 10 } });
   const result = await quote({ items: [{ id: "pino", quantity: 2, price: 1 }], paymentMethod: "transferencia", deliveryInfo: { metodoEntrega: "retiro", shippingPrice: -1000 } });
   assert.equal(result.pricing.subtotal, 2000);
   assert.equal(result.pricing.productDiscounts, 200);
@@ -140,13 +140,45 @@ test("cotización rechaza productos inactivos, cantidades negativas y packs inco
   const { data, quote } = fixture();
   const input = { items: [{ id: "pino", quantity: 2 }], deliveryInfo: { metodoEntrega: "retiro" } };
   await assert.rejects(quote(input), /disponible/);
-  data.set("productos/pino", { nombre: "Pino", estadoTienda: "Activo", valorVenta: 1000, pack: 3 });
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000, pack: 3 });
   await assert.rejects(quote(input), /cantidad/);
   await assert.rejects(quote({ ...input, items: [{ id: "pino", quantity: -3 }] }), /cantidad/);
   assert.equal((await quote({ ...input, items: [{ id: "pino", quantity: 3 }] })).total, 3000);
 });
 test("envío sin peso conocido requiere cotización en lugar de cobrar cero", async () => {
   const { data, quote } = fixture();
-  data.set("productos/pino", { nombre: "Pino", estadoTienda: "Activo", valorVenta: 1000 });
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
   await assert.rejects(quote({ items: [{ id: "pino", quantity: 1 }], deliveryInfo: { metodoEntrega: "envio", lat: -34, lng: -58, shippingPrice: 0 } }), /cotización/);
+});
+
+test("cotización m² redondea el total como ventas y respeta reservas", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Machimbre", categoria: "Maderas", unidadMedida: "M2", alto: 0.14, largo: 3.05, precioPorPie: 2510, stock: 12, estadoTienda: "Activo" });
+  const input = { items: [{ id: "pino", quantity: 12 }], deliveryInfo: { metodoEntrega: "retiro" } };
+  assert.equal((await quote(input)).total, 12900);
+  data.set("reservasStock/otra", { productoId: "pino", cantidad: 1, estado: "activa", expiresAt: new Date(Date.now() + 60000).toISOString() });
+  await assert.rejects(quote(input), /Stock insuficiente/);
+});
+
+test("cotización agrega consumo de piezas sueltas y componentes compartidos de combos", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
+  data.set("productos/combo", { nombre: "Combo", esCombo: true, estadoTienda: "Activo", precioVenta: 2500, componentesCombo: [{ productoId: "pino", cantidad: 3 }] });
+  await assert.rejects(quote({ items: [{ id: "pino", quantity: 2 }, { id: "combo", quantity: 3 }], deliveryInfo: { metodoEntrega: "retiro" } }), /Stock insuficiente/);
+  assert.equal((await quote({ items: [{ id: "combo", quantity: 2 }], deliveryInfo: { metodoEntrega: "retiro" } })).total, 5000);
+});
+
+test("el descuento por transferencia sale del panel de la tienda web y gana sobre el ajuste antiguo", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
+  const input = { items: [{ id: "pino", quantity: 2 }], paymentMethod: "transferencia", deliveryInfo: { metodoEntrega: "retiro" } };
+  assert.equal((await quote(input)).pricing.transferDiscount, 200);
+  data.set("settings/tienda", { published: { transferencia: { descuentoPct: 15 } } });
+  const result = await quote(input);
+  assert.equal(result.pricing.transferDiscount, 300);
+  assert.equal(result.total, 1700);
+  assert.equal(result.transferDiscountRate, 0.15);
+  data.set("settings/tienda", { published: { transferencia: { descuentoPct: 0 } } });
+  assert.equal((await quote(input)).pricing.transferDiscount, 0);
+  assert.equal((await quote({ ...input, paymentMethod: "mercadopago" })).pricing.transferDiscount, 0);
 });

@@ -44,7 +44,8 @@ import { useAuth } from "@/provider/auth.provider";
 import { toast } from "@/components/ui/use-toast";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
-import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
+import { computeLineBase, computeLineSubtotal, computeTotals, calcularPrecioCorteMadera, calcularPrecioMachimbre, calcularPrecioMetroLineal, calcularPreciosProducto } from "@/lib/pricing";
+import { commercialUnit, getProductMeasure, decimal, woodSectionInches } from "@/lib/product-measure";
 import { normalizeVentaPaymentFields } from "@/lib/ventas-pagos";
 import {
   applyDerivedComboStock,
@@ -315,7 +316,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       );
       const unidadMadera = (() => {
         if (real.categoria !== "Maderas") return unidad;
-        const raw = String(unidad || "").trim();
+        const raw = commercialUnit(real);
         const up = raw.toUpperCase();
         if (!up) return "Pie";
         if (up === "UN" || up === "UNI" || up === "UNIDAD") return "Unidad";
@@ -334,10 +335,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         precio =
           Number(real.precioVenta ?? real.valorVenta ?? real.precioCalculado ?? real.precioUnidad ?? 0) || 0;
       } else if (real.categoria === "Maderas") {
-        alto = Number(real.alto) || 0;
-        ancho = Number(real.ancho) || 0;
-        largo = Number(real.largo) || 0;
-        precioPorPie = Number(real.precioPorPie) || 0;
+        const measure = getProductMeasure(real);
+        alto = unidadMadera === "M2"
+          ? (measure.perPiece && measure.dimensions.find((d) => d.label === "Largo")?.value ? measure.perPiece / measure.dimensions.find((d) => d.label === "Largo").value : 0)
+          : woodSectionInches(real).alto;
+        ancho = unidadMadera === "Pie" ? woodSectionInches(real).ancho : decimal(real.ancho);
+        largo = measure.dimensions.find((d) => d.label === "Largo")?.value || 0;
+        precioPorPie = decimal(real.precioPorPie);
 
         if (unidadMadera === "M2") {
           const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
@@ -418,6 +422,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         }
       }
 
+      // Catálogo y tienda comparten el motor. Las dimensiones editables se guardan normalizadas.
+      const catalogPricing = calcularPreciosProducto(real, { cantidad: 1 });
+      if (catalogPricing.precioUnitarioBase > 0) precio = catalogPricing.precioUnitarioBase;
       // Determinar si es machimbre o deck para marcar cepillado automáticamente
       const subcategoria = String(real.subcategoria || real.subCategoria || "").toLowerCase();
       const esMachimbreODeck =
@@ -445,7 +452,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           descuento: 0,
           categoria: real.categoria,
           precioIncluyeCantidad:
-            real.categoria === "Maderas" && (unidadMadera === "M2" || unidadMadera === "ML"),
+            !isComboProduct(real) && precioPorPie > 0 && real.categoria === "Maderas" && (unidadMadera === "M2" || unidadMadera === "ML"),
           alto: alto || 0,
           ancho: ancho || 0,
           largo: largo || 0,
@@ -522,17 +529,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
   const DEFAULT_CEPILLADO_PORCENTAJE = 6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
-  const calcularPrecioMetroLineal = ({ largo, cantidad, precioPorPie }) => {
-    if (
-      [largo, cantidad, precioPorPie].some(
-        (v) => typeof v !== "number" || v <= 0
-      )
-    ) {
-      return 0;
-    }
-    const precio = largo * precioPorPie * cantidad;
-    return Math.round(precio / 100) * 100;
-  };
   // Función helper para manejar valores numéricos
   const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {
@@ -591,7 +587,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             parsedCantidad === ""
               ? 1
               : Math.max(1, Math.ceil(Number(parsedCantidad) || 1));
-          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+          if (!isComboProduct(p) && p.precioPorPie > 0 && p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
             const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
             const base =
               p.unidad === "M2"
@@ -621,7 +617,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id) {
           const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
           const nuevaCantidad = current + 1;
-          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+          if (!isComboProduct(p) && p.precioPorPie > 0 && p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
             const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
             const base =
               p.unidad === "M2"
@@ -651,7 +647,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id) {
           const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
           const nuevaCantidad = Math.max(1, current - 1);
-          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+          if (!isComboProduct(p) && p.precioPorPie > 0 && p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
             const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
             const base =
               p.unidad === "M2"
@@ -1492,40 +1488,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [esConFactura, setEsConFactura] = useState(false);
   const vendedores = ["coco", "damian", "lauti", "jose"];
 
-  function calcularPrecioCorteMadera({
-    alto,
-    ancho,
-    largo,
-    precioPorPie,
-    factor = 0.2734,
-  }) {
-    if (
-      [alto, ancho, largo, precioPorPie].some(
-        (v) => typeof v !== "number" || v <= 0
-      )
-    ) {
-      return 0;
-    }
-    const precio = factor * alto * ancho * largo * precioPorPie;
-    // Redondear a centenas (múltiplos de 100)
-    return Math.round(precio / 100) * 100;
-  }
-
-  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
-  function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
-    if (
-      [alto, largo, cantidad, precioPorPie].some(
-        (v) => typeof v !== "number" || v <= 0
-      )
-    ) {
-      return 0;
-    }
-    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
-    const metrosCuadrados = alto * largo;
-    const precio = metrosCuadrados * precioPorPie * cantidad;
-    // Redondear a centenas (múltiplos de 100)
-    return Math.round(precio / 100) * 100;
-  }
 
   // Formateador memoizado para números en formato argentino
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat("es-AR"), []);
@@ -2697,7 +2659,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     {p.unidad === "M2" ? (
                                       <div className="flex flex-wrap items-end gap-2">
                                         <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <label className="text-[11px] font-semibold text-orange-700">Ancho útil (m)</label>
                                           <input
                                             type="number"
                                             min="0"
@@ -2709,7 +2671,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           />
                                         </div>
                                         <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo (m)</label>
                                           <input
                                             type="number"
                                             min="0"
@@ -2724,7 +2686,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     ) : p.unidad === "ML" ? (
                                       <div className="flex flex-wrap items-end gap-2">
                                         <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo (m)</label>
                                           <input
                                             type="number"
                                             min="0"
@@ -2739,7 +2701,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     ) : (
                                       <div className="flex flex-wrap items-end gap-2">
                                         <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <label className="text-[11px] font-semibold text-orange-700">Espesor (pulg)</label>
                                           <input
                                             type="number"
                                             min="0"
@@ -2751,7 +2713,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           />
                                         </div>
                                         <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                          <label className="text-[11px] font-semibold text-orange-700">Ancho (pulg)</label>
                                           <input
                                             type="number"
                                             min="0"

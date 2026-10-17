@@ -20,12 +20,14 @@ import { Btn } from "@/components/tienda-web/ui";
 import { BannerList, CategoriaGrid, SeccionList } from "@/components/tienda-web/Lists";
 import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tienda-web/Editors";
 import ContactoForm from "@/components/tienda-web/ContactoForm";
+import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
 
 const TABS = [
   { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
   { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
+  { id: "transferencia", label: "Transferencia", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
 ];
 
 const NEW_ITEM = {
@@ -308,6 +310,10 @@ export default function TiendaWebPage() {
       {tab === "contacto" && (
         <ContactoForm contacto={config.contacto} error={issues.find((i) => i.scope === "contacto")?.message}
           onChange={(patch) => setConfig((prev) => ({ ...prev, contacto: { ...prev.contacto, ...patch } }))} />
+      )}
+      {tab === "transferencia" && (
+        <TransferenciaForm transferencia={config.transferencia} issues={issues}
+          onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />

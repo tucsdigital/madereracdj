@@ -25,11 +25,11 @@ export function BannerEditor({ open, onOpenChange, banner, index, issues, onChan
   return (
     <EditorSheet open={open} onOpenChange={onOpenChange} title={banner.titulo || "Nuevo banner"} subtitle="Banner del carrusel principal"
       onDuplicate={onDuplicate} onDelete={onDelete} deleteMessage="El banner deja de mostrarse en la tienda cuando guardes los cambios.">
-      <ImageDrop label="Imagen principal" hint={`Ideal ${IMAGE_GUIDE.banners.ancho} × ${IMAGE_GUIDE.banners.alto} px. Se muestra en computadora y tablet.`}
-        folder="banners" aspect="aspect-[2.16/1]" value={banner.imagen} media={media} tiendaUrl={tiendaUrl} error={e.imagen}
+      <ImageDrop label="Imagen principal" ratio={IMAGE_GUIDE.banners.ratio} ratioLabel={IMAGE_GUIDE.banners.proporcion} hint={`Ideal ${IMAGE_GUIDE.banners.ancho} × ${IMAGE_GUIDE.banners.alto} px (${IMAGE_GUIDE.banners.proporcion}). Se muestra en computadora y tablet.`}
+        folder="banners" aspect="aspect-[21/10]" value={banner.imagen} media={media} tiendaUrl={tiendaUrl} error={e.imagen}
         onChange={(url) => onChange({ imagen: url, ...(banner.imagenMovil && banner.imagenMovil !== banner.imagen ? {} : { imagenMovil: url }) })} />
-      <ImageDrop label="Imagen para celular" hint={`Ideal ${IMAGE_GUIDE.bannersMovil.ancho} × ${IMAGE_GUIDE.bannersMovil.alto} px. Si no subís otra, se usa la principal.`}
-        folder="banners" aspect="aspect-[9/11]" className="max-w-[220px]" value={banner.imagenMovil} media={media} tiendaUrl={tiendaUrl} error={e.imagenMovil}
+      <ImageDrop label="Imagen para celular" ratio={IMAGE_GUIDE.bannersMovil.ratio} ratioLabel={IMAGE_GUIDE.bannersMovil.proporcion} hint={`Ideal ${IMAGE_GUIDE.bannersMovil.ancho} × ${IMAGE_GUIDE.bannersMovil.alto} px (${IMAGE_GUIDE.bannersMovil.proporcion}). Si no subís otra, se usa la principal.`}
+        folder="banners" aspect="aspect-[4/5]" className="max-w-[220px]" value={banner.imagenMovil} media={media} tiendaUrl={tiendaUrl} error={e.imagenMovil}
         onChange={(url) => onChange({ imagenMovil: url })} />
       <Field label="Título" hint="Es el texto del botón que aparece sobre la imagen." error={e.titulo} htmlFor="banner-titulo">
         <input id="banner-titulo" className={cn(inputClass, e.titulo && inputErrorClass)} value={banner.titulo} onChange={(ev) => onChange({ titulo: ev.target.value })} />
@@ -61,8 +61,8 @@ export function CategoriaEditor({ open, onOpenChange, categoria, index, issues, 
   return (
     <EditorSheet open={open} onOpenChange={onOpenChange} title={categoria.titulo || "Nueva categoría"} subtitle="Tarjeta de “Comprá por material”"
       onDuplicate={onDuplicate} onDelete={onDelete} deleteMessage="La tarjeta deja de mostrarse en la tienda cuando guardes los cambios.">
-      <ImageDrop label="Imagen" hint={`Ideal ${IMAGE_GUIDE.categorias.ancho} × ${IMAGE_GUIDE.categorias.alto} px (vertical).`}
-        folder="categorias" aspect="aspect-[9/11]" className="max-w-[260px]" value={categoria.imagen} media={media} tiendaUrl={tiendaUrl} error={e.imagen}
+      <ImageDrop label="Imagen" ratio={IMAGE_GUIDE.categorias.ratio} ratioLabel={IMAGE_GUIDE.categorias.proporcion} hint={`Ideal ${IMAGE_GUIDE.categorias.ancho} × ${IMAGE_GUIDE.categorias.alto} px (${IMAGE_GUIDE.categorias.proporcion}, vertical).`}
+        folder="categorias" aspect="aspect-[4/5]" className="max-w-[260px]" value={categoria.imagen} media={media} tiendaUrl={tiendaUrl} error={e.imagen}
         onChange={(url) => onChange({ imagen: url })} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Título" error={e.titulo} htmlFor="cat-titulo">

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { ImageIcon, Loader2, UploadCloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { previewUrl } from "@/lib/tienda-web-ui";
-import { MAX_UPLOAD_BYTES } from "@/lib/tienda-media";
+import { MAX_UPLOAD_BYTES, ratioWarning } from "@/lib/tienda-media";
 import { Btn } from "./ui";
 
 const kb = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
@@ -12,12 +12,13 @@ const kb = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` :
  * Zona de imagen: muestra la imagen real, permite arrastrar o elegir un archivo, cambiarla o quitarla,
  * y reutilizar una ya subida. No muestra rutas ni formatos técnicos.
  */
-export default function ImageDrop({ label, hint, value, onChange, folder, aspect = "aspect-[2.16/1]", media, tiendaUrl, error, className }) {
+export default function ImageDrop({ label, hint, value, onChange, folder, aspect = "aspect-[21/10]", ratio, ratioLabel, media, tiendaUrl, error, className }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState("");
   const [showLibrary, setShowLibrary] = useState(false);
+  const [warning, setWarning] = useState("");
 
   const enabled = Boolean(media.storage?.ok);
   const src = previewUrl(value, tiendaUrl);
@@ -27,6 +28,16 @@ export default function ImageDrop({ label, hint, value, onChange, folder, aspect
   const handleFile = async (file) => {
     if (!file || !enabled) return;
     setLocalError("");
+    setWarning("");
+    if (ratio) {
+      try {
+        const bitmap = await createImageBitmap(file);
+        setWarning(ratioWarning(bitmap.width, bitmap.height, ratio, ratioLabel));
+        bitmap.close?.();
+      } catch {
+        // si el navegador no puede leerla, el servidor la valida igual
+      }
+    }
     if (file.size > MAX_UPLOAD_BYTES) {
       setLocalError(`La imagen pesa ${kb(file.size)}; el máximo es ${Math.round(MAX_UPLOAD_BYTES / 1048576)} MB.`);
       return;
@@ -100,6 +111,7 @@ export default function ImageDrop({ label, hint, value, onChange, folder, aspect
         )}
       </div>
 
+      {!message && warning ? <p role="status" className="text-xs text-amber-700">{warning}</p> : null}
       {message ? <p role="alert" className="text-xs text-destructive">{message}</p> : hint ? <p className="text-xs text-default-500">{hint}</p> : null}
 
       {enabled && library.length > 0 && (
