@@ -11,6 +11,13 @@ test("settings devuelve IDs de sucursal y coordenadas numéricas para datos lega
   const module = { exports: {} };
   const mockRequire = (name) => {
     if (name === "@/lib/firebase") return { db: {} };
+    if (name === "@/lib/shipping") {
+      const shippingSource = fs.readFileSync(path.resolve(__dirname, "../lib/shipping.js"), "utf8");
+      const shippingCompiled = ts.transpileModule(shippingSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+      const shippingModule = { exports: {} };
+      new Function("require", "module", "exports", shippingCompiled)(require, shippingModule, shippingModule.exports);
+      return shippingModule.exports;
+    }
     if (name === "firebase/firestore") return {
       doc: () => ({}),
       getDoc: async () => ({ exists: () => true, data: () => ({ locations: [location, { ...location, id: 42 }] }) }),

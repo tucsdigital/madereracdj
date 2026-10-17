@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/provider/auth.provider";
+import { normalizeShippingRules, priceForDistance } from "@/lib/shipping";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import GoogleMapReact from "google-map-react";
 import {
@@ -64,6 +66,13 @@ const ZonasEnvioPage = () => {
   const [tiersDirty, setTiersDirty] = useState(false);
   const [tiersError, setTiersError] = useState("");
   const [simDistanceKm, setSimDistanceKm] = useState("");
+  const { user } = useAuth();
+  const [shippingRules, setShippingRules] = useState(() => normalizeShippingRules());
+  const [rulesDirty, setRulesDirty] = useState(false);
+  const [rulesError, setRulesError] = useState("");
+  const [warnings, setWarnings] = useState([]);
+  const [simWeightKg, setSimWeightKg] = useState("");
+  const [simSubtotal, setSimSubtotal] = useState("");
   const [loadingConfig, setLoadingConfig] = useState(true);
 
   useEffect(() => {
@@ -74,6 +83,8 @@ const ZonasEnvioPage = () => {
         if (!active) return;
         const locs = Array.isArray(d?.locations) ? d.locations : [];
         setLocations(locs);
+        setShippingRules(normalizeShippingRules(d?.shippingRules));
+        setWarnings(Array.isArray(d?.warnings) ? d.warnings : []);
         const tiers = Array.isArray(d?.shippingTiers) ? d.shippingTiers : [];
         setShippingTiers(
           tiers.length
@@ -423,11 +434,13 @@ const ZonasEnvioPage = () => {
     return "store_" + Date.now();
   };
 
-  const saveSettings = async ({ locations: list, shippingTiers: tiers }) => {
+  const saveSettings = async ({ locations: list, shippingTiers: tiers, rules }) => {
+    const token = await user?.getIdToken?.();
+    if (!token) throw new Error("Iniciá sesión para guardar los cambios.");
     const res = await fetch("/api/envios/zonas", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locations: list, shippingTiers: tiers }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ locations: list, shippingTiers: tiers, shippingRules: rules }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -437,8 +450,15 @@ const ZonasEnvioPage = () => {
       throw new Error(msg);
     }
     setLocations(Array.isArray(data?.locations) ? data.locations : []);
-    setShippingTiers(Array.isArray(data?.shippingTiers) ? data.shippingTiers : []);
-    setTiersDirty(false);
+    if (tiers !== undefined) {
+      setShippingTiers(Array.isArray(data?.shippingTiers) ? data.shippingTiers : []);
+      setTiersDirty(false);
+    }
+    if (rules) {
+      setShippingRules(normalizeShippingRules(data?.shippingRules));
+      setRulesDirty(false);
+    }
+    setWarnings(Array.isArray(data?.warnings) ? data.warnings : []);
     return data;
   };
 
@@ -474,10 +494,38 @@ const ZonasEnvioPage = () => {
   const simulatedTier = useMemo(() => {
     const d = Number(simDistanceKm);
     if (!Number.isFinite(d) || d < 0) return null;
-    const found = tierRanges.find((x) => d <= x.toKm);
-    if (!found) return null;
-    return { ...found, distanceKm: d };
-  }, [simDistanceKm, tierRanges]);
+    const weight = simWeightKg === "" ? 1 : Number(simWeightKg);
+    return {
+      distanceKm: d,
+      ...priceForDistance({
+        distanceKm: d,
+        tiers: shippingTiers,
+        rules: shippingRules,
+        weightKg: Number.isFinite(weight) ? weight : null,
+        subtotal: Number(simSubtotal) || 0,
+      }),
+    };
+  }, [simDistanceKm, simWeightKg, simSubtotal, shippingTiers, shippingRules]);
+
+  const updateRules = (patch) => {
+    setShippingRules((prev) => ({ ...prev, ...patch }));
+    setRulesDirty(true);
+    setRulesError("");
+  };
+  const updateBand = (index, patch) =>
+    updateRules({ weightBands: shippingRules.weightBands.map((band, i) => (i === index ? { ...band, ...patch } : band)) });
+
+  const saveRules = async () => {
+    try {
+      setSaving(true);
+      setRulesError("");
+      await saveSettings({ locations: undefined, shippingTiers: undefined, rules: shippingRules });
+    } catch (e) {
+      setRulesError(e.message || "No se pudieron guardar las reglas.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async (loc) => {
     try {
@@ -736,6 +784,63 @@ const ZonasEnvioPage = () => {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
+            <CardTitle>Reglas de envío</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {warnings.length > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
+                {warnings.map((w) => (<div key={w}>⚠ {w}</div>))}
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <label className="text-sm space-y-1">
+                <span className="block text-default-600">Peso máximo sin franjas (kg)</span>
+                <Input value={shippingRules.maxWeightKg} disabled={shippingRules.weightBands.length > 0}
+                  onChange={(e) => updateRules({ maxWeightKg: e.target.value })} />
+              </label>
+              <label className="text-sm space-y-1">
+                <span className="block text-default-600">Envío gratis desde ($, 0 = nunca)</span>
+                <Input value={shippingRules.freeShippingMin} onChange={(e) => updateRules({ freeShippingMin: e.target.value })} />
+              </label>
+              <label className="text-sm space-y-1">
+                <span className="block text-default-600">Envío mínimo ($)</span>
+                <Input value={shippingRules.minFee} onChange={(e) => updateRules({ minFee: e.target.value })} />
+              </label>
+              <label className="text-sm space-y-1">
+                <span className="block text-default-600">Recargo combustible (%)</span>
+                <Input value={shippingRules.fuelSurchargePct} onChange={(e) => updateRules({ fuelSurchargePct: e.target.value })} />
+              </label>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Franjas de peso (adicional sobre la tarifa por distancia)</div>
+              <p className="text-xs text-default-600">
+                Con franjas cargadas, un pedido más pesado que la última se pide por cotización. Sin franjas se usa el peso máximo.
+              </p>
+              {shippingRules.weightBands.map((band, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2 border rounded-md p-3">
+                  <span className="text-sm">Hasta</span>
+                  <Input className="w-28" value={band.upToKg} onChange={(e) => updateBand(i, { upToKg: e.target.value })} />
+                  <span className="text-sm">kg · adicional $</span>
+                  <Input className="w-32" value={band.extra} onChange={(e) => updateBand(i, { extra: e.target.value })} />
+                  <Button variant="destructive" size="sm"
+                    onClick={() => updateRules({ weightBands: shippingRules.weightBands.filter((_, idx) => idx !== i) })}>
+                    Quitar
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={() => {
+                const last = shippingRules.weightBands[shippingRules.weightBands.length - 1];
+                updateRules({ weightBands: [...shippingRules.weightBands, { upToKg: (Number(last?.upToKg) || 0) + 50, extra: 0 }] });
+              }}>
+                Agregar franja
+              </Button>
+            </div>
+            {rulesError && <div className="text-sm text-destructive">{rulesError}</div>}
+            <Button onClick={saveRules} disabled={saving || !rulesDirty}>{saving ? "Guardando..." : "Guardar reglas"}</Button>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+          <CardHeader>
             <CardTitle>Tarifas por radio</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -814,23 +919,31 @@ const ZonasEnvioPage = () => {
               </div>
             </div>
             <div className="border rounded-md p-3 space-y-2">
-              <div className="text-sm font-medium">Simulador rápido por distancia</div>
-              <div className="flex items-center gap-2">
-                <Input
-                  className="w-40"
-                  placeholder="Ej: 12.5"
-                  value={simDistanceKm}
-                  onChange={(e) => setSimDistanceKm(e.target.value)}
-                />
+              <div className="text-sm font-medium">Simulador de envío (distancia, peso y monto)</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input className="w-32" placeholder="Distancia" value={simDistanceKm} onChange={(e) => setSimDistanceKm(e.target.value)} />
                 <span className="text-sm text-default-600">km</span>
-                {simulatedTier ? (
-                  <Badge className="bg-emerald-600">
-                    ${moneyAr.format(Number(simulatedTier.price) || 0)} para {kmAr.format(simulatedTier.distanceKm)} km
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">Sin tramo aplicable</Badge>
-                )}
+                <Input className="w-32" placeholder="Peso" value={simWeightKg} onChange={(e) => setSimWeightKg(e.target.value)} />
+                <span className="text-sm text-default-600">kg</span>
+                <Input className="w-36" placeholder="Monto de compra" value={simSubtotal} onChange={(e) => setSimSubtotal(e.target.value)} />
+                <span className="text-sm text-default-600">$</span>
               </div>
+              {simDistanceKm !== "" && simulatedTier ? (
+                simulatedTier.status === "ok" ? (
+                  <div className="text-sm space-y-1">
+                    <Badge className="bg-emerald-600">
+                      {simulatedTier.free ? "Envío gratis" : `$${moneyAr.format(simulatedTier.price)}`} · tramo hasta {kmAr.format(simulatedTier.tierKm)} km
+                    </Badge>
+                    <div className="text-default-600">
+                      Base ${moneyAr.format(simulatedTier.base)} + peso ${moneyAr.format(simulatedTier.weightExtra)} + combustible ${moneyAr.format(simulatedTier.fuel)}
+                      {simulatedTier.minimumApplied ? " (se aplicó el envío mínimo)" : ""}
+                      {simulatedTier.free ? ` · sin la gratuidad costaría $${moneyAr.format(simulatedTier.listPrice)}` : ""}
+                    </div>
+                  </div>
+                ) : (
+                  <Badge variant="outline">Requiere cotización: {simulatedTier.message}</Badge>
+                )
+              ) : null}
             </div>
             <div className="space-y-2">
               {shippingTiers.map((t, i) => (

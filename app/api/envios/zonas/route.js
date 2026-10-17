@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
 import { obtenerSettingsGeneral } from "@/lib/settings";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
+import { normalizeShippingRules, validateShippingConfig } from "@/lib/shipping";
+
+export const runtime = "nodejs";
 
 function toNumero(valor) {
   const n = typeof valor === "number" ? valor : parseFloat(String(valor ?? ""));
@@ -91,6 +93,8 @@ function normalizarPayload(body) {
     if (parsed.error) errores.push(parsed.error);
     else locations.push(parsed.value);
   });
+  const ids = locations.map((x) => x.id);
+  if (new Set(ids).size !== ids.length) errores.push("Hay sucursales con identificador repetido");
 
   rawTiers.forEach((x, idx) => {
     const parsed = normalizarTier(x, idx);
@@ -106,15 +110,21 @@ function normalizarPayload(body) {
     }
   }
 
-  return { locations, shippingTiers, errores };
+  const rulesCheck = validateShippingConfig({ locations, tiers: shippingTiers, rules: body?.shippingRules });
+  errores.push(...rulesCheck.errors);
+  const shippingRules = normalizeShippingRules(body?.shippingRules);
+
+  return { locations, shippingTiers, shippingRules, errores, avisos: rulesCheck.warnings };
 }
 
-function buildResponse(locations, shippingTiers) {
+function buildResponse(locations, shippingTiers, shippingRules, avisos = []) {
   return {
     locations,
     shippingTiers,
+    shippingRules,
     shippingRanges: construirRangos(shippingTiers),
     summary: construirResumen(locations, shippingTiers),
+    warnings: avisos,
   };
 }
 
@@ -124,8 +134,9 @@ export function OPTIONS() {
 
 export async function GET() {
   try {
-    const { locations, shippingTiers } = await obtenerSettingsGeneral();
-    return NextResponse.json(buildResponse(locations, shippingTiers));
+    const { locations, shippingTiers, shippingRules } = await obtenerSettingsGeneral();
+    const { warnings } = validateShippingConfig({ locations, tiers: shippingTiers, rules: shippingRules });
+    return NextResponse.json(buildResponse(locations, shippingTiers, shippingRules, warnings));
   } catch (error) {
     return NextResponse.json(
       { error: "No se pudo obtener la configuración de envíos", details: error?.message || "internal_error" },
@@ -136,22 +147,37 @@ export async function GET() {
 
 export async function PUT(request) {
   try {
+    // Sólo usuarios autenticados del sistema pueden modificar sucursales y tarifas.
+    const actor = await verifyFirebaseToken(request.headers.get("authorization"));
     const body = await request.json();
-    const { locations, shippingTiers, errores } = normalizarPayload(body || {});
+    const adminDb = getAdminDb();
+    const ref = adminDb.collection("settings").doc("general");
+    const before = await obtenerSettingsGeneral();
+    // Los bloques que no se envían se conservan, así guardar reglas no pisa sucursales ni tarifas.
+    const { locations, shippingTiers, shippingRules, errores, avisos } = normalizarPayload({
+      locations: body?.locations ?? before.locations,
+      shippingTiers: body?.shippingTiers ?? before.shippingTiers,
+      shippingRules: body?.shippingRules ?? before.shippingRules,
+    });
     if (errores.length > 0) {
       return NextResponse.json({ error: "Datos inválidos", errores }, { status: 400 });
     }
-
-    const ref = doc(db, "settings", "general");
-    const snap = await getDoc(ref);
-    const payload = { locations, shippingTiers };
-    if (!snap.exists()) await setDoc(ref, payload);
-    else await updateDoc(ref, payload);
-    return NextResponse.json(buildResponse(locations, shippingTiers));
+    const at = new Date().toISOString();
+    await ref.set({ locations, shippingTiers, shippingRules }, { merge: true });
+    // Historial de cambios para auditar y poder volver a una versión anterior.
+    await adminDb.collection("settingsHistory").add({
+      tipo: "envios",
+      at,
+      byUid: String(actor?.uid || ""),
+      byEmail: String(actor?.email || ""),
+      before: { locations: before.locations, shippingTiers: before.shippingTiers, shippingRules: before.shippingRules },
+      after: { locations, shippingTiers, shippingRules },
+    });
+    return NextResponse.json(buildResponse(locations, shippingTiers, shippingRules, avisos));
   } catch (error) {
     return NextResponse.json(
-      { error: "No se pudo guardar la configuración de envíos", details: error?.message || "internal_error" },
-      { status: 500 }
+      { error: error?.status === 401 ? "Iniciá sesión para modificar los envíos" : "No se pudo guardar la configuración de envíos", details: error?.message || "internal_error" },
+      { status: error?.status || 500 }
     );
   }
 }

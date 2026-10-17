@@ -30,6 +30,17 @@ Los correos usan importes guardados, clave de idempotencia de Resend y registro 
 
 Los documentos históricos sin `ecommerceLifecycle` mantienen su tratamiento de inventario. No se recalcula ni repone automáticamente el stock de ventas antiguas. Revisar los pagos abiertos anteriores al despliegue: las preferencias nuevas exigen una reserva vigente del nuevo circuito.
 
+## Envíos (reglas y tarifas)
+
+Todo el cálculo vive en `lib/shipping.js`, que usan el checkout (`/api/checkout/quote`), la estimación pública (`/api/check-delivery-radius`) y el simulador del panel (`/envios/zonas`).
+
+- Se elige, entre las sucursales cuyo radio cubre la dirección, la más cercana. Fuera de radio, sin tramo o sin peso conocido se pide cotización; nunca se cobra $0 por falta de datos.
+- Precio = tarifa del tramo por distancia + adicional de la franja de peso + recargo de combustible (%), con envío mínimo. Sin franjas cargadas rige el peso máximo (100 kg por defecto), como antes.
+- Envío gratis desde un monto, evaluado sobre el neto de productos tras descuentos. La estimación del paso 2 no lo conoce; el total confirmado del paso 3 sí.
+- Las reglas se guardan en `settings/general.shippingRules`. Sin ellas el comportamiento es el anterior.
+- `PUT /api/envios/zonas` exige sesión del sistema. Cada cambio queda en `settingsHistory` (antes/después, usuario y fecha). Guardar sólo reglas conserva sucursales y tarifas, y viceversa.
+- La pantalla muestra avisos si el radio de una sucursal supera el último tramo.
+
 ## Verificación
 
 `node --test tests/ecommerce-payment.test.mjs tests/ecommerce-inventory.test.cjs`
