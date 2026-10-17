@@ -51,8 +51,9 @@ Menú del sistema → **Tienda web** (`/tienda-web`). Controla lo que antes esta
 - **Contacto:** un único WhatsApp y los mensajes de los botones (flotante, menú, asesoramiento/obras). Si se deja vacío, esos botones se ocultan.
 
 Funcionamiento:
-- Los cambios se guardan como **borrador** (`settings/tienda.draft`) y recién se ven en la tienda al **publicar** (`settings/tienda.published`). Publicar exige que no haya errores de validación y registra antes/después en `settingsHistory` (tipo `tienda`).
-- "Cargar valores actuales" vuelca en el borrador los textos que hoy tiene la tienda para empezar a editarlos.
+- **El guardado es manual y no hay borradores:** el botón **Guardar cambios** se habilita cuando el panel detecta modificaciones, y lo guardado es lo que muestra la tienda (`settings/tienda.published`, con caché de hasta unos minutos). No hay guardado automático. Guardar valida todo (campo por campo, con aviso al lado del dato) y registra antes/después en `settingsHistory` (tipo `tienda`). Si otra persona guardó mientras tanto, se rechaza con un aviso para no pisar su trabajo (control por `version`). Salir de la página con cambios sin guardar pide confirmación.
+- En el menú "⋯": **Descartar cambios** (vuelve a lo último guardado), **Restaurar valores originales** (carga los banners, secciones y categorías con que arrancó la tienda; recién se aplica al guardar) y **Revisar imágenes sin usar**. Un borrador de la versión anterior que haya quedado guardado se ignora.
+- Las fechas de los banners se interpretan con el día de Argentina.
 - API pública de sólo lectura: `GET /api/tienda/contenido` (caché de 60 s en el servidor; la tienda lo refresca cada 5 min). API de administración: `GET/PUT/POST /api/tienda/config`, siempre con sesión.
 - La tienda conserva el contenido anterior como **respaldo local** (`src/lib/tienda-content.ts`): si el sistema no responde, o todavía no se publicó nada, se ve igual que antes. Si se publican cero banners o cero categorías, esos bloques se ocultan.
 - Las imágenes se **suben desde el panel a R2** (ver más abajo). Una URL sólo se acepta si pertenece al dominio público de R2 configurado (`R2_PUBLIC_BASE`) o es una ruta propia de la tienda (`/images/...`). Los enlaces sólo pueden empezar con `/` o `https://`.
@@ -72,11 +73,11 @@ R2_ENDPOINT=         # https://<cuenta>.r2.cloudflarestorage.com
 - Las usan también los comprobantes de pago y la asistencia (mismo módulo `lib/r2-storage.js`): hay que cargarlas antes de publicar o esas funciones dejan de subir archivos. Se eliminó `lib/r2-config.local.js`, que tenía las claves escritas en el código; **rotar esas claves en Cloudflare**, porque quedaron expuestas en el historial.
 - `POST /api/tienda/media` (con sesión): acepta JPG, PNG, WebP y AVIF por su contenido real (no SVG), hasta 8 MB y mínimo 200 px. Reduce a 2400 px como máximo y convierte a WebP (calidad 82) con `sharp`; un archivo con cabecera válida pero dañado se rechaza. Guarda en `tienda/<banners|categorias|secciones>/<fecha>-<código>.webp` con caché inmutable de un año y registra la URL en la colección `tiendaMedia` (biblioteca).
 - Si faltan variables, el panel desactiva **Subir imagen** e indica cuáles faltan.
-- **Revisar imágenes sin usar** borra de R2 sólo imágenes del prefijo `tienda/` que no usan ni el borrador ni lo publicado, previa confirmación.
+- **Revisar imágenes sin usar** borra de R2 sólo imágenes del prefijo `tienda/` que no usa lo guardado en la tienda, previa confirmación.
 - Cambiar `R2_PUBLIC_BASE` después de cargar contenido invalida las URLs ya guardadas (y la validación las rechazaría): definir el dominio definitivo antes.
 - Los productos siguen usando `/api/upload` con Vercel Blob, sin cambios.
 
-Pendiente fuera de esta etapa: pop-up de oferta, beneficios, footer y textos de las páginas de obras, y vista previa antes de publicar.
+Pendiente fuera de esta etapa: pop-up de oferta, beneficios, footer y textos de las páginas de obras, y vista previa de la tienda antes de guardar. Opcional: definir `NEXT_PUBLIC_TIENDA_URL` (URL pública de la tienda) en el sistema para ver las miniaturas de las imágenes propias (`/images/...`) y el enlace "Ver tienda".
 
 ## Verificación
 

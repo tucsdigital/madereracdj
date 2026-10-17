@@ -1,179 +1,109 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { MoreHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/provider/auth.provider";
-import { REGLAS_SECCION, normalizeTiendaConfig, validateTiendaConfig } from "@/lib/tienda-config";
-import { IMAGE_GUIDE, MAX_UPLOAD_BYTES } from "@/lib/tienda-media";
+import { TIENDA_DEFAULTS, normalizeTiendaConfig, tiendaIssues } from "@/lib/tienda-config";
+import { countIssues, moveItem, newId, renumber } from "@/lib/tienda-web-ui";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Btn } from "@/components/tienda-web/ui";
+import { BannerList, CategoriaGrid, SeccionList } from "@/components/tienda-web/Lists";
+import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tienda-web/Editors";
+import ContactoForm from "@/components/tienda-web/ContactoForm";
 
 const TABS = [
-  { id: "secciones", label: "Secciones del inicio" },
-  { id: "banners", label: "Banners" },
-  { id: "categorias", label: "Categorías destacadas" },
-  { id: "contacto", label: "Contacto" },
+  { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
+  { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
+  { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
+  { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
 ];
 
-const selectClass = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
-const newId = (base) => `${base}-${Date.now().toString(36)}`;
-const renumber = (items) => items.map((item, index) => ({ ...item, orden: index + 1 }));
-const when = (iso) => (iso ? new Date(iso).toLocaleString("es-AR") : "");
+const NEW_ITEM = {
+  banners: () => ({ id: newId("banner"), activo: true, titulo: "Nuevo banner", enlace: "/shop", imagen: "", imagenMovil: "", alt: "", desde: "", hasta: "" }),
+  secciones: () => ({
+    id: newId("seccion"), activa: true, eyebrow: "", titulo: "Nueva sección", subtitulo: "", fondo: "gris",
+    regla: { tipo: "oferta", valor: "", minDescuento: 0, productos: [] }, limite: 8, enlace: "/shop?filter=specialOffer",
+  }),
+  categorias: () => ({ id: newId("categoria"), activa: true, titulo: "Nueva categoría", etiqueta: "", enlace: "/shop", imagen: "" }),
+};
 
-function Field({ label, children, className = "" }) {
-  return (
-    <label className={`text-sm space-y-1 block ${className}`}>
-      <span className="block text-default-600">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function RowActions({ index, total, onMove, onDuplicate, onRemove }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" disabled={index === 0} onClick={() => onMove(-1)}>↑ Subir</Button>
-      <Button variant="outline" size="sm" disabled={index === total - 1} onClick={() => onMove(1)}>↓ Bajar</Button>
-      <Button variant="outline" size="sm" onClick={onDuplicate}>Duplicar</Button>
-      <Button variant="destructive" size="sm" onClick={onRemove}>Eliminar</Button>
-    </div>
-  );
-}
-
+const when = (iso) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 const kb = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-const previewSrc = (value) => (value && value.startsWith("/") ? `${process.env.NEXT_PUBLIC_TIENDA_URL || ""}${value}` : value);
-
-function ImageField({ label, hint, value, folder, onChange, media, onUpload }) {
-  const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [error, setError] = useState("");
-  const disabled = !media.storage?.ok;
-  const library = media.items.filter((item) => item.folder === folder);
-
-  const handleFile = async (file) => {
-    if (!file) return;
-    setError("");
-    if (file.size > MAX_UPLOAD_BYTES) { setError(`La imagen pesa más de ${Math.round(MAX_UPLOAD_BYTES / 1048576)} MB.`); return; }
-    setUploading(true);
-    try {
-      const item = await onUpload(file, folder);
-      onChange(item.url);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="text-sm text-default-600">{label}</div>
-      <div className="text-xs text-default-500">{hint}</div>
-      <div
-        className={`flex gap-3 rounded-md border p-2 ${dragging ? "border-primary bg-primary/5" : ""}`}
-        onDragOver={(e) => { if (!disabled) { e.preventDefault(); setDragging(true); } }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!disabled) handleFile(e.dataTransfer.files?.[0]); }}
-      >
-        <div className="h-20 w-32 shrink-0 overflow-hidden rounded bg-default-100 flex items-center justify-center text-xs text-default-400">
-          {value ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewSrc(value)} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          ) : "Sin imagen"}
-        </div>
-        <div className="flex flex-col gap-2 min-w-0">
-          <div className="flex flex-wrap gap-2">
-            <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
-            <Button size="sm" disabled={disabled || uploading} onClick={() => inputRef.current?.click()}>{uploading ? "Subiendo…" : "Subir imagen"}</Button>
-            <Button size="sm" variant="outline" disabled={disabled || !library.length} onClick={() => setShowLibrary((v) => !v)}>Biblioteca ({library.length})</Button>
-            {value && <Button size="sm" variant="outline" onClick={() => onChange("")}>Quitar</Button>}
-          </div>
-          <div className="truncate text-xs text-default-500" title={value}>{value || "Arrastrá una imagen acá o usá “Subir imagen”."}</div>
-        </div>
-      </div>
-      {disabled && media.loaded && (
-        <div className="text-xs text-amber-700">Subida desactivada: falta configurar R2 en el servidor ({(media.storage?.missing || []).join(", ")}).</div>
-      )}
-      {error && <div className="text-xs text-destructive">{error}</div>}
-      {showLibrary && (
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 rounded-md border p-2 max-h-56 overflow-auto">
-          {library.map((item) => (
-            <button key={item.id} type="button" className="text-left" title={`${item.width || "?"}×${item.height || "?"} · ${kb(item.size)}`}
-              onClick={() => { onChange(item.url); setShowLibrary(false); }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.url} alt="" className="h-16 w-full rounded object-cover border" />
-              <span className="block text-[10px] text-default-500">{kb(item.size)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProductPicker({ selected, products, onChange }) {
-  const [term, setTerm] = useState("");
-  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const results = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) => !selected.includes(p.id) && `${p.nombre} ${p.codigo}`.toLowerCase().includes(q)).slice(0, 8);
-  }, [term, products, selected]);
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {selected.map((id) => (
-          <Badge key={id} variant="outline" className="gap-2">
-            {byId.get(id)?.nombre || id}
-            <button type="button" aria-label="Quitar" onClick={() => onChange(selected.filter((x) => x !== id))}>✕</button>
-          </Badge>
-        ))}
-        {!selected.length && <span className="text-sm text-default-500">Ningún producto elegido.</span>}
-      </div>
-      <Input placeholder={products.length ? "Buscar producto por nombre o código…" : "Cargando productos…"} value={term} onChange={(e) => setTerm(e.target.value)} />
-      {results.length > 0 && (
-        <div className="border rounded-md divide-y">
-          {results.map((p) => (
-            <button key={p.id} type="button" className="block w-full text-left px-3 py-2 text-sm hover:bg-default-100"
-              onClick={() => { onChange([...selected, p.id]); setTerm(""); }}>
-              {p.nombre} <span className="text-default-500">{p.codigo}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+const perItem = (issues, scope, length) => Array.from({ length }, (_, i) => issues.filter((issue) => issue.scope === scope && issue.index === i).length);
 
 export default function TiendaWebPage() {
   const { user } = useAuth();
+  const tiendaUrl = process.env.NEXT_PUBLIC_TIENDA_URL || "";
+
   const [config, setConfig] = useState(null);
-  const [savedKey, setSavedKey] = useState("");
-  const [meta, setMeta] = useState({});
+  const [saved, setSaved] = useState(null);
+  const [meta, setMeta] = useState({ version: 0, savedAt: null, imageHosts: [] });
   const [tab, setTab] = useState("secciones");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [serverErrors, setServerErrors] = useState([]);
-  const [error, setError] = useState("");
-  const [products, setProducts] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState(null);
+  const [showProblems, setShowProblems] = useState(false);
+  const [confirm, setConfirm] = useState(null);
   const [media, setMedia] = useState({ storage: null, items: [], loaded: false });
+  const [catalog, setCatalog] = useState({ products: [], categories: [] });
+  const loadedFor = useRef(null);
 
   const authFetch = useCallback(async (url, options = {}) => {
     const token = await user?.getIdToken?.();
     if (!token) throw new Error("Iniciá sesión para administrar la tienda web.");
     const res = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` } });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || "No se pudo completar la acción.");
+    if (!res.ok) throw Object.assign(new Error(data?.error || "No se pudo completar la acción."), { data });
     return data;
   }, [user]);
 
+  const apply = useCallback((data) => {
+    const next = normalizeTiendaConfig(data.config);
+    setConfig(next);
+    setSaved(next);
+    setMeta({ version: data.version, savedAt: data.savedAt, savedBy: data.savedBy, imageHosts: data.imageHosts || [] });
+  }, []);
+
   useEffect(() => {
-    if (!user || (tab !== "banners" && tab !== "categorias") || media.loaded) return;
-    authFetch("/api/tienda/media").then((d) => setMedia({ storage: d.storage, items: d.items || [], loaded: true })).catch((e) => setError(e.message));
-  }, [user, tab, media.loaded, authFetch]);
+    if (!user) return;
+    // Se carga una sola vez por usuario: un cambio de referencia de `user` no debe pisar lo que se está editando.
+    const who = user.uid ?? "usuario";
+    if (loadedFor.current === who) return;
+    loadedFor.current = who;
+    authFetch("/api/tienda/config").then(apply).catch((e) => setLoadError(e.message));
+    authFetch("/api/tienda/media").then((d) => setMedia({ storage: d.storage, items: d.items || [], loaded: true })).catch(() => setMedia((m) => ({ ...m, loaded: true })));
+    fetch("/api/precios?all=1").then((r) => r.json()).then((d) => {
+      const products = (d?.items || []).map((it) => ({ id: String(it.id), nombre: it.producto?.nombre || it.producto?.descripcion || String(it.id), codigo: it.producto?.codigo || "", categoria: it.producto?.categoria || "" }));
+      setCatalog({ products, categories: [...new Set(products.map((p) => p.categoria).filter(Boolean))].sort() });
+    }).catch(() => {});
+  }, [user, authFetch, apply]);
+
+  const dirty = useMemo(() => Boolean(config && saved && JSON.stringify(normalizeTiendaConfig(config)) !== JSON.stringify(saved)), [config, saved]);
+  const issues = useMemo(() => (config ? tiendaIssues(config, { imageHosts: meta.imageHosts }) : []), [config, meta.imageHosts]);
+
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!notice || notice.type !== "ok") return undefined;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const uploadImage = useCallback(async (file, folder) => {
     const form = new FormData();
@@ -183,296 +113,227 @@ export default function TiendaWebPage() {
     setMedia((prev) => ({ ...prev, items: [item, ...prev.items] }));
     return item;
   }, [authFetch]);
+  const mediaApi = useMemo(() => ({ ...media, upload: uploadImage }), [media, uploadImage]);
 
-  const cleanUnused = async () => {
-    setBusy(true); setError(""); setMessage("");
+  const setList = (scope, updater) => setConfig((prev) => ({ ...prev, [scope]: renumber(updater(prev[scope])) }));
+  const patchItem = (scope, id, patch) => setConfig((prev) => ({ ...prev, [scope]: prev[scope].map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+  const toggleKey = { secciones: "activa", banners: "activo", categorias: "activa" };
+  const toggleItem = (scope, index, value) => setConfig((prev) => ({ ...prev, [scope]: prev[scope].map((item, i) => (i === index ? { ...item, [toggleKey[scope]]: value } : item)) }));
+  const addItem = (scope) => {
+    const item = NEW_ITEM[scope]();
+    setList(scope, (items) => [...items, item]);
+    setEditing({ scope, id: item.id });
+  };
+  const duplicateItem = (scope, index) => setList(scope, (items) => {
+    const source = items[index];
+    const copy = { ...source, id: newId(source.id), titulo: `${source.titulo} (copia)` };
+    return [...items.slice(0, index + 1), copy, ...items.slice(index + 1)];
+  });
+  const removeItem = (scope, index) => setList(scope, (items) => items.filter((_, i) => i !== index));
+  const moveIn = (scope) => (from, to) => setList(scope, (items) => moveItem(items, from, to));
+
+  const goTo = (issue) => {
+    setTab(issue.scope);
+    if (issue.scope !== "contacto" && issue.id) setEditing({ scope: issue.scope, id: issue.id });
+  };
+
+  const save = async () => {
+    if (issues.length) {
+      setShowProblems(true);
+      setNotice(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setSaving(true);
+    setNotice(null);
+    try {
+      const data = await authFetch("/api/tienda/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: normalizeTiendaConfig(config), baseVersion: meta.version }),
+      });
+      apply(data);
+      setShowProblems(false);
+      setNotice({ type: "ok", text: "Cambios guardados. La tienda los mostrará en unos minutos." });
+    } catch (e) {
+      setNotice({ type: "error", text: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const discard = () => setConfirm({
+    title: "¿Descartar los cambios?",
+    description: "Vas a volver a lo último que guardaste. Se pierden los cambios hechos desde entonces.",
+    action: "Descartar",
+    run: () => { setConfig(saved); setShowProblems(false); setEditing(null); },
+  });
+  const restoreDefaults = () => setConfirm({
+    title: "¿Restaurar los valores originales?",
+    description: "Reemplaza lo que ves por los banners, secciones y categorías con que arrancó la tienda. Recién se aplica cuando guardes.",
+    action: "Restaurar",
+    run: () => { setConfig(normalizeTiendaConfig(TIENDA_DEFAULTS)); setEditing(null); },
+  });
+  const reviewUnused = async () => {
     try {
       const post = (confirmar) => authFetch("/api/tienda/media/limpiar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmar }) });
       const { unused } = await post(false);
-      if (!unused.length) { setMessage("No hay imágenes sin usar."); return; }
+      if (!unused.length) { setNotice({ type: "ok", text: "No hay imágenes sin usar." }); return; }
       const total = unused.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
-      if (!window.confirm(`Hay ${unused.length} imagen(es) sin usar (${kb(total)}). Se eliminan de R2 y no se pueden recuperar. ¿Eliminarlas?`)) return;
-      const { deleted, errors } = await post(true);
-      setMedia((prev) => ({ ...prev, loaded: false }));
-      setMessage(`Se eliminaron ${deleted} imagen(es).`);
-      if (errors?.length) setError(errors.join(" · "));
-    } catch (e) { setError(e.message); } finally { setBusy(false); }
-  };
-
-  const request = useCallback(async (method, body) => {
-    const token = await user?.getIdToken?.();
-    if (!token) throw new Error("Iniciá sesión para administrar la tienda web.");
-    const res = await fetch("/api/tienda/config", {
-      method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data?.error || "No se pudo completar la acción.");
-      err.errores = data?.errores || [];
-      throw err;
-    }
-    return data;
-  }, [user]);
-
-  const apply = useCallback((data) => {
-    const next = normalizeTiendaConfig(data.draft);
-    setConfig(next);
-    setSavedKey(JSON.stringify(next));
-    setMeta(data);
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    request("GET").then(apply).catch((e) => setError(e.message));
-  }, [user, request, apply]);
-
-  useEffect(() => {
-    if (tab !== "secciones" || products.length) return;
-    fetch("/api/precios?all=1")
-      .then((r) => r.json())
-      .then((d) => setProducts((d?.items || []).map((it) => ({
-        id: String(it.id), nombre: it.producto?.nombre || it.producto?.descripcion || String(it.id),
-        codigo: it.producto?.codigo || "", categoria: it.producto?.categoria || "",
-      }))))
-      .catch(() => {});
-  }, [tab, products.length]);
-
-  const categories = useMemo(() => [...new Set(products.map((p) => p.categoria).filter(Boolean))].sort(), [products]);
-  const dirty = config ? JSON.stringify(config) !== savedKey : false;
-  const validation = useMemo(() => (config ? validateTiendaConfig(config, { imageHosts: meta.imageHosts }) : { errors: [], warnings: [] }), [config, meta.imageHosts]);
-  const hasPending = dirty || meta.hasDraft;
-
-  const run = async (action) => {
-    setBusy(true); setError(""); setMessage(""); setServerErrors([]);
-    try { await action(); } catch (e) { setError(e.message); setServerErrors(e.errores || []); } finally { setBusy(false); }
-  };
-  const saveDraft = () => run(async () => {
-    const data = await request("PUT", { config: { ...config, secciones: renumber(config.secciones), banners: renumber(config.banners), categorias: renumber(config.categorias) } });
-    apply(data); setMessage("Borrador guardado. Todavía no se ve en la tienda.");
-  });
-  const publish = () => run(async () => {
-    if (dirty) await request("PUT", { config: { ...config, secciones: renumber(config.secciones), banners: renumber(config.banners), categorias: renumber(config.categorias) } });
-    const data = await request("POST", { accion: "publicar" });
-    apply(data); setMessage("Cambios publicados. La tienda los mostrará en 1 a 5 minutos.");
-  });
-  const discard = () => run(async () => {
-    if (!window.confirm("¿Descartar el borrador y volver a lo publicado?")) return;
-    apply(await request("POST", { accion: "descartar" })); setMessage("Borrador descartado.");
-  });
-  const loadCurrent = () => run(async () => {
-    if (!window.confirm("Esto reemplaza el borrador por los textos que hoy tiene la tienda. ¿Continuar?")) return;
-    apply(await request("POST", { accion: "valores_actuales" })); setMessage("Valores actuales cargados en el borrador.");
-  });
-
-  const patch = (key, items) => setConfig((prev) => ({ ...prev, [key]: items }));
-  const update = (key, index, changes) => patch(key, config[key].map((item, i) => (i === index ? { ...item, ...changes } : item)));
-  const move = (key, index, delta) => {
-    const items = [...config[key]];
-    const target = index + delta;
-    if (target < 0 || target >= items.length) return;
-    [items[index], items[target]] = [items[target], items[index]];
-    patch(key, items);
-  };
-  const duplicate = (key, index) => {
-    const copy = { ...config[key][index], id: newId(config[key][index].id) };
-    const items = [...config[key]];
-    items.splice(index + 1, 0, copy);
-    patch(key, items);
-  };
-  const remove = (key, index) => {
-    if (window.confirm("¿Eliminar este elemento?")) patch(key, config[key].filter((_, i) => i !== index));
+      setConfirm({
+        title: `Eliminar ${unused.length} imagen${unused.length === 1 ? "" : "es"} sin usar`,
+        description: `Ocupan ${kb(total)} y no están en ningún banner ni categoría. Se eliminan para siempre.`,
+        action: "Eliminar",
+        run: async () => {
+          const { deleted, errors } = await post(true);
+          const refreshed = await authFetch("/api/tienda/media");
+          setMedia({ storage: refreshed.storage, items: refreshed.items || [], loaded: true });
+          setNotice(errors?.length ? { type: "error", text: errors.join(" · ") } : { type: "ok", text: `Se eliminaron ${deleted} imagen(es).` });
+        },
+      });
+    } catch (e) { setNotice({ type: "error", text: e.message }); }
   };
 
   if (!config) {
-    return <div className="p-6 text-sm">{error ? <span className="text-destructive">{error}</span> : "Cargando configuración de la tienda…"}</div>;
+    return <div className="p-6 text-sm text-default-600">{loadError ? <span className="text-destructive">{loadError}</span> : "Cargando…"}</div>;
   }
 
+  const tabInfo = TABS.find((t) => t.id === tab);
+  const editIndex = editing ? config[editing.scope].findIndex((item) => item.id === editing.id) : -1;
+  const editItem = editIndex >= 0 ? config[editing.scope][editIndex] : null;
+  const editorProps = (scope) => ({
+    open: Boolean(editItem) && editing?.scope === scope,
+    onOpenChange: (open) => { if (!open) setEditing(null); },
+    index: editIndex,
+    issues,
+    onChange: (patch) => patchItem(scope, editing.id, patch),
+    onDuplicate: () => duplicateItem(scope, editIndex),
+    onDelete: () => removeItem(scope, editIndex),
+    categories: catalog.categories,
+    tiendaUrl,
+  });
+  const storageProblem = media.loaded && !media.storage?.ok;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Tienda web</h1>
-          <p className="text-sm text-default-600">
-            Controlá lo que se muestra en el inicio de la tienda. Los cambios se guardan como borrador y se publican cuando vos decidas.
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-16">
+      <header className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold">Tienda web</h1>
+          <p className="flex items-center gap-1.5 truncate text-sm text-default-500">
+            {dirty ? (<><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</>) : meta.savedAt ? `Guardado el ${when(meta.savedAt)}` : "Todo está como al inicio"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {hasPending ? <Badge className="bg-amber-500">Cambios sin publicar</Badge> : <Badge className="bg-emerald-600">Publicado</Badge>}
-          <Button variant="outline" onClick={loadCurrent} disabled={busy}>Cargar valores actuales</Button>
-          <Button variant="outline" onClick={discard} disabled={busy || !meta.hasDraft}>Descartar borrador</Button>
-          <Button variant="outline" onClick={saveDraft} disabled={busy || !dirty}>Guardar borrador</Button>
-          <Button onClick={publish} disabled={busy || !hasPending || validation.errors.length > 0}>Publicar</Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {tiendaUrl && (
+            <a href={tiendaUrl} target="_blank" rel="noreferrer" className="hidden h-9 items-center rounded-lg px-3 text-sm text-default-600 hover:bg-default-100 sm:inline-flex">Ver tienda ↗</a>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label="Más acciones" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-default-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuItem disabled={!dirty} onSelect={discard}>Descartar cambios</DropdownMenuItem>
+              <DropdownMenuItem onSelect={restoreDefaults}>Restaurar valores originales</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={reviewUnused}>Revisar imágenes sin usar</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Btn variant="primary" disabled={!dirty || saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
         </div>
-      </div>
-      {meta.publishedAt && <p className="text-xs text-default-500">Última publicación: {when(meta.publishedAt)} {meta.publishedBy ? `· ${meta.publishedBy}` : ""}</p>}
-      {message && <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{message}</div>}
-      {error && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}{serverErrors.map((e) => <div key={e}>• {e}</div>)}</div>}
-      {validation.errors.length > 0 && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900 space-y-1">
-          <div className="font-medium">Hay que corregir antes de publicar:</div>
-          {validation.errors.map((e) => <div key={e}>• {e}</div>)}
-        </div>
-      )}
-      {validation.warnings.length > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
-          {validation.warnings.map((w) => <div key={w}>⚠ {w}</div>)}
+      </header>
+
+      {notice && (
+        <div role="status" className={cn("flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm", notice.type === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}>
+          <span>{notice.text}</span>
+          <button type="button" aria-label="Cerrar" className="opacity-60 hover:opacity-100" onClick={() => setNotice(null)}>×</button>
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 border-b pb-2">
-        {TABS.map((t) => (
-          <Button key={t.id} variant={tab === t.id ? "default" : "outline"} size="sm" onClick={() => setTab(t.id)}>{t.label}</Button>
-        ))}
-      </div>
+      {showProblems && issues.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50/60 p-4">
+          <p className="mb-2 text-sm font-medium text-red-800">Para poder guardar, corregí esto:</p>
+          <ul className="space-y-1">
+            {issues.map((issue, i) => (
+              <li key={`${issue.scope}-${i}`} className="flex items-center justify-between gap-3 text-sm text-red-900">
+                <span>{issue.message}</span>
+                <button type="button" onClick={() => goTo(issue)} className="shrink-0 font-medium underline underline-offset-4">Ir</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <nav className="flex gap-6 border-b border-border" aria-label="Secciones de la tienda web">
+        {TABS.map((t) => {
+          const problems = countIssues(issues, t.id);
+          return (
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
+              className={cn("-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm transition", tab === t.id ? "border-primary font-semibold text-foreground" : "border-transparent text-default-500 hover:text-foreground")}>
+              {t.label}
+              {problems > 0 && <span className="h-2 w-2 rounded-full bg-destructive" aria-label={`${problems} para corregir`} />}
+            </button>
+          );
+        })}
+      </nav>
+
+      <p className="-mt-2 text-sm text-default-500">{tabInfo.help}</p>
+
+      {(tab === "banners" || tab === "categorias") && storageProblem && (
+        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          La subida de imágenes todavía no está activada. Podés seguir editando textos y orden; para agregar o cambiar imágenes hay que completar la configuración del servidor.
+          <details className="mt-1 text-xs text-amber-800">
+            <summary className="cursor-pointer">Detalles para soporte</summary>
+            Faltan estas variables de entorno: {(media.storage?.missing || []).join(", ")}.
+          </details>
+        </div>
+      )}
 
       {tab === "secciones" && (
-        <div className="space-y-3">
-          <p className="text-sm text-default-600">
-            Cada sección muestra productos según una regla. El orden de esta lista es el orden en la tienda; la sección no aparece si no tiene productos.
-          </p>
-          {config.secciones.map((s, i) => (
-            <Card key={s.id}>
-              <CardHeader className="flex-row items-center justify-between gap-2">
-                <CardTitle className="text-base">{s.titulo || "Sección sin título"} <span className="text-xs text-default-500 font-normal">({s.id})</span></CardTitle>
-                <label className="text-sm flex items-center gap-2">
-                  <input type="checkbox" checked={s.activa} onChange={(e) => update("secciones", i, { activa: e.target.checked })} /> Visible
-                </label>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Field label="Etiqueta superior"><Input value={s.eyebrow} onChange={(e) => update("secciones", i, { eyebrow: e.target.value })} /></Field>
-                  <Field label="Título"><Input value={s.titulo} onChange={(e) => update("secciones", i, { titulo: e.target.value })} /></Field>
-                  <Field label="Subtítulo"><Input value={s.subtitulo} onChange={(e) => update("secciones", i, { subtitulo: e.target.value })} /></Field>
-                  <Field label="Qué productos muestra">
-                    <select className={selectClass} value={s.regla.tipo} onChange={(e) => update("secciones", i, { regla: { ...s.regla, tipo: e.target.value } })}>
-                      {Object.entries(REGLAS_SECCION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Enlace de “Ver todos”"><Input value={s.enlace} onChange={(e) => update("secciones", i, { enlace: e.target.value })} /></Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Máx. productos"><Input value={s.limite} onChange={(e) => update("secciones", i, { limite: e.target.value })} /></Field>
-                    <Field label="Fondo">
-                      <select className={selectClass} value={s.fondo} onChange={(e) => update("secciones", i, { fondo: e.target.value })}>
-                        <option value="gris">Gris</option><option value="blanco">Blanco</option>
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-                {s.regla.tipo === "categoria" && (
-                  <Field label="Categoría">
-                    <Input list="tienda-categorias" value={s.regla.valor} onChange={(e) => update("secciones", i, { regla: { ...s.regla, valor: e.target.value } })} />
-                    <datalist id="tienda-categorias">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-                  </Field>
-                )}
-                {s.regla.tipo === "descuento" && (
-                  <Field label="Descuento mínimo (%)" className="max-w-xs">
-                    <Input value={s.regla.minDescuento} onChange={(e) => update("secciones", i, { regla: { ...s.regla, minDescuento: e.target.value } })} />
-                  </Field>
-                )}
-                {s.regla.tipo === "manual" && (
-                  <ProductPicker selected={s.regla.productos} products={products}
-                    onChange={(ids) => update("secciones", i, { regla: { ...s.regla, productos: ids } })} />
-                )}
-                <RowActions index={i} total={config.secciones.length} onMove={(d) => move("secciones", i, d)} onDuplicate={() => duplicate("secciones", i)} onRemove={() => remove("secciones", i)} />
-              </CardContent>
-            </Card>
-          ))}
-          <Button variant="outline" onClick={() => patch("secciones", [...config.secciones, normalizeTiendaConfig({ secciones: [{ id: newId("seccion"), titulo: "Nueva sección", regla: { tipo: "oferta" }, enlace: "/shop" }] }).secciones[0]])}>
-            + Agregar sección
-          </Button>
-        </div>
+        <SeccionList items={config.secciones} problems={perItem(issues, "secciones", config.secciones.length)}
+          onOpen={(i) => setEditing({ scope: "secciones", id: config.secciones[i].id })} onToggle={(i, v) => toggleItem("secciones", i, v)}
+          onMove={moveIn("secciones")} onAdd={() => addItem("secciones")} />
       )}
-
       {tab === "banners" && (
-        <div className="space-y-3">
-          <p className="text-sm text-default-600">Carrusel principal del inicio. Subí las imágenes desde acá (se guardan en R2). Podés programar fechas de inicio y fin para campañas.</p>
-          <Button variant="outline" size="sm" disabled={busy} onClick={cleanUnused}>Revisar imágenes sin usar</Button>
-          {config.banners.map((b, i) => (
-            <Card key={b.id}>
-              <CardHeader className="flex-row items-center justify-between gap-2">
-                <CardTitle className="text-base">{b.titulo || "Banner sin título"}</CardTitle>
-                <label className="text-sm flex items-center gap-2">
-                  <input type="checkbox" checked={b.activo} onChange={(e) => update("banners", i, { activo: e.target.checked })} /> Visible
-                </label>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Field label="Título (texto del botón)"><Input value={b.titulo} onChange={(e) => update("banners", i, { titulo: e.target.value })} /></Field>
-                  <Field label="Enlace"><Input value={b.enlace} onChange={(e) => update("banners", i, { enlace: e.target.value })} /></Field>
-                  <Field label="Texto alternativo"><Input value={b.alt} onChange={(e) => update("banners", i, { alt: e.target.value })} /></Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Desde (AAAA-MM-DD)"><Input value={b.desde} placeholder="Siempre" onChange={(e) => update("banners", i, { desde: e.target.value })} /></Field>
-                    <Field label="Hasta (AAAA-MM-DD)"><Input value={b.hasta} placeholder="Siempre" onChange={(e) => update("banners", i, { hasta: e.target.value })} /></Field>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ImageField label="Imagen de escritorio" hint={`${IMAGE_GUIDE.banners.texto}. Se optimiza a WebP automáticamente.`} value={b.imagen} folder="banners" media={media} onUpload={uploadImage}
-                    onChange={(url) => update("banners", i, { imagen: url, ...(b.imagenMovil ? {} : { imagenMovil: url }) })} />
-                  <ImageField label="Imagen móvil" hint={IMAGE_GUIDE.bannersMovil.texto} value={b.imagenMovil} folder="banners" media={media} onUpload={uploadImage}
-                    onChange={(url) => update("banners", i, { imagenMovil: url })} />
-                </div>
-                <RowActions index={i} total={config.banners.length} onMove={(d) => move("banners", i, d)} onDuplicate={() => duplicate("banners", i)} onRemove={() => remove("banners", i)} />
-              </CardContent>
-            </Card>
-          ))}
-          <Button variant="outline" onClick={() => patch("banners", [...config.banners, normalizeTiendaConfig({ banners: [{ id: newId("banner"), titulo: "Nuevo banner", enlace: "/shop", imagen: "/images/" }] }).banners[0]])}>
-            + Agregar banner
-          </Button>
-        </div>
+        <BannerList items={config.banners} problems={perItem(issues, "banners", config.banners.length)} tiendaUrl={tiendaUrl}
+          onOpen={(i) => setEditing({ scope: "banners", id: config.banners[i].id })} onToggle={(i, v) => toggleItem("banners", i, v)}
+          onMove={moveIn("banners")} onAdd={() => addItem("banners")} />
       )}
-
       {tab === "categorias" && (
-        <div className="space-y-3">
-          <p className="text-sm text-default-600">Tarjetas de “Comprá por material” en el inicio.</p>
-          <Button variant="outline" size="sm" disabled={busy} onClick={cleanUnused}>Revisar imágenes sin usar</Button>
-          {config.categorias.map((c, i) => (
-            <Card key={c.id}>
-              <CardHeader className="flex-row items-center justify-between gap-2">
-                <CardTitle className="text-base">{c.titulo || "Categoría sin título"}</CardTitle>
-                <label className="text-sm flex items-center gap-2">
-                  <input type="checkbox" checked={c.activa} onChange={(e) => update("categorias", i, { activa: e.target.checked })} /> Visible
-                </label>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Field label="Título"><Input value={c.titulo} onChange={(e) => update("categorias", i, { titulo: e.target.value })} /></Field>
-                  <Field label="Etiqueta"><Input value={c.etiqueta} onChange={(e) => update("categorias", i, { etiqueta: e.target.value })} /></Field>
-                  <Field label="Enlace"><Input value={c.enlace} onChange={(e) => update("categorias", i, { enlace: e.target.value })} /></Field>
-                </div>
-                <ImageField label="Imagen" hint={`${IMAGE_GUIDE.categorias.texto}. Se optimiza a WebP automáticamente.`} value={c.imagen} folder="categorias" media={media} onUpload={uploadImage}
-                  onChange={(url) => update("categorias", i, { imagen: url })} />
-                <RowActions index={i} total={config.categorias.length} onMove={(d) => move("categorias", i, d)} onDuplicate={() => duplicate("categorias", i)} onRemove={() => remove("categorias", i)} />
-              </CardContent>
-            </Card>
-          ))}
-          <Button variant="outline" onClick={() => patch("categorias", [...config.categorias, normalizeTiendaConfig({ categorias: [{ id: newId("categoria"), titulo: "Nueva categoría", enlace: "/shop", imagen: "/images/" }] }).categorias[0]])}>
-            + Agregar categoría
-          </Button>
+        <CategoriaGrid items={config.categorias} problems={perItem(issues, "categorias", config.categorias.length)} tiendaUrl={tiendaUrl}
+          onOpen={(i) => setEditing({ scope: "categorias", id: config.categorias[i].id })} onToggle={(i, v) => toggleItem("categorias", i, v)}
+          onMove={moveIn("categorias")} onAdd={() => addItem("categorias")} />
+      )}
+      {tab === "contacto" && (
+        <ContactoForm contacto={config.contacto} error={issues.find((i) => i.scope === "contacto")?.message}
+          onChange={(patch) => setConfig((prev) => ({ ...prev, contacto: { ...prev.contacto, ...patch } }))} />
+      )}
+
+      <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
+      <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />
+      <SeccionEditor {...editorProps("secciones")} seccion={editing?.scope === "secciones" ? editItem : null} products={catalog.products} />
+
+      {dirty && (
+        <div className="fixed inset-x-4 bottom-4 z-30 mx-auto flex w-fit max-w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-lg" role="region" aria-label="Cambios sin guardar">
+          <span className="hidden items-center gap-2 text-sm sm:flex"><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</span>
+          <Btn variant="ghost" size="sm" onClick={discard}>Descartar</Btn>
+          <Btn variant="primary" size="sm" disabled={saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
         </div>
       )}
 
-      {tab === "contacto" && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">WhatsApp y mensajes</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-default-600">Un único número para todos los botones de la tienda. Sin número, los botones se ocultan.</p>
-            <Field label="WhatsApp con código de país (solo números)" className="max-w-sm">
-              <Input value={config.contacto.whatsapp} onChange={(e) => setConfig({ ...config, contacto: { ...config.contacto, whatsapp: e.target.value } })} />
-            </Field>
-            {[
-              ["mensajeGeneral", "Mensaje del botón flotante"],
-              ["mensajeAsesoria", "Mensaje de la sección de asesoramiento / obras"],
-              ["mensajeMenu", "Mensaje del menú superior"],
-            ].map(([key, label]) => (
-              <Field key={key} label={label}>
-                <Input value={config.contacto[key]} onChange={(e) => setConfig({ ...config, contacto: { ...config.contacto, [key]: e.target.value } })} />
-              </Field>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <AlertDialog open={Boolean(confirm)} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirm?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { const run = confirm?.run; setConfirm(null); try { await run?.(); } catch (e) { setNotice({ type: "error", text: e.message }); } }}>{confirm?.action}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
