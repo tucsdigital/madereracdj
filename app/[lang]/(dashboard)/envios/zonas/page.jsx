@@ -1,21 +1,7 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/provider/auth.provider";
-import { normalizeShippingRules, priceForDistance } from "@/lib/shipping";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import GoogleMapReact from "google-map-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,1226 +12,356 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Btn } from "@/components/panel-ui/ui";
+import CoverageMap from "@/components/envios-zonas/CoverageMap";
+import { usePacStyles } from "@/components/envios-zonas/places";
+import { SucursalForm, SucursalesList } from "@/components/envios-zonas/SucursalesPanel";
+import { ProbadorPanel, ReglasPanel, TarifasPanel } from "@/components/envios-zonas/Panels";
+import { computeShipping, normalizeShippingRules, shippingIssues, validateShippingConfig } from "@/lib/shipping";
+import { countIssues, coverageMessage, newStoreId, numericLocations, numericTiers, snapshotOf } from "@/lib/envios-ui";
 
-const moneyAr = new Intl.NumberFormat("es-AR");
-const kmAr = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
+const TABS = [
+  { id: "tarifas", label: "Tarifas" },
+  { id: "reglas", label: "Reglas" },
+  { id: "probar", label: "Probar" },
+];
 
-const ZonasEnvioPage = () => {
-  const [locations, setLocations] = useState([]);
-  const [center, setCenter] = useState([-34.6037, -58.3816]);
-  const [zoom, setZoom] = useState(12);
-  const [point, setPoint] = useState(null);
-  const [latInput, setLatInput] = useState("");
-  const [lngInput, setLngInput] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [formMode, setFormMode] = useState("add");
-  const [editId, setEditId] = useState(null);
-  const [nombre, setNombre] = useState("");
-  const [direccion, setDireccion] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [radio, setRadio] = useState("");
-  const [gmapsReady, setGmapsReady] = useState(false);
-  const autocompleteRef = useRef(null);
-  const autocompleteListenersRef = useRef([]);
-  const [direccionInputEl, setDireccionInputEl] = useState(null);
-  const [gmMap, setGmMap] = useState(null);
-  const [gmaps, setGmaps] = useState(null);
-  const circlesRef = useRef([]);
-  const [visibility, setVisibility] = useState({});
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [confirmIdx, setConfirmIdx] = useState(null);
-  const [shippingTiers, setShippingTiers] = useState([]);
-  const [isAddressSelecting, setIsAddressSelecting] = useState(false);
-  const [addressError, setAddressError] = useState("");
-  const [tiersDirty, setTiersDirty] = useState(false);
-  const [tiersError, setTiersError] = useState("");
-  const [simDistanceKm, setSimDistanceKm] = useState("");
+const toNum = (v) => {
+  const n = parseFloat(String(v ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
+const when = (iso) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+
+// Los campos del panel guardan texto tal como se escribe; el servidor y el motor trabajan con números.
+const rulesToForm = (raw) => {
+  const r = normalizeShippingRules(raw);
+  return {
+    maxWeightKg: String(r.maxWeightKg),
+    freeShippingMin: String(r.freeShippingMin),
+    minFee: String(r.minFee),
+    fuelSurchargePct: String(r.fuelSurchargePct),
+    weightBands: r.weightBands.map((b) => ({ upToKg: String(b.upToKg), extra: String(b.extra) })),
+  };
+};
+const fromApi = (data) => ({
+  locations: (data.locations || []).map((l) => ({ ...l })),
+  tiers: (data.shippingTiers || []).map((t) => ({ km: String(t.km), price: String(t.price) })),
+  rules: rulesToForm(data.shippingRules),
+});
+
+export default function ZonasEnvioPage() {
   const { user } = useAuth();
-  const [shippingRules, setShippingRules] = useState(() => normalizeShippingRules());
-  const [rulesDirty, setRulesDirty] = useState(false);
-  const [rulesError, setRulesError] = useState("");
-  const [warnings, setWarnings] = useState([]);
-  const [simWeightKg, setSimWeightKg] = useState("");
-  const [simSubtotal, setSimSubtotal] = useState("");
-  const [loadingConfig, setLoadingConfig] = useState(true);
+  usePacStyles();
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/envios/zonas")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!active) return;
-        const locs = Array.isArray(d?.locations) ? d.locations : [];
-        setLocations(locs);
-        setShippingRules(normalizeShippingRules(d?.shippingRules));
-        setWarnings(Array.isArray(d?.warnings) ? d.warnings : []);
-        const tiers = Array.isArray(d?.shippingTiers) ? d.shippingTiers : [];
-        setShippingTiers(tiers.sort((a, b) => a.km - b.km));
-        if (locs.length > 0) {
-          setCenter([locs[0].lat, locs[0].lng]);
-          setZoom(12);
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setLoadingConfig(false);
-      });
-    return () => {
-      active = false;
-    };
+  const [config, setConfig] = useState(null);
+  const [saved, setSaved] = useState("");
+  const [meta, setMeta] = useState({ version: 0, savedAt: null });
+  const [loadError, setLoadError] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [tab, setTab] = useState("tarifas");
+  const [pin, setPin] = useState(null);
+  const [probe, setProbe] = useState({ weight: "", subtotal: "", distance: "" });
+  const [mapsApi, setMapsApi] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [showProblems, setShowProblems] = useState(false);
+  const [serverIssues, setServerIssues] = useState([]);
+  const [confirm, setConfirm] = useState(null);
+  const mapRef = useRef(null);
+  const loadedFor = useRef(null);
+
+  const apply = useCallback((data) => {
+    const next = fromApi(data);
+    setConfig(next);
+    setSaved(snapshotOf(next));
+    setMeta({ version: data.version || 0, savedAt: data.savedAt || null });
   }, []);
 
-  // Estilos globales para Google Places dentro de modales (z-index + fondo)
   useEffect(() => {
-    const exists = document.querySelector('style[data-gmaps-pac="true"]');
-    if (exists) return;
-    const style = document.createElement("style");
-    style.dataset.gmapsPac = "true";
-    style.innerHTML = `
-      .pac-container {
-        position: absolute !important;
-        z-index: 2147483647 !important;
-        background: rgba(255,255,255,1) !important;
-        color: rgba(17,24,39,1) !important;
-        border: 1px solid rgba(229,231,235,1) !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,.12) !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        mix-blend-mode: normal !important;
-        pointer-events: auto !important;
-      }
-      .pac-item {
-        padding: 8px 12px !important;
-        background: rgba(255,255,255,1) !important;
-        border-color: rgba(243,244,246,1) !important;
-      }
-      .pac-item:hover {
-        background: rgba(243,244,246,1) !important;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      // no retiramos el estilo para mantener consistencia al navegar
-    };
-  }, []);
+    if (!user) return;
+    // Se carga una sola vez por usuario: un cambio de referencia de `user` no debe pisar lo que se está editando.
+    const who = user.uid ?? "usuario";
+    if (loadedFor.current === who) return;
+    loadedFor.current = who;
+    fetch("/api/envios/zonas").then((r) => r.json()).then((d) => (d.error ? Promise.reject(new Error(d.error)) : apply(d))).catch((e) => setLoadError(e.message));
+  }, [user, apply]);
 
-  // Inicializar/rehacer Autocomplete en cada apertura de modal
-  useEffect(() => {
-    // limpiar anterior
-    const destroy = () => {
-      try {
-        (autocompleteListenersRef.current || []).forEach((l) => l && l.remove && l.remove());
-      } catch {}
-      autocompleteListenersRef.current = [];
-      autocompleteRef.current = null;
-    };
-    if (!isModalOpen) {
-      destroy();
-      return;
-    }
-    if (!gmapsReady || !direccionInputEl) return;
-    const AutocompleteCtor = window.google?.maps?.places?.Autocomplete || gmaps?.places?.Autocomplete;
-    if (!AutocompleteCtor) return;
-    
-    try {
-      const ac = new AutocompleteCtor(direccionInputEl, {
-        types: ["geocode"],
-        fields: ["formatted_address", "geometry"],
-      });
-      
-      const listener = ac.addListener("place_changed", () => {
-        setIsAddressSelecting(true);
-        setAddressError("");
-        
-        try {
-          const place = ac.getPlace();
-          
-          if (!place || !place.geometry) {
-            setAddressError("No se pudo obtener la ubicación. Por favor, intentá de nuevo.");
-            setIsAddressSelecting(false);
-            return;
-          }
-          
-          if (place?.formatted_address) {
-            setDireccion(place.formatted_address);
-          }
-          
-          const loc = place?.geometry?.location;
-          if (loc) {
-            const la = loc.lat();
-            const lo = loc.lng();
-            setLat(String(la));
-            setLng(String(lo));
-            if (gmMap) {
-              gmMap.panTo({ lat: la, lng: lo });
-            }
-          }
-          
-          setIsAddressSelecting(false);
-        } catch (error) {
-          console.error("Error al procesar lugar seleccionado:", error);
-          setAddressError("Error al procesar la dirección. Por favor, intentá de nuevo.");
-          setIsAddressSelecting(false);
-        }
-      });
-      
-      autocompleteRef.current = ac;
-      autocompleteListenersRef.current = [listener];
-    } catch (error) {
-      console.error("Error al inicializar autocomplete:", error);
-      setAddressError("Error al inicializar el buscador de direcciones.");
-    }
-    
-    return () => destroy();
-  }, [isModalOpen, gmapsReady, direccionInputEl, gmaps, gmMap]);
+  const dirty = useMemo(() => Boolean(config) && snapshotOf(config) !== saved, [config, saved]);
+  const issues = useMemo(() => (config ? shippingIssues({ locations: config.locations, tiers: config.tiers, rules: config.rules }) : []), [config]);
+  const warnings = useMemo(
+    () => (config ? validateShippingConfig({ locations: numericLocations(config.locations), tiers: numericTiers(config.tiers), rules: config.rules }).warnings : []),
+    [config]
+  );
+  const mapLocations = useMemo(() => (config ? numericLocations(config.locations) : []), [config]);
 
   useEffect(() => {
-    if (!gmMap || !gmaps) return;
-    circlesRef.current.forEach((o) => {
-      o.circle && o.circle.setMap(null);
-      o.marker && o.marker.setMap(null);
-    });
-    circlesRef.current = [];
-    (locations || []).forEach((s, idx) => {
-      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng) || !Number.isFinite(s.radio)) return;
-      const center = { lat: s.lat, lng: s.lng };
-      const isEditing = editingIndex === idx;
-      const circle = new gmaps.Circle({
-        map: gmMap,
-        center,
-        radius: s.radio,
-        strokeColor: isEditing ? "#3b82f6" : "#22c55e",
-        strokeOpacity: 0.85,
-        strokeWeight: isEditing ? 3 : 2,
-        fillColor: isEditing ? "#3b82f6" : "#22c55e",
-        fillOpacity: isEditing ? 0.25 : 0.15,
-        clickable: true,
-        draggable: !!isEditing,
-        editable: !!isEditing,
-      });
-      const marker = new gmaps.Marker({
-        position: center,
-        map: gmMap,
-        draggable: !!isEditing,
-        title: s.nombre || "Sucursal",
-        icon: isEditing ? {
-          url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8' fill='%233b82f6' stroke='white' stroke-width='2'/%3E%3C/svg%3E",
-          scaledSize: new gmaps.Size(24, 24),
-          anchor: new gmaps.Point(12, 12)
-        } : undefined
-      });
+    if (!dirty) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
-      const updateFromCircle = () => {
-        const c = circle.getCenter();
-        const r = circle.getRadius();
-        const la = c?.lat();
-        const lo = c?.lng();
-        if (!Number.isFinite(la) || !Number.isFinite(lo) || !Number.isFinite(r)) return;
-        // Durante edición, actualizar UI local sin persistir hasta Guardar
-        if (isEditing) {
-          setLat(String(la));
-          setLng(String(lo));
-          setRadio(String(Math.round(r)));
-        }
-        marker.setPosition({ lat: la, lng: lo });
-      };
+  useEffect(() => {
+    if (!notice || notice.type !== "ok") return undefined;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
-      const updateFromMarker = () => {
-        const pos = marker.getPosition();
-        const la = pos?.lat();
-        const lo = pos?.lng();
-        if (!Number.isFinite(la) || !Number.isFinite(lo)) return;
-        circle.setCenter({ lat: la, lng: lo });
-        // Durante edición, actualizar UI local sin persistir hasta Guardar
-        if (isEditing) {
-          setLat(String(la));
-          setLng(String(lo));
-        }
-      };
-
-      if (isEditing) {
-        circle.addListener("radius_changed", updateFromCircle);
-        circle.addListener("center_changed", updateFromCircle);
-        marker.addListener("dragend", updateFromMarker);
-      }
-      circle.addListener("click", () => {
-        beginEdit(s);
-        setEditingIndex(idx);
-        setModalMode("edit");
-        setIsModalOpen(true);
-      });
-      marker.addListener("click", () => {
-        beginEdit(s);
-        setEditingIndex(idx);
-        setModalMode("edit");
-        setIsModalOpen(true);
-      });
-
-      circlesRef.current.push({ circle, marker, idx });
-    });
-  }, [locations, gmMap, gmaps, formMode, editId, editingIndex]);
-
-  const toggleVisibility = (idx) => {
-    const v = { ...visibility, [idx]: !visibility[idx] };
-    setVisibility(v);
-    if (circlesRef.current[idx]) {
-      const obj = circlesRef.current[idx];
-      const show = !visibility[idx];
-      obj.circle && obj.circle.setMap(show ? gmMap : null);
-      obj.marker && obj.marker.setMap(show ? gmMap : null);
-    }
-  };
-
-  const fitAll = () => {
-    if (!gmMap || !gmaps) return;
-    if (!locations || locations.length === 0) return;
-    const bounds = new gmaps.LatLngBounds();
-    locations.forEach((s, idx) => {
-      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) return;
-      const lat = s.lat;
-      const lng = s.lng;
-      const r = Number.isFinite(s.radio) ? s.radio : 0;
-      const dLat = r / 111000;
-      const dLng = r / (111000 * Math.cos((lat * Math.PI) / 180) || 1);
-      bounds.extend(new gmaps.LatLng(lat + dLat, lng + dLng));
-      bounds.extend(new gmaps.LatLng(lat - dLat, lng - dLng));
-    });
-    if (!bounds.isEmpty()) {
-      gmMap.fitBounds(bounds, 50);
-    }
-  };
-
-  const handleRadiusSlider = (idx, value) => {
-    const r = parseFloat(value);
-    if (!Number.isFinite(r)) return;
-    if (editingIndex !== idx) {
-      const loc = locations[idx];
-      if (loc) {
-        beginEdit(loc);
-        setEditingIndex(idx);
-        setModalMode("edit");
-        setIsModalOpen(true);
-      }
-      return;
-    }
-    setRadio(String(r));
-    const obj = circlesRef.current[idx];
-    if (obj?.circle) obj.circle.setRadius(r);
-  };
-
-  const handleUseMyLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const p = [pos.coords.latitude, pos.coords.longitude];
-        setPoint(p);
-        setCenter(p);
-        setZoom(13);
-        if (gmMap) {
-          gmMap.setCenter({ lat: p[0], lng: p[1] });
-          gmMap.setZoom(13);
-        }
-      },
-      () => {}
+  // Resultado de la dirección elegida en el mapa, con lo que se ve en pantalla (guardado o no).
+  const pinMessage = useMemo(() => {
+    if (!pin || !config) return null;
+    return coverageMessage(
+      computeShipping({ locations: mapLocations, tiers: numericTiers(config.tiers), rules: config.rules, lat: pin.lat, lng: pin.lng, weightKg: toNum(probe.weight) || 1, subtotal: toNum(probe.subtotal) || 0 })
     );
+  }, [pin, config, mapLocations, probe.weight, probe.subtotal]);
+
+  const patch = (key, value) => setConfig((prev) => ({ ...prev, [key]: typeof value === "function" ? value(prev[key]) : value }));
+
+  /* Sucursales */
+  const locationById = (id) => config.locations.find((l) => l.id === id);
+  const select = (id) => {
+    setSelectedId(id);
+    const loc = numericLocations(config.locations).find((l) => l.id === id);
+    if (loc) mapRef.current?.focus(loc);
   };
-
-  const handleValidate = async (lat, lng) => {
-    setChecking(true);
-    setError("");
-    setResult(null);
-    try {
-      const url = `/api/check-delivery-radius?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.error || "Error");
-      } else {
-        setResult(data);
-      }
-    } catch (e) {
-      setError("Error de red");
-    } finally {
-      setChecking(false);
-    }
+  const startNew = () => {
+    setSelectedId(null);
+    setDraft({ key: `new-${Date.now()}`, id: null, nombre: "", direccion: "", lat: "", lng: "", radio: 5000 });
   };
-
-  const canValidate = useMemo(() => {
-    if (point && Number.isFinite(point[0]) && Number.isFinite(point[1])) return true;
-    const la = parseFloat(latInput);
-    const lo = parseFloat(lngInput);
-    return Number.isFinite(la) && Number.isFinite(lo);
-  }, [point, latInput, lngInput]);
-
-  const handleValidateClick = () => {
-    let la, lo;
-    if (point) {
-      [la, lo] = point;
-    } else {
-      la = parseFloat(latInput);
-      lo = parseFloat(lngInput);
-    }
-    if (Number.isFinite(la) && Number.isFinite(lo)) {
-      handleValidate(la, lo);
-    } else {
-      setError("Por favor, ingresá coordenadas válidas o seleccioná un punto en el mapa.");
-    }
+  const startEdit = (id) => {
+    const loc = locationById(id);
+    if (!loc) return;
+    setSelectedId(id);
+    setDraft({ key: id, id, nombre: loc.nombre || "", direccion: loc.direccion || "", lat: loc.lat ?? "", lng: loc.lng ?? "", radio: loc.radio ?? 5000 });
+    const numeric = numericLocations([loc])[0];
+    if (numeric) mapRef.current?.focus(numeric);
   };
-
-  const resetForm = () => {
-    setFormMode("add");
-    setEditId(null);
-    setNombre("");
-    setDireccion("");
-    setLat("");
-    setLng("");
-    setRadio("");
-    setAddressError("");
-    setIsAddressSelecting(false);
+  const changeDraft = useCallback((changes) => setDraft((d) => (d ? { ...d, ...changes } : d)), []);
+  const finishDraft = () => {
+    const item = { nombre: draft.nombre.trim(), direccion: draft.direccion.trim(), lat: toNum(draft.lat), lng: toNum(draft.lng), radio: toNum(draft.radio) };
+    const id = draft.id || newStoreId();
+    patch("locations", (list) => (draft.id ? list.map((l) => (l.id === draft.id ? { ...l, ...item } : l)) : [...list, { id, ...item }]));
+    setSelectedId(id);
+    setDraft(null);
   };
-
-  const beginEdit = (loc) => {
-    setFormMode("edit");
-    setEditId(loc.id || null);
-    setNombre(loc.nombre || "");
-    setDireccion(loc.direccion || "");
-    setLat(String(loc.lat ?? ""));
-    setLng(String(loc.lng ?? ""));
-    setRadio(String(loc.radio ?? ""));
-  };
-
-  const generateId = () => {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-    return "store_" + Date.now();
-  };
-
-  const saveSettings = async ({ locations: list, shippingTiers: tiers, rules }) => {
-    const token = await user?.getIdToken?.();
-    if (!token) throw new Error("Iniciá sesión para guardar los cambios.");
-    const res = await fetch("/api/envios/zonas", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ locations: list, shippingTiers: tiers, shippingRules: rules }),
+  const askDelete = (id) => {
+    const loc = locationById(id);
+    setConfirm({
+      title: `¿Eliminar ${loc?.nombre ? `“${loc.nombre}”` : "la sucursal"}?`,
+      description: "Se quita de la lista cuando guardes los cambios. Hasta entonces podés descartar y volver atrás.",
+      action: "Eliminar",
+      run: () => {
+        patch("locations", (list) => list.filter((l) => l.id !== id));
+        setDraft(null);
+        setSelectedId((current) => (current === id ? null : current));
+      },
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const msg = Array.isArray(data?.errores) && data.errores.length > 0
-        ? data.errores.join(" · ")
-        : data?.error || "No se pudo guardar la configuración";
-      throw new Error(msg);
-    }
-    setLocations(Array.isArray(data?.locations) ? data.locations : []);
-    if (tiers !== undefined) {
-      setShippingTiers(Array.isArray(data?.shippingTiers) ? data.shippingTiers : []);
-      setTiersDirty(false);
-    }
-    if (rules) {
-      setShippingRules(normalizeShippingRules(data?.shippingRules));
-      setRulesDirty(false);
-    }
-    setWarnings(Array.isArray(data?.warnings) ? data.warnings : []);
-    return data;
   };
 
-  const tierRanges = useMemo(() => {
-    const sorted = [...shippingTiers]
-      .map((tier) => ({
-        km: Number(tier?.km),
-        price: Number(tier?.price),
-      }))
-      .filter((tier) => Number.isFinite(tier.km) && Number.isFinite(tier.price))
-      .sort((a, b) => a.km - b.km);
-    return sorted.map((tier, idx) => ({
-      fromKm: idx === 0 ? 0 : sorted[idx - 1].km,
-      toKm: tier.km,
-      price: tier.price,
-    }));
-  }, [shippingTiers]);
-
-  const tierValidationError = useMemo(() => {
-    if (shippingTiers.length === 0) return "Debés cargar al menos un tramo de tarifa.";
-    for (let i = 0; i < shippingTiers.length; i++) {
-      const km = Number(shippingTiers[i]?.km);
-      const price = Number(shippingTiers[i]?.price);
-      if (!Number.isFinite(km) || km <= 0) return `El tramo ${i + 1} tiene km inválido.`;
-      if (!Number.isFinite(price) || price < 0) return `El tramo ${i + 1} tiene precio inválido.`;
-      if (i > 0 && km <= Number(shippingTiers[i - 1]?.km)) {
-        return "Los km de los tramos deben estar en orden creciente sin repetir.";
-      }
+  const pickOnMap = useCallback((lat, lng) => {
+    if (draft) {
+      changeDraft({ lat, lng });
+      const key = draft.key;
+      mapRef.current?.reverseGeocode(lat, lng).then((address) => {
+        if (address) setDraft((d) => (d && d.key === key ? { ...d, direccion: address } : d));
+      });
+      return;
     }
-    return "";
-  }, [shippingTiers]);
+    setPin({ lat, lng });
+  }, [draft, changeDraft]);
 
-  const simulatedTier = useMemo(() => {
-    const d = Number(simDistanceKm);
-    if (!Number.isFinite(d) || d < 0) return null;
-    const weight = simWeightKg === "" ? 1 : Number(simWeightKg);
-    return {
-      distanceKm: d,
-      ...priceForDistance({
-        distanceKm: d,
-        tiers: shippingTiers,
-        rules: shippingRules,
-        weightKg: Number.isFinite(weight) ? weight : null,
-        subtotal: Number(simSubtotal) || 0,
-      }),
-    };
-  }, [simDistanceKm, simWeightKg, simSubtotal, shippingTiers, shippingRules]);
-
-  const updateRules = (patch) => {
-    setShippingRules((prev) => ({ ...prev, ...patch }));
-    setRulesDirty(true);
-    setRulesError("");
+  /* Guardado manual */
+  const goTo = (issue) => {
+    if (issue.scope === "sucursales") {
+      const loc = config.locations[issue.index];
+      if (loc) startEdit(loc.id);
+    } else {
+      setTab(issue.scope);
+    }
   };
-  const updateBand = (index, patch) =>
-    updateRules({ weightBands: shippingRules.weightBands.map((band, i) => (i === index ? { ...band, ...patch } : band)) });
 
-  const saveRules = async () => {
+  const save = async () => {
+    if (draft) {
+      setNotice({ type: "error", text: "Terminá de editar la sucursal con el botón “Listo” antes de guardar." });
+      return;
+    }
+    if (issues.length) {
+      setServerIssues([]);
+      setShowProblems(true);
+      setNotice(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const token = await user?.getIdToken?.();
+    if (!token) { setNotice({ type: "error", text: "Iniciá sesión para guardar los cambios." }); return; }
+    setSaving(true);
+    setNotice(null);
     try {
-      setSaving(true);
-      setRulesError("");
-      await saveSettings({ locations: undefined, shippingTiers: undefined, rules: shippingRules });
+      const res = await fetch("/api/envios/zonas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          locations: config.locations.map((l) => ({ id: l.id, nombre: l.nombre, direccion: l.direccion, lat: toNum(l.lat), lng: toNum(l.lng), radio: toNum(l.radio) })),
+          shippingTiers: config.tiers.map((t) => ({ km: toNum(t.km), price: toNum(t.price) })),
+          shippingRules: normalizeShippingRules(config.rules),
+          baseVersion: meta.version,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (Array.isArray(data.issues) && data.issues.length) { setServerIssues(data.issues); setShowProblems(true); }
+        throw new Error(data.error || "No se pudieron guardar los cambios.");
+      }
+      apply(data);
+      setShowProblems(false);
+      setServerIssues([]);
+      setNotice({ type: "ok", text: "Cambios guardados. La tienda usará las nuevas zonas y tarifas enseguida." });
     } catch (e) {
-      setRulesError(e.message || "No se pudieron guardar las reglas.");
+      setNotice({ type: "error", text: e.message });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (loc) => {
-    try {
-      setSaving(true);
-      const next = locations.filter((l) => l !== loc);
-      await saveSettings({ locations: next, shippingTiers });
-      if (editId && (loc.id ? loc.id === editId : false)) resetForm();
-    } catch (error) {
-      setError(error?.message || "No se pudo eliminar la sucursal.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const discard = () => setConfirm({
+    title: "¿Descartar los cambios?",
+    description: "Vas a volver a lo último que guardaste. Se pierden los cambios hechos desde entonces.",
+    action: "Descartar",
+    run: () => {
+      fetch("/api/envios/zonas").then((r) => r.json()).then((d) => { apply(d); setDraft(null); setSelectedId(null); setShowProblems(false); setPin(null); });
+    },
+  });
 
+  if (!config) {
+    return <div className="p-6 text-sm text-default-600">{loadError ? <span className="text-destructive">{loadError}</span> : "Cargando…"}</div>;
+  }
 
-  const handleSubmit = async () => {
-    // Validación mejorada
-    const la = parseFloat(lat);
-    const lo = parseFloat(lng);
-    const r = parseFloat(radio);
-    
-    if (!Number.isFinite(la) || !Number.isFinite(lo) || !Number.isFinite(r)) {
-      setAddressError("Por favor, completá todos los campos con valores válidos.");
-      return false;
-    }
-    
-    if (!nombre.trim()) {
-      setAddressError("Por favor, ingresá un nombre para la sucursal.");
-      return false;
-    }
-    
-    if (!direccion.trim()) {
-      setAddressError("Por favor, ingresá una dirección.");
-      return false;
-    }
-    
-    const item = {
-      nombre: nombre.trim(),
-      direccion: direccion.trim(),
-      lat: la,
-      lng: lo,
-      radio: r,
-    };
-    
-    try {
-      setSaving(true);
-      setAddressError("");
-      
-      if (formMode === "edit") {
-        const next = locations.map((l) => {
-          if (editId && l.id && l.id === editId) return { ...item, id: l.id };
-          if (!editId && !l.id && l.nombre === nombre && l.direccion === direccion) return { ...item };
-          return l;
-        });
-        await saveSettings({ locations: next, shippingTiers });
-      } else {
-        const id = generateId();
-        const next = [...locations, { ...item, id }];
-        await saveSettings({ locations: next, shippingTiers });
-      }
-      
-      resetForm();
-      return true;
-    } catch (error) {
-      console.error("Error al guardar sucursal:", error);
-      setAddressError(error?.message || "Error al guardar la sucursal. Por favor, intentá de nuevo.");
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
+  const shownIssues = serverIssues.length ? serverIssues : issues;
+  const drawnDraft = draft ? { key: draft.key, id: draft.id || "__nuevo__", lat: toNum(draft.lat), lng: toNum(draft.lng), radio: toNum(draft.radio) } : null;
+  const problemsPerLocation = config.locations.map((_, i) => issues.filter((x) => x.scope === "sucursales" && x.index === i).length);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="text-2xl font-medium text-default-800">Zonas de Entrega</div>
-        <div className="flex gap-2">
-          {loadingConfig && <Badge variant="outline">Cargando configuración...</Badge>}
-          <Button
-            onClick={() => {
-              resetForm();
-              setModalMode("add");
-              setEditingIndex(null);
-              setIsModalOpen(true);
-              setAddressError("");
-              setIsAddressSelecting(false);
-              setRadio("5000");
-            }}
-          >
-            Nueva sucursal
-          </Button>
+    <div className="mx-auto w-full space-y-6 pb-20">
+      <header className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold">Envíos y cobertura</h1>
+          <p className="flex items-center gap-1.5 truncate text-sm text-default-500">
+            {dirty ? (<><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</>) : meta.savedAt ? `Guardado el ${when(meta.savedAt)}` : "Sin cambios"}
+          </p>
+        </div>
+        <Btn variant="primary" disabled={!dirty || saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
+      </header>
+
+      {notice && (
+        <div role="status" className={cn("flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm", notice.type === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}>
+          <span>{notice.text}</span>
+          <button type="button" aria-label="Cerrar" className="opacity-60 hover:opacity-100" onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
+
+      {showProblems && shownIssues.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50/60 p-4">
+          <p className="mb-2 text-sm font-medium text-red-800">Para poder guardar, corregí esto:</p>
+          <ul className="space-y-1">
+            {shownIssues.map((issue, i) => (
+              <li key={`${issue.scope}-${i}`} className="flex items-center justify-between gap-3 text-sm text-red-900">
+                <span>{issue.message}</span>
+                <button type="button" onClick={() => goTo(issue)} className="shrink-0 font-medium underline underline-offset-4">Ir</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <CoverageMap
+          ref={mapRef}
+          className="h-[420px] lg:h-[600px]"
+          locations={mapLocations}
+          selectedId={selectedId}
+          draft={drawnDraft}
+          pin={pin}
+          message={pinMessage}
+          onSelect={(id) => (draft ? null : select(id))}
+          onPick={pickOnMap}
+          onDraftChange={changeDraft}
+          onClearPin={() => setPin(null)}
+          onReady={setMapsApi}
+        />
+        <div className={cn("rounded-xl border border-border bg-card lg:h-[600px]", draft ? "h-[560px] overflow-hidden" : "max-h-[560px] overflow-y-auto lg:max-h-none lg:overflow-hidden")}>
+          {draft ? (
+            <SucursalForm
+              key={draft.key}
+              draft={draft}
+              isNew={!draft.id}
+              mapsReady={Boolean(mapsApi)}
+              gmaps={mapsApi?.gmaps}
+              onChange={changeDraft}
+              onLocate={(lat, lng) => mapRef.current?.panTo(lat, lng, 15)}
+              onDone={finishDraft}
+              onCancel={() => setDraft(null)}
+              onDelete={draft.id ? () => askDelete(draft.id) : undefined}
+            />
+          ) : (
+            <SucursalesList
+              locations={config.locations}
+              selectedId={selectedId}
+              problems={problemsPerLocation}
+              onSelect={select}
+              onAdd={startNew}
+              onEdit={startEdit}
+              onFocus={select}
+              onDelete={askDelete}
+            />
+          )}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle>Mapa de Cobertura</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={fitAll}>Ver todas</Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-[520px] rounded-md overflow-hidden border border-border">
-              <div style={{ height: "100%", width: "100%" }}>
-                <GoogleMapReact
-                  bootstrapURLKeys={{
-                    key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-                    libraries: ["places"],
-                  }}
-                  yesIWantToUseGoogleMapApiInternals
-                  onGoogleApiLoaded={({ map, maps }) => {
-                    setGmMap(map);
-                    setGmaps(maps);
-                    setGmapsReady(true);
-                  }}
-                  center={{ lat: center[0], lng: center[1] }}
-                  zoom={zoom}
-                  onClick={({ lat, lng }) => setPoint([lat, lng])}
-                  options={{
-                    fullscreenControl: false,
-                    mapTypeControl: false,
-                    streetViewControl: false,
-                  }}
-                >
-                  {point ? (
-                    <div
-                      lat={point[0]}
-                      lng={point[1]}
-                      className="w-3 h-3 bg-blue-600 rounded-full border-2 border-white shadow"
-                      title="Tu punto seleccionado"
-                    />
-                  ) : null}
-                  {locations.map((s, i) => (
-                    <div
-                      key={`label_${i}`}
-                      lat={s.lat}
-                      lng={s.lng}
-                      className="px-2 py-1 bg-white/90 backdrop-blur rounded border text-xs shadow whitespace-nowrap"
-                      style={{ transform: "translate(-50%, -120%)" }}
-                    >
-                      {(s.nombre || "Sucursal")}: {(Number(s.radio) / 1000).toFixed(2)} km
-                    </div>
-                  ))}
-                </GoogleMapReact>
-              </div>
-            </div>
-            <div className="flex flex-col md:flex-row gap-3">
-              <Button variant="outline" onClick={handleUseMyLocation}>Usar mi ubicación</Button>
-              <div className="flex gap-2 w-full md:w-auto">
-                <Input 
-                  placeholder="Latitud" 
-                  value={latInput} 
-                  onChange={(e) => {
-                    setLatInput(e.target.value);
-                    setError("");
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleValidateClick();
-                    }
-                  }}
-                />
-                <Input 
-                  placeholder="Longitud" 
-                  value={lngInput} 
-                  onChange={(e) => {
-                    setLngInput(e.target.value);
-                    setError("");
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleValidateClick();
-                    }
-                  }}
-                />
-              </div>
-              <Button onClick={handleValidateClick} disabled={!canValidate || checking || locations.length === 0}>
-                {checking ? "Validando..." : "Validar cobertura"}
-              </Button>
-            </div>
-            {locations.length === 0 && (
-              <div className="text-sm text-default-600">
-                Cargá al menos una sucursal con radio para habilitar la validación.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Resultado</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!result && !error && (
-              <div className="text-sm text-default-600">Selecciona un punto en el mapa o ingresa lat/lng y valida la cobertura.</div>
-            )}
-            {error && (
-              <div className="text-sm font-medium text-destructive">{error}</div>
-            )}
-            {result && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  {result.isInRadius ? (
-                    <Badge className="bg-emerald-600">Dentro de cobertura</Badge>
-                  ) : (
-                    <Badge variant="destructive">Fuera de cobertura</Badge>
-                  )}
-                  <span className="text-sm text-default-700">a {result.distance} km</span>
-                </div>
-                {result.isInRadius && result.canShip === false && (
-                  <div className="text-sm text-destructive">
-                    Excede el peso máximo permitido ({result.maxWeightKg} kg)
-                  </div>
-                )}
-                {!!result.price && result.canShip !== false && (
-                  <div className="text-sm text-default-800">
-                    Tarifa estimada: <span className="font-semibold">${moneyAr.format(Number(result.price) || 0)}</span>{result.tierKm ? ` (hasta ${result.tierKm} km)` : ""}
-                  </div>
-                )}
-                <div className="space-y-1 text-sm">
-                  <div className="text-default-700">Cobertura máxima: {result.maxRadius} km</div>
-                  {result.nearestStore && (
-                    <>
-                      <div className="font-medium text-default-800">{result.nearestStore.nombre}</div>
-                      <div className="text-default-600">{result.nearestStore.direccion}</div>
-                    </>
-                  )}
-                </div>
-                {Array.isArray(result.availableTiers) && result.availableTiers.length > 0 && (
-                  <div className="space-y-2 border rounded-md p-3">
-                    <div className="text-xs font-semibold text-default-700">Tramos aplicables por distancia</div>
-                    <div className="space-y-1">
-                      {result.availableTiers.map((tier, idx) => {
-                        const isMatch = Number(result.tierKm) === Number(tier.toKm);
-                        return (
-                          <div
-                            key={`${tier.toKm}_${idx}`}
-                            className={`text-xs flex items-center justify-between rounded px-2 py-1 ${isMatch ? "bg-emerald-50 border border-emerald-300" : "bg-default-50"}`}
-                          >
-                            <span>
-                              {kmAr.format(Number(tier.fromKm) || 0)} a {kmAr.format(Number(tier.toKm) || 0)} km
-                            </span>
-                            <span className="font-medium">${moneyAr.format(Number(tier.price) || 0)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Reglas de envío</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {warnings.length > 0 && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
-                {warnings.map((w) => (<div key={w}>⚠ {w}</div>))}
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <label className="text-sm space-y-1">
-                <span className="block text-default-600">Peso máximo sin franjas (kg)</span>
-                <Input value={shippingRules.maxWeightKg} disabled={shippingRules.weightBands.length > 0}
-                  onChange={(e) => updateRules({ maxWeightKg: e.target.value })} />
-              </label>
-              <label className="text-sm space-y-1">
-                <span className="block text-default-600">Envío gratis desde ($, 0 = nunca)</span>
-                <Input value={shippingRules.freeShippingMin} onChange={(e) => updateRules({ freeShippingMin: e.target.value })} />
-              </label>
-              <label className="text-sm space-y-1">
-                <span className="block text-default-600">Envío mínimo ($)</span>
-                <Input value={shippingRules.minFee} onChange={(e) => updateRules({ minFee: e.target.value })} />
-              </label>
-              <label className="text-sm space-y-1">
-                <span className="block text-default-600">Recargo combustible (%)</span>
-                <Input value={shippingRules.fuelSurchargePct} onChange={(e) => updateRules({ fuelSurchargePct: e.target.value })} />
-              </label>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Franjas de peso (adicional sobre la tarifa por distancia)</div>
-              <p className="text-xs text-default-600">
-                Con franjas cargadas, un pedido más pesado que la última se pide por cotización. Sin franjas se usa el peso máximo.
-              </p>
-              {shippingRules.weightBands.map((band, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2 border rounded-md p-3">
-                  <span className="text-sm">Hasta</span>
-                  <Input className="w-28" value={band.upToKg} onChange={(e) => updateBand(i, { upToKg: e.target.value })} />
-                  <span className="text-sm">kg · adicional $</span>
-                  <Input className="w-32" value={band.extra} onChange={(e) => updateBand(i, { extra: e.target.value })} />
-                  <Button variant="destructive" size="sm"
-                    onClick={() => updateRules({ weightBands: shippingRules.weightBands.filter((_, idx) => idx !== i) })}>
-                    Quitar
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" onClick={() => {
-                const last = shippingRules.weightBands[shippingRules.weightBands.length - 1];
-                updateRules({ weightBands: [...shippingRules.weightBands, { upToKg: (Number(last?.upToKg) || 0) + 50, extra: 0 }] });
-              }}>
-                Agregar franja
-              </Button>
-            </div>
-            {rulesError && <div className="text-sm text-destructive">{rulesError}</div>}
-            <Button onClick={saveRules} disabled={saving || !rulesDirty}>{saving ? "Guardando..." : "Guardar reglas"}</Button>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Tarifas por radio</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {shippingTiers.length === 0 && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Todavía no hay tarifas guardadas: todo envío se pedirá por cotización. Cargá tus tramos reales con “Agregar tramo”.
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const last = shippingTiers[shippingTiers.length - 1];
-                  const next = [...shippingTiers, { km: (Number(last?.km) || 0) + 10, price: Number(last?.price) || 0 }].sort((a, b) => Number(a.km) - Number(b.km));
-                  setShippingTiers(next);
-                  setTiersDirty(true);
-                  setTiersError("");
-                }}
-              >
-                Agregar tramo
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const next = [...shippingTiers].sort((a, b) => Number(a.km) - Number(b.km));
-                  setShippingTiers(next);
-                  setTiersDirty(true);
-                  setTiersError("");
-                }}
-              >
-                Ordenar por km
-              </Button>
-              <Button
-                onClick={async () => {
-                  if (tierValidationError) {
-                    setTiersError(tierValidationError);
-                    return;
-                  }
-                  try {
-                    setSaving(true);
-                    setTiersError("");
-                    await saveSettings({ locations, shippingTiers });
-                  } catch (e) {
-                    setTiersError(e.message || "No se pudieron guardar las tarifas.");
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                disabled={saving || !tiersDirty}
-              >
-                {saving ? "Guardando..." : "Guardar tarifas"}
-              </Button>
-            </div>
-            {tierValidationError && (
-              <div className="text-sm text-destructive">{tierValidationError}</div>
-            )}
-            {tiersError && (
-              <div className="text-sm text-destructive">{tiersError}</div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="border rounded-md p-3">
-                <div className="text-xs text-default-600">Tramos cargados</div>
-                <div className="text-xl font-semibold">{shippingTiers.length}</div>
-              </div>
-              <div className="border rounded-md p-3">
-                <div className="text-xs text-default-600">Cobertura tarifaria máx.</div>
-                <div className="text-xl font-semibold">
-                  {tierRanges.length ? `${kmAr.format(tierRanges[tierRanges.length - 1].toKm)} km` : "0 km"}
-                </div>
-              </div>
-              <div className="border rounded-md p-3">
-                <div className="text-xs text-default-600">Precio mínimo</div>
-                <div className="text-xl font-semibold">
-                  ${tierRanges.length ? moneyAr.format(Math.min(...tierRanges.map((x) => Number(x.price) || 0))) : "0"}
-                </div>
-              </div>
-              <div className="border rounded-md p-3">
-                <div className="text-xs text-default-600">Precio máximo</div>
-                <div className="text-xl font-semibold">
-                  ${tierRanges.length ? moneyAr.format(Math.max(...tierRanges.map((x) => Number(x.price) || 0))) : "0"}
-                </div>
-              </div>
-            </div>
-            <div className="border rounded-md p-3 space-y-2">
-              <div className="text-sm font-medium">Simulador de envío (distancia, peso y monto)</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input className="w-32" placeholder="Distancia" value={simDistanceKm} onChange={(e) => setSimDistanceKm(e.target.value)} />
-                <span className="text-sm text-default-600">km</span>
-                <Input className="w-32" placeholder="Peso" value={simWeightKg} onChange={(e) => setSimWeightKg(e.target.value)} />
-                <span className="text-sm text-default-600">kg</span>
-                <Input className="w-36" placeholder="Monto de compra" value={simSubtotal} onChange={(e) => setSimSubtotal(e.target.value)} />
-                <span className="text-sm text-default-600">$</span>
-              </div>
-              {simDistanceKm !== "" && simulatedTier ? (
-                simulatedTier.status === "ok" ? (
-                  <div className="text-sm space-y-1">
-                    <Badge className="bg-emerald-600">
-                      {simulatedTier.free ? "Envío gratis" : `$${moneyAr.format(simulatedTier.price)}`} · tramo hasta {kmAr.format(simulatedTier.tierKm)} km
-                    </Badge>
-                    <div className="text-default-600">
-                      Base ${moneyAr.format(simulatedTier.base)} + peso ${moneyAr.format(simulatedTier.weightExtra)} + combustible ${moneyAr.format(simulatedTier.fuel)}
-                      {simulatedTier.minimumApplied ? " (se aplicó el envío mínimo)" : ""}
-                      {simulatedTier.free ? ` · sin la gratuidad costaría $${moneyAr.format(simulatedTier.listPrice)}` : ""}
-                    </div>
-                  </div>
-                ) : (
-                  <Badge variant="outline">Requiere cotización: {simulatedTier.message}</Badge>
-                )
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              {shippingTiers.map((t, i) => (
-                <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 border rounded-md p-3">
-                  <div className="md:col-span-3 flex items-center gap-2">
-                    <span className="text-sm w-14">Desde</span>
-                    <div className="text-sm font-medium">
-                      {kmAr.format(i === 0 ? 0 : Number(shippingTiers[i - 1]?.km) || 0)} km
-                    </div>
-                  </div>
-                  <div className="md:col-span-3 flex items-center gap-2">
-                    <span className="text-sm w-14">Hasta</span>
-                    <Input
-                      value={t.km}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        const next = shippingTiers
-                          .map((x, idx) => (idx === i ? { ...x, km: Number.isFinite(v) ? v : 0 } : x))
-                          .sort((a, b) => a.km - b.km);
-                        setShippingTiers(next);
-                        setTiersDirty(true);
-                        setTiersError("");
-                      }}
-                      className="w-28"
-                      placeholder="km"
-                    />
-                    <span className="text-sm">km</span>
-                  </div>
-                  <div className="md:col-span-4 flex items-center gap-2">
-                    <span className="text-sm w-14">Precio</span>
-                    <Input
-                      value={t.price}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        const next = shippingTiers.map((x, idx) => (idx === i ? { ...x, price: Number.isFinite(v) ? v : 0 } : x));
-                        setShippingTiers(next);
-                        setTiersDirty(true);
-                        setTiersError("");
-                      }}
-                      className="w-32"
-                      placeholder="precio"
-                    />
-                    <span className="text-sm text-default-600">${moneyAr.format(Number(t.price) || 0)}</span>
-                  </div>
-                  <div className="md:col-span-2 flex md:justify-end">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        const next = shippingTiers.filter((_, idx) => idx !== i);
-                        setShippingTiers(next);
-                        setTiersDirty(true);
-                        setTiersError("");
-                      }}
-                    >
-                      Quitar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Administrar sucursales</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm text-default-600">
-                Gestioná sucursales con el botón “Nueva sucursal” o editá desde la lista.
-              </div>
-            </div>
-            <ScrollArea className="h-[320px]">
-              <div className="space-y-2">
-                {locations.map((loc, idx) => (
-                  <div key={idx} className="flex items-center gap-3 border border-border rounded-md p-3">
-                    <div className="flex-1">
-                      <div className="font-medium">{loc.nombre || "Sucursal"}</div>
-                      <div className="text-sm text-default-600">{loc.direccion}</div>
-                      <div className="text-xs text-default-600">Lat: {loc.lat} Lng: {loc.lng} • Radio: {loc.radio} m</div>
-                      <div className="flex items-center gap-3 mt-2">
-                        <input
-                          type="range"
-                          min={50}
-                          max={50000}
-                          step={50}
-                          value={Number(loc.radio) || 0}
-                          onChange={(e) => handleRadiusSlider(idx, e.target.value)}
-                          className="w-56"
-                        />
-                        <span className="text-xs text-default-700">{(Number(loc.radio) / 1000).toFixed(2)} km</span>
-                        <Button variant={visibility[idx] ? "default" : "outline"} size="sm" onClick={() => toggleVisibility(idx)}>
-                          {visibility[idx] ? "Ocultar" : "Mostrar"}
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => { setCenter([loc.lat, loc.lng]); gmMap && gmMap.panTo({ lat: loc.lat, lng: loc.lng }); }}>
-                          Enfocar
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          beginEdit(loc);
-                          setEditingIndex(idx);
-                          setModalMode("edit");
-                          setIsModalOpen(true);
-                        }}
-                        disabled={saving}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => setConfirmIdx(idx)}
-                        disabled={saving}
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
 
-      <Dialog
-        open={isModalOpen}
-        onOpenChange={(open) => {
-          if (!open && isAddressSelecting) {
-            return;
-          }
-          
-          setIsModalOpen(open);
-          if (!open) {
-            if (modalMode === "edit") {
-              // Restablecer círculos al estado guardado si se cancela
-              setLocations((prev) => [...prev]);
-            }
-            setEditingIndex(null);
-            resetForm();
-            setAddressError("");
-            setIsAddressSelecting(false);
-          }
-        }}
-      >
-        <DialogContent
-          size="md"
-          className="!w-[min(92vw,900px)] md:!w-[800px] max-w-none"
-          onInteractOutside={(e) => {
-            const tgt = e?.target;
-            try {
-              const isPac =
-                (tgt && typeof tgt.closest === "function" && tgt.closest(".pac-container")) ||
-                (tgt && tgt.classList && tgt.classList.contains("pac-item"));
-              if (isPac) {
-                e.preventDefault();
-              }
-            } catch {}
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {modalMode === "edit" ? "Editar sucursal" : "Nueva sucursal"}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              Completa los datos de la sucursal y guarda los cambios.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <div className="text-xs text-default-600">Nombre</div>
-              <Input
-                placeholder="Ej: Central"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-1">
-              <div className="text-xs text-default-600 flex items-center gap-1">
-                Dirección
-                {gmapsReady && (
-                  <span className="text-xs text-emerald-600">✓ Buscador activo</span>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  placeholder="Buscar en Google Maps (comenzá a escribir...)"
-                  value={direccion}
-                  onChange={(e) => {
-                    setDireccion(e.target.value);
-                    setAddressError("");
-                  }}
-                  ref={setDireccionInputEl}
-                  disabled={isAddressSelecting || !gmapsReady}
-                  className={addressError ? "border-destructive" : gmapsReady ? "border-emerald-300 focus:border-emerald-500" : ""}
-                />
-                {isAddressSelecting && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
-                {!gmapsReady && !isAddressSelecting && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  </div>
-                )}
-              </div>
-              {addressError && (
-                <div className="text-xs text-destructive">{addressError}</div>
-              )}
-              {gmapsReady && !addressError && (
-                <div className="text-xs text-emerald-600">Comenzá a escribir y seleccioná una dirección del listado</div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3 md:col-span-2">
-              <div className="space-y-1">
-                <div className="text-xs text-default-600">Latitud</div>
-                <Input
-                  placeholder="-34.6037"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs text-default-600">Longitud</div>
-                <Input
-                  placeholder="-58.3816"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-default-600">Radio</div>
-                <div className="text-xs text-default-700">
-                  {(Number(radio) / 1000).toFixed(2)} km
-                </div>
-              </div>
-              <input
-                type="range"
-                min={50}
-                max={50000}
-                step={50}
-                value={Number(radio) || 0}
-                onChange={(e) => setRadio(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsModalOpen(false)} 
-              disabled={saving || isAddressSelecting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={async () => {
-                const ok = await handleSubmit();
-                if (ok) {
-                  setIsModalOpen(false);
-                  setEditingIndex(null);
-                }
-              }}
-              disabled={saving || isAddressSelecting}
-            >
-              {saving ? "Guardando..." : modalMode === "edit" ? "Guardar cambios" : "Crear sucursal"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <section>
+        <nav className="flex gap-6 border-b border-border" aria-label="Tarifas y reglas">
+          {TABS.map((t) => {
+            const problems = t.id === "probar" ? 0 : countIssues(issues, t.id);
+            const warn = t.id === "tarifas" && warnings.length > 0;
+            return (
+              <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
+                className={cn("-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm transition", tab === t.id ? "border-primary font-semibold text-foreground" : "border-transparent text-default-500 hover:text-foreground")}>
+                {t.label}
+                {problems > 0 ? <span className="h-2 w-2 rounded-full bg-destructive" aria-label="Hay algo para corregir" /> : warn ? <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="Hay avisos" /> : null}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="mt-5 rounded-xl border border-border bg-card p-5 sm:p-6">
+          {tab === "tarifas" && <TarifasPanel tiers={config.tiers} warnings={warnings} issues={issues} onChange={(tiers) => patch("tiers", tiers)} />}
+          {tab === "reglas" && <ReglasPanel rules={config.rules} issues={issues} onChange={(changes) => patch("rules", (rules) => ({ ...rules, ...changes }))} />}
+          {tab === "probar" && (
+            <ProbadorPanel pin={pin} locations={config.locations} tiers={config.tiers} rules={config.rules} probe={probe}
+              onProbeChange={(changes) => setProbe((p) => ({ ...p, ...changes }))} onClearPin={() => setPin(null)} />
+          )}
+        </div>
+      </section>
 
-      <AlertDialog open={confirmIdx != null} onOpenChange={(open) => !open && setConfirmIdx(null)}>
+      {dirty && (
+        <div className="fixed inset-x-4 bottom-4 z-30 mx-auto flex w-fit max-w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-lg" role="region" aria-label="Cambios sin guardar">
+          <span className="hidden items-center gap-2 text-sm sm:flex"><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</span>
+          <Btn variant="ghost" size="sm" onClick={discard}>Descartar</Btn>
+          <Btn variant="primary" size="sm" disabled={saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
+        </div>
+      )}
+
+      <AlertDialog open={Boolean(confirm)} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar sucursal</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. ¿Confirmás eliminar esta sucursal?
-            </AlertDialogDescription>
+            <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirm?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                const idx = confirmIdx;
-                setConfirmIdx(null);
-                if (idx != null && locations[idx]) {
-                  await handleDelete(locations[idx]);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => { const run = confirm?.run; setConfirm(null); run?.(); }}>{confirm?.action}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
-};
-
-export default ZonasEnvioPage;
+}

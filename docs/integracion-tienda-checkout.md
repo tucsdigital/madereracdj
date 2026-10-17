@@ -41,6 +41,15 @@ Todo el cálculo vive en `lib/shipping.js`, que usan el checkout (`/api/checkout
 - `PUT /api/envios/zonas` exige sesión del sistema. Cada cambio queda en `settingsHistory` (antes/después, usuario y fecha). Guardar sólo reglas conserva sucursales y tarifas, y viceversa.
 - La pantalla muestra avisos si el radio de una sucursal supera el último tramo.
 
+### Pantalla "Envíos y cobertura" (`/envios/zonas`)
+
+- **Guardado manual y único**: sucursales, tarifas y reglas se guardan juntas con **Guardar cambios**, que se habilita al detectar modificaciones (barra inferior, aviso al salir con cambios sin guardar). Nada se guarda solo; agregar o eliminar una sucursal también queda pendiente hasta guardar. El servidor valida todo campo por campo (`issues` con `scope`, posición y campo), rechaza con 409 si otra persona guardó antes (`shippingVersion`) y no escribe si no hubo cambios reales.
+- **Mapa + lista de sucursales** (reemplaza al antiguo panel "Resultado"): todas las sucursales se dibujan con un círculo suave, la elegida se resalta. Buscar una dirección o hacer clic en el mapa muestra un pin y el resultado en palabras ("Llegamos a esta dirección · Central · a 4,2 km · envío desde $25.000", "Fuera de la zona de entrega…"), calculado con las tarifas y reglas **que se ven en pantalla**, guardadas o no.
+- **Alta y edición de sucursal** en el panel derecho: nombre, dirección (buscador de Google limitado a Argentina) y radio en km con deslizador; el círculo del mapa se mueve en vivo y también se puede arrastrar o estirar. Las coordenadas quedan en "Más opciones" (obligatorias sólo si el mapa no está disponible).
+- **Tarifas** (hasta cuántos km → precio, se ordenan solas), **Reglas** (envío gratis, mínimo, combustible, máximo de peso o franjas) y **Probar** (peso, monto y distancia; desglose línea por línea).
+- Sin la clave de Google Maps (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) el mapa se reemplaza por un aviso y todo lo demás sigue funcionando.
+- Los componentes están en `components/envios-zonas/`; las piezas visuales comunes con Tienda web, en `components/panel-ui/`.
+
 ## Tienda web (contenido administrable)
 
 Menú del sistema → **Tienda web** (`/tienda-web`). Controla lo que antes estaba escrito en el código de la tienda:

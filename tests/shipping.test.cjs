@@ -63,6 +63,6 @@ test("la validación rechaza reglas incoherentes y avisa de huecos de cobertura"
   assert.ok(validateShippingConfig({ rules: { fuelSurchargePct: 150 } }).errors.length);
   assert.ok(validateShippingConfig({ rules: { minFee: -1 } }).errors.length);
   assert.equal(validateShippingConfig({ tiers, locations: [local], rules: {} }).errors.length, 0);
-  assert.ok(validateShippingConfig({ tiers, locations: [local], rules: {} }).warnings.some((w) => /supera el último tramo/.test(w)));
+  assert.ok(validateShippingConfig({ tiers, locations: [local], rules: {} }).warnings.some((w) => /última tarifa llega a/.test(w)));
   assert.equal(normalizeShippingRules(undefined).maxWeightKg, 100);
 });
