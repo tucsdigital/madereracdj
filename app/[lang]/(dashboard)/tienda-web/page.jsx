@@ -215,7 +215,7 @@ export default function TiendaWebPage() {
   const storageProblem = media.loaded && !media.storage?.ok;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 pb-16">
+    <div className="mx-auto w-full space-y-6 pb-16">
       <header className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">Tienda web</h1>
