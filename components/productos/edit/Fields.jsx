@@ -126,10 +126,10 @@ export function SelectAdd({ id, value, onChange, options, placeholder = "Selecci
 }
 
 /** Opción activable con título y explicación (etiquetas de la tienda). */
-export function ToggleCard({ checked, onChange, title, description, icon: Icon }) {
+export function ToggleCard({ checked, onChange, title, description, icon: Icon, disabled = false }) {
   return (
-    <label className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition focus-within:ring-2 focus-within:ring-primary/30", checked ? "border-primary/50 bg-primary/5" : "border-border bg-card hover:bg-default-50")}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
+    <label className={cn("flex items-start gap-3 rounded-xl border p-3.5 transition focus-within:ring-2 focus-within:ring-primary/30", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer", checked ? "border-primary/50 bg-primary/5" : "border-border bg-card hover:bg-default-50")}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5 text-sm font-medium">{Icon ? <Icon className="h-4 w-4 text-default-500" /> : null}{title}</span>
         {description ? <span className="mt-0.5 block text-xs text-default-500">{description}</span> : null}

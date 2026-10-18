@@ -97,6 +97,25 @@ test("las etiquetas de la ficha respetan secciones activas y el límite de la se
   assert.equal(ui.productBelongsToSection({ id: "x", newArrival: true }, { activa: true, regla: { tipo: "nuevos" }, limite: 1 }), true);
 });
 
+test("la asignación de una ficha agrega excepciones sin cambiar la regla de la sección", () => {
+  const product = { id: "p", categoria: "Otra" };
+  const section = { id: "machimbre", activa: true, regla: { tipo: "categoria", valor: "Machimbre" }, limite: 8 };
+  const included = ui.updateProductSectionAssignment(product, section, true);
+  assert.deepEqual(included, { seccionesTiendaIncluidas: ["machimbre"], seccionesTiendaExcluidas: [] });
+  assert.equal(ui.isProductAssignedToSection({ ...product, ...included }, section), true);
+
+  const excluded = ui.updateProductSectionAssignment({ ...product, categoria: "Machimbre" }, section, false);
+  assert.deepEqual(excluded, { seccionesTiendaIncluidas: [], seccionesTiendaExcluidas: ["machimbre"] });
+  assert.equal(ui.isProductAssignedToSection({ ...product, categoria: "Machimbre", ...excluded }, section), false);
+
+  const assigned = ui.productsForConfiguredSection(section, [
+    { id: "auto", categoria: "Machimbre" },
+    { id: "manual", categoria: "Otra", seccionesTiendaIncluidas: ["machimbre"] },
+    { id: "hidden", categoria: "Machimbre", seccionesTiendaExcluidas: ["machimbre"] },
+  ]);
+  assert.deepEqual(assigned.map((item) => item.id), ["manual", "auto"]);
+});
+
 test("reordenar mueve el elemento y renumera sin perder datos", () => {
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
   assert.deepEqual(ui.moveItem(items, 0, 2).map((i) => i.id), ["b", "c", "a"]);

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
-import { previewUrl, productMatchesSectionRule } from "@/lib/tienda-web-ui";
+import { previewUrl, productsForConfiguredSection } from "@/lib/tienda-web-ui";
 import { SortableItem, SortableList } from "@/components/tienda-web/SortableList";
 import {
   AlertDialog,
@@ -184,7 +184,7 @@ export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaU
   const popup = content.offerPopup || {};
   const updatePopup = (patch) => updatePath(["offerPopup"], { ...popup, ...patch });
   const selectedPopupSection = sections.find((section) => section.id === popup.sectionId);
-  const popupMatches = selectedPopupSection ? products.filter((product) => productMatchesSectionRule(product, selectedPopupSection.regla)).length : 0;
+  const popupMatches = selectedPopupSection ? productsForConfiguredSection(selectedPopupSection, products).length : 0;
 
   return <div className="space-y-4">
     <Card title="Frases destacadas de la portada" description="Se muestran debajo del carrusel. Hasta 6 frases; máximo 48 caracteres cada una.">
@@ -225,7 +225,7 @@ export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaU
           <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Cómo elegir el producto</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.selectionStrategy || "random"} onChange={(event) => updatePopup({ selectionStrategy: event.target.value })}><option value="random">Al azar entre los productos de la sección</option><option value="first">Primero de la sección</option><option value="highestDiscount">Mayor descuento</option></select></label>
         </div>
         {!selectedPopupSection || !selectedPopupSection.activa ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">La sección seleccionada no está activa o ya no existe. El popup no mostrará productos hasta elegir una sección activa. <button type="button" onClick={() => onNavigateTab?.("secciones")} className="font-semibold underline underline-offset-2">Revisar secciones</button></p> : null}
-        {selectedPopupSection?.activa && (productsLoading ? <p className="text-xs text-default-500">Comprobando los productos de la sección…</p> : popupMatches ? <p className="text-xs text-default-500">{popupMatches} productos activos coinciden con la regla; el popup elegirá entre los primeros {Math.min(popupMatches, selectedPopupSection.limite)} de la sección.</p> : <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">No hay productos activos que coincidan con esta sección, así que el popup no aparecerá hasta que haya alguno.</p>)}
+        {selectedPopupSection?.activa && (productsLoading ? <p className="text-xs text-default-500">Comprobando los productos de la sección…</p> : popupMatches ? <p className="text-xs text-default-500">{popupMatches} productos pertenecen a esta sección; el popup elegirá entre los primeros {Math.min(popupMatches, selectedPopupSection.limite)}.</p> : <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">No hay productos en esta sección, así que el popup no aparecerá hasta que haya alguno.</p>)}
         {popup.enabled && !popup.showOnDesktop && !popup.showOnMobile ? <p role="status" className="text-xs text-amber-700">El popup está activado, pero no se mostrará en ningún dispositivo.</p> : null}
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Demora inicial (segundos)</span><input type="number" min="0" max="120" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.delaySeconds ?? 3} onChange={(event) => updatePopup({ delaySeconds: event.target.value })} /></label>

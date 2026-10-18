@@ -170,6 +170,21 @@ test("descuento por monto o porcentaje, etiquetas e imágenes se guardan; vista 
   assert.equal(wood.base, pricing.calcularPreciosProducto(madera).precioUnitarioBase);
 });
 
+test("las asignaciones manuales de secciones se normalizan y guardan en el producto", () => {
+  const product = { ...ferre, seccionesTiendaIncluidas: ["ofertas"], seccionesTiendaExcluidas: [] };
+  const form = t.productToForm(product);
+  assert.deepEqual(form.seccionesTiendaIncluidas, ["ofertas"]);
+  assert.deepEqual(t.buildProductUpdates({
+    producto: product,
+    form: { ...form, seccionesTiendaIncluidas: ["ofertas", "destacados"], seccionesTiendaExcluidas: ["nuevos"] },
+    kind: "ferreteria",
+  }), {
+    seccionesTiendaIncluidas: ["ofertas", "destacados"],
+    seccionesTiendaExcluidas: ["nuevos"],
+  });
+  assert.deepEqual(t.productToForm({ ...product, seccionesTiendaIncluidas: ["ofertas", "ofertas", " "] }).seccionesTiendaIncluidas, ["ofertas"]);
+});
+
 test("unidades: sin duplicados por mayúsculas o tildes y la unidad de maderas conserva su forma histórica", () => {
   assert.deepEqual(t.uniqueOptions(["pie", "Pie", " Unidad", "unidad", "Caja", ""]), ["Caja", "pie", " Unidad".trim()].sort((a, b) => a.localeCompare(b, "es")));
   assert.equal(t.storedUnit("madera", "Pie", "pie"), "pie");

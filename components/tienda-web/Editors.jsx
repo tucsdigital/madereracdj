@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { IMAGE_GUIDE } from "@/lib/tienda-media";
-import { issuesByField, productMatchesSectionRule } from "@/lib/tienda-web-ui";
+import { issuesByField, productsForConfiguredSection } from "@/lib/tienda-web-ui";
 import ImageDrop from "./ImageDrop";
 import { DestinoField, EditorSheet, Field, Segmented, inputClass, inputErrorClass } from "./ui";
 
@@ -88,10 +88,6 @@ const QUE_MOSTRAR = [
   { value: "manual", label: "Los que elija", help: "Uno por uno" },
 ];
 
-function productsForRule(rule, products) {
-  return (products || []).filter((product) => productMatchesSectionRule(product, rule));
-}
-
 function ProductPicker({ selected, products, onChange, error, loading = false, catalogError = "", onReload }) {
   const [term, setTerm] = useState("");
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -131,7 +127,7 @@ function ProductPicker({ selected, products, onChange, error, loading = false, c
 }
 
 export function SeccionEditor({ open, onOpenChange, seccion, index, issues, onChange, onDuplicate, onDelete, categories, products, catalogLoading = false, catalogError = "", onReloadCatalog }) {
-  const matchingProducts = useMemo(() => productsForRule(seccion?.regla, products || []), [seccion?.regla, products]);
+  const matchingProducts = useMemo(() => productsForConfiguredSection(seccion, products || []), [seccion, products]);
   if (!seccion) return null;
   const e = err(issues, "secciones", index);
   const regla = seccion.regla;
