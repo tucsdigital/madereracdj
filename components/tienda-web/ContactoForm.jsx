@@ -12,7 +12,7 @@ export default function ContactoForm({ contacto, error, onChange }) {
   const digits = (contacto.whatsapp || "").replace(/\D/g, "");
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
-      <Field label="WhatsApp" error={error} hint="Con código de país y sin signos. Ej.: 541121781148. Es el mismo número para toda la tienda." htmlFor="contacto-wa">
+      <Field label="WhatsApp" error={error} hint="Con código de país y sin signos." htmlFor="contacto-wa">
         <div className="flex gap-2">
           <input id="contacto-wa" inputMode="tel" className={cn(inputClass, error && inputErrorClass)} value={contacto.whatsapp} onChange={(e) => onChange({ whatsapp: e.target.value })} placeholder="541121781148" />
           {digits.length >= 10 && (

@@ -2190,6 +2190,18 @@ const VentaDetalle = () => {
                   ) : null}
                 </div>
               )}
+              {venta?.aReponer === true && (
+                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                  <span className="font-semibold">A reponer:</span>
+                  <span>
+                    {(Array.isArray(venta.productos) ? venta.productos : [])
+                      .filter((p) => Number(p?.cantidadSinStock) > 0)
+                      .map((p) => `${p.cantidadSinStock} u. de ${p.nombre}${p.plazoEntrega ? ` (plazo: ${p.plazoEntrega})` : ""}`)
+                      .join(" · ")}
+                    {" "}Estas unidades se pidieron sin stock y no descuentan inventario.
+                  </span>
+                </div>
+              )}
               {/* Mostrar observaciones si existen */}
               {venta.observaciones && (
                 <p className="text-muted-foreground mt-1 whitespace-pre-line">

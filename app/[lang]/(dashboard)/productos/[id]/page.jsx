@@ -324,7 +324,7 @@ export default function ProductoDetailPage() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="mx-auto max-w-6xl space-y-6 pb-4">
+      <div className="mx-auto space-y-6 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
             <Btn variant="secondary" aria-label="Volver a productos" onClick={goBack} className="h-10 w-10 px-0"><ArrowLeft className="h-4 w-4" /></Btn>

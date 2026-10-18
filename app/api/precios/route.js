@@ -4,7 +4,8 @@ import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/
 import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricing";
 import { getExternalProductoFields } from "@/lib/producto-utils";
 import { applyStorePricing } from "@/lib/tienda-precios";
-import { getPublishedPrecios } from "@/lib/tienda-precios-server";
+import { getPublishedPrecios, getPublishedStock } from "@/lib/tienda-precios-server";
+import { publicStockPolicy, stockInfo } from "@/lib/tienda-stock";
 import { getProductMeasure } from "@/lib/product-measure";
 import {
   computeComboAvailableStock,
@@ -160,7 +161,7 @@ export function OPTIONS() {
 // GET /api/precios?codigo=ABC123 o ?nombre=...
 export async function GET(request) {
   try {
-    const precios = await getPublishedPrecios();
+    const [precios, stockCfg] = await Promise.all([getPublishedPrecios(), getPublishedStock()]);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const codigo = searchParams.get("codigo");
@@ -186,6 +187,8 @@ export async function GET(request) {
       const items = [];
       productosConStock.forEach((original) => {
         const prod = applyStorePricing(original, precios);
+        const stockPolicy = stockInfo(prod, stockCfg, prod.stockDisponible);
+        if (stockPolicy.hidden) return;
         const normalized = normalizarProductoEntrada(prod);
         const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
         const integration = getIntegrationFields(prod);
@@ -196,6 +199,7 @@ export async function GET(request) {
           measure: getProductMeasure(prod),
            pricing,
           external,
+          tiendaStock: publicStockPolicy(stockPolicy),
           ...integration,
         });
       });
@@ -253,6 +257,8 @@ export async function GET(request) {
     }
 
     producto = applyStorePricing(await enrichComboStock(producto), precios);
+    const stockPolicy = stockInfo(producto, stockCfg, producto.stockDisponible);
+    if (stockPolicy.hidden) return withCors(NextResponse.json({ error: "Producto no encontrado" }, { status: 404 }));
     const normalized = normalizarProductoEntrada(producto);
     const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
     const integration = getIntegrationFields(producto);
@@ -264,6 +270,7 @@ export async function GET(request) {
         measure: getProductMeasure(producto),
         pricing,
         external,
+        tiendaStock: publicStockPolicy(stockPolicy),
         ...integration,
       })
     );
@@ -275,7 +282,7 @@ export async function GET(request) {
 // POST /api/precios  Body: { items: [{ producto: {...}, cantidad } | { id, cantidad } ] }
 export async function POST(request) {
   try {
-    const precios = await getPublishedPrecios();
+    const [precios, stockCfg] = await Promise.all([getPublishedPrecios(), getPublishedStock()]);
     const body = await request.json();
     const items = Array.isArray(body?.items) ? body.items : [];
     const redondear = body?.redondear == null ? true : Boolean(body.redondear);
@@ -313,6 +320,8 @@ export async function POST(request) {
       if (entry.error) return { error: entry.error, estadoTienda: entry.estadoTienda, mensaje: entry.mensaje, input: entry.item };
       const prod = applyStorePricing(enrichedById.get(String(entry.product.id)) || entry.product, precios);
       const cantidad = typeof entry.item.cantidad === "number" ? entry.item.cantidad : parseFloat(String(entry.item.cantidad || "1"));
+      const stockPolicy = stockInfo(prod, stockCfg, prod.stockDisponible);
+      if (stockPolicy.hidden) return { error: "Producto sin stock", input: entry.item };
       const normalized = normalizarProductoEntrada(prod);
       const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
       const integration = getIntegrationFields(prod);
@@ -323,6 +332,7 @@ export async function POST(request) {
         measure: getProductMeasure(prod),
         pricing,
         external,
+        tiendaStock: publicStockPolicy(stockPolicy),
         ...integration,
       };
     });

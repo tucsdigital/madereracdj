@@ -22,6 +22,7 @@ import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tiend
 import ContactoForm from "@/components/tienda-web/ContactoForm";
 import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
 import PreciosForm from "@/components/tienda-web/PreciosForm";
+import StockForm from "@/components/tienda-web/StockForm";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query as fsQuery, where } from "firebase/firestore";
 
@@ -31,6 +32,7 @@ const TABS = [
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
+  { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
   { id: "transferencia", label: "Transferencia", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
 ];
 
@@ -109,7 +111,7 @@ export default function TiendaWebPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === "precios" && !priceProducts.loaded && !priceProducts.loading) loadPriceProducts(false);
+    if ((tab === "precios" || tab === "stock") && !priceProducts.loaded && !priceProducts.loading) loadPriceProducts(false);
   }, [tab, priceProducts.loaded, priceProducts.loading, loadPriceProducts]);
 
   const dirty = useMemo(() => Boolean(config && saved && JSON.stringify(normalizeTiendaConfig(config)) !== JSON.stringify(saved)), [config, saved]);
@@ -342,6 +344,18 @@ export default function TiendaWebPage() {
           categories={catalog.categories}
           authFetch={authFetch}
           onRestore={(before) => { setConfig((prev) => ({ ...prev, precios: before })); setNotice({ type: "ok", text: "Versión anterior cargada. Guardá para aplicarla." }); }}
+        />
+      )}
+      {tab === "stock" && (
+        <StockForm
+          stock={config.stock}
+          onChange={(next) => setConfig((prev) => ({ ...prev, stock: next }))}
+          products={priceProducts.items}
+          productsState={priceProducts}
+          onLoadAll={() => loadPriceProducts(true)}
+          categories={catalog.categories}
+          authFetch={authFetch}
+          onRestore={(before) => { setConfig((prev) => ({ ...prev, stock: before })); setNotice({ type: "ok", text: "Versión anterior cargada. Guardá para aplicarla." }); }}
         />
       )}
       {tab === "transferencia" && (

@@ -44,7 +44,7 @@ function fixture() {
   const cache = {};
   function load(name) {
     if (name === "@/lib/firebase-admin") return { getAdminDb: () => db };
-    if (name === "@/lib/tienda-precios-server") return { getPublishedPrecios: async () => null };
+    if (name === "@/lib/tienda-precios-server") return { getPublishedPrecios: async () => null, getPublishedStock: async () => globalThis.__stockCfg ?? null };
     if (name === "@/lib/settings") return { obtenerSettingsGeneral: async () => ({
       locations: [{ id: "local", nombre: "Local", lat: -34, lng: -58, radio: 10000 }],
       shippingTiers: [{ km: 10, price: 500 }], data: { transferenciaDescuentoPct: 10 },
@@ -82,6 +82,19 @@ test("pedido pendiente reserva sin descontar; pago descuenta una sola vez", asyn
   await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: venta });
   assert.equal(data.get("productos/pino").stock, 8);
   assert.equal(data.get("orders/pedido-test").status, "success");
+});
+test("pedido con unidades sin stock reserva y descuenta solo lo que hay y queda marcado a reponer", async () => {
+  const { data, engine } = fixture();
+  data.get("productos/pino").stock = 2;
+  const lines = [{ id: "pino", nombre: "Pino", cantidad: 5, cantidadSinStock: 3, plazoEntrega: "3 días", precio: 1000 }];
+  const created = await engine.createVentaEngine({ actor, ventaData: sale({ total: 5000, aReponer: true, productos: lines }) });
+  assert.equal(data.get(`reservasStock/${created.id}_pino`).cantidad, 2);
+  assert.equal(data.get(`ventas/${created.id}`).aReponer, true);
+  assert.equal(data.get(`ventas/${created.id}`).productos[0].cantidadSinStock, 3);
+  const venta = data.get(`ventas/${created.id}`);
+  await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: { ...venta, montoAbonado: 5000 } });
+  assert.equal(data.get("productos/pino").stock, 0, "el pago descuenta solo las 2 unidades con stock");
+  await assert.rejects(engine.createVentaEngine({ actor, ventaData: sale({ idExterno: "otro", idempotencyKey: "otro", productos: [{ id: "pino", nombre: "Pino", cantidad: 1, precio: 1000 }] }) }), /Stock insuficiente/);
 });
 test("anular un pedido pendiente libera reserva sin sumar stock", async () => {
   const { data, engine } = fixture();
@@ -127,6 +140,25 @@ test("un combo reserva sus componentes y los consume al confirmar", async () => 
   assert.equal(data.get("productos/pino").stock, 10);
   await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: { ...data.get(`ventas/${created.id}`), montoAbonado: 2000 } });
   assert.equal(data.get("productos/pino").stock, 4);
+});
+test("cotización reparte entre stock y pedido sin stock, exige transferencia y respeta el tope", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 2, estadoTienda: "Activo", valorVenta: 1000 });
+  const base = { deliveryInfo: { metodoEntrega: "retiro" } };
+  try {
+    globalThis.__stockCfg = null;
+    await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 5 }], paymentMethod: "transferencia" }), /Stock insuficiente/);
+    globalThis.__stockCfg = { activo: true, politica: "bajo_pedido", tope: 5, plazo: "3 días" };
+    const result = await quote({ ...base, items: [{ id: "pino", quantity: 5 }], paymentMethod: "transferencia" });
+    assert.equal(result.items[0].cantidadSinStock, 3);
+    assert.equal(result.items[0].plazoEntrega, "3 días");
+    assert.deepEqual(result.backorder, [{ id: "pino", name: "Pino", quantity: 3, leadTime: "3 días" }]);
+    assert.equal(result.total, 4500);
+    await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 5 }], paymentMethod: "mercadopago" }), /transferencia/);
+    await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 8 }], paymentMethod: "transferencia" }), /hasta 7/);
+    const inStock = await quote({ ...base, items: [{ id: "pino", quantity: 2 }], paymentMethod: "mercadopago" });
+    assert.deepEqual([inStock.items[0].cantidadSinStock, inStock.backorder.length], [0, 0]);
+  } finally { globalThis.__stockCfg = null; }
 });
 test("cotización ignora precios manipulados y toma descuentos del sistema", async () => {
   const { data, quote } = fixture();

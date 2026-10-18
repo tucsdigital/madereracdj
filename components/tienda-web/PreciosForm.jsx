@@ -13,7 +13,7 @@ const PAGE = 25;
 const SOURCE_LABEL = { producto: "Propio", subcategoria: "Subcategoría", categoria: "Categoría", global: "General", ninguno: "Sin ajuste" };
 const QUICK = [-10, -5, 5, 10, 15, 20];
 
-function Tip({ text }) {
+export function Tip({ text }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -43,7 +43,7 @@ function PctInput({ value, onChange, id, className, ariaLabel }) {
   );
 }
 
-function Card({ title, tip, action, children }) {
+export function Card({ title, tip, action, children }) {
   return (
     <section className="rounded-xl border border-border bg-card">
       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">

@@ -618,6 +618,8 @@ export async function POST(request) {
         alto: item.alto || 0,
         ancho: item.ancho || 0,
         largo: item.largo || 0,
+        cantidadSinStock: Number(item.cantidadSinStock) || 0,
+        plazoEntrega: item.plazoEntrega || "",
       })),
       createdBy: "internal_api",
       updatedAt: new Date().toISOString(),
@@ -661,6 +663,10 @@ export async function POST(request) {
           ventaData: {
             idExterno: orderData.orderId,
             idempotencyKey: `ecommerce_${String(orderData.orderId)}`,
+            aReponer: items.some((item) => Number(item.cantidadSinStock) > 0),
+            observaciones: items.some((item) => Number(item.cantidadSinStock) > 0)
+              ? `A REPONER: ${items.filter((item) => Number(item.cantidadSinStock) > 0).map((item) => `${item.cantidadSinStock} u. de ${item.name}${item.plazoEntrega ? ` (plazo: ${item.plazoEntrega})` : ""}`).join("; ")}`
+              : undefined,
             estadoPago: mapEstadoPagoFromOrderStatus(orderData.status),
             total: Number(orderData.total) || 0,
             subtotal,
@@ -703,6 +709,8 @@ export async function POST(request) {
               tipoProducto: item.tipoProducto || (item.esCombo ? "combo" : "simple"),
               componentesCombo: Array.isArray(item.componentesCombo) ? item.componentesCombo : [],
               versionComposicion: Number(item.versionComposicion) || 1,
+              cantidadSinStock: Number(item.cantidadSinStock) || 0,
+              plazoEntrega: item.plazoEntrega || "",
             })),
             tipoEnvio: (() => {
               const shippingType = normalizeShippingType(orderData?.deliveryInfo?.metodoEntrega);

@@ -1220,6 +1220,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           tipoProducto: p.tipoProducto || (p.esCombo ? "combo" : "simple"),
           componentesCombo: normalizeComboComponents(p.componentesCombo),
           versionComposicion: Number(p.versionComposicion) || 1,
+          ...(Number(p.cantidadSinStock) > 0 ? { cantidadSinStock: Number(p.cantidadSinStock), plazoEntrega: p.plazoEntrega || "" } : {}),
           precioIncluyeCantidad:
             p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML"),
         };
