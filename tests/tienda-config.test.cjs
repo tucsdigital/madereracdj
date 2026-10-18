@@ -16,6 +16,10 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.banners.length, 3);
   assert.equal(cfg.categorias.length, 6);
   assert.equal(cfg.contacto.whatsapp, "541121781148");
+  assert.equal(cfg.contacto.telefono, "011 2178-1148");
+  assert.equal(cfg.contacto.email, "info@maderascaballero.com");
+  assert.equal(cfg.contacto.horarios.length, 3);
+  assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
   assert.deepEqual(validateTiendaConfig(TIENDA_DEFAULTS).errors, []);
 });
 
@@ -78,6 +82,36 @@ test("la vista pública oculta lo inactivo y fuera de fecha, y respeta el orden"
 
 test("el WhatsApp se limpia a dígitos", () => {
   assert.equal(normalizeTiendaConfig({ contacto: { whatsapp: "+54 11 2178-1148" } }).contacto.whatsapp, "541121781148");
+});
+
+test("el contacto global conserva campos nuevos en configuraciones antiguas y los publica", () => {
+  const old = normalizeTiendaConfig({ contacto: { whatsapp: "541121781148", mensajeGeneral: "Hola" } });
+  assert.equal(old.contacto.telefono, TIENDA_DEFAULTS.contacto.telefono);
+  assert.deepEqual(old.contacto.horarios, TIENDA_DEFAULTS.contacto.horarios);
+  const view = publicTiendaConfig({ contacto: {
+    telefono: "011 5555-1212",
+    email: "ventas@example.com",
+    direccion: "Calle 1, Buenos Aires",
+    horarios: [{ day: "Lunes", hours: "9 a 18" }],
+    redes: [{ platform: "Instagram", url: "https://instagram.com/ejemplo" }],
+    title: "Contactanos",
+  } });
+  assert.equal(view.contacto.telefono, "011 5555-1212");
+  assert.equal(view.contacto.email, "ventas@example.com");
+  assert.deepEqual(view.contacto.horarios, [{ day: "Lunes", hours: "9 a 18" }]);
+  assert.deepEqual(view.contacto.redes, [{ platform: "Instagram", url: "https://instagram.com/ejemplo" }]);
+  assert.equal(view.contacto.title, "Contactanos");
+});
+
+test("el contacto global valida email, teléfono y enlaces sociales seguros", () => {
+  const { errors } = validateTiendaConfig({ contacto: {
+    telefono: "12",
+    email: "no-es-email",
+    redes: [{ platform: "Instagram", url: "http://instagram.com/ejemplo" }],
+  } });
+  assert.ok(errors.some((error) => /teléfono/i.test(error)));
+  assert.ok(errors.some((error) => /email válido/i.test(error)));
+  assert.ok(errors.some((error) => /red social #1.*HTTPS/.test(error)));
 });
 
 test("con dominios autorizados solo se aceptan imágenes de R2 o rutas propias de la tienda", () => {

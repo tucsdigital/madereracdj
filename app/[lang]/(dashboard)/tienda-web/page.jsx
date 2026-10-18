@@ -34,7 +34,7 @@ const TABS = [
   { id: "obras", label: "Obras", help: "Creá y publicá las páginas de obras, sus materiales, adicionales, galería y preguntas frecuentes." },
   { id: "productos", label: "Productos", help: "Administrá imágenes y descripciones por categoría, tipo o producto, sin modificar precios ni stock." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
-  { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
+  { id: "contacto", label: "Contacto", help: "Administrá los datos, horarios, redes y formulario de contacto globales de la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
   { id: "transferencia", label: "Transferencia", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
@@ -351,7 +351,7 @@ export default function TiendaWebPage() {
           onMove={moveIn("categorias")} onAdd={() => addItem("categorias")} />
       )}
       {tab === "contacto" && (
-        <ContactoForm contacto={config.contacto} error={issues.find((i) => i.scope === "contacto")?.message}
+        <ContactoForm contacto={config.contacto} issues={issues.filter((i) => i.scope === "contacto")}
           onChange={(patch) => setConfig((prev) => ({ ...prev, contacto: { ...prev.contacto, ...patch } }))} />
       )}
       {tab === "precios" && (
