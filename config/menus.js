@@ -4,7 +4,7 @@ import {
   Building,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes, Store, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign, FileText, Ticket } from "lucide-react";
+import { Users2, Boxes, Store, ShoppingBag, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign, FileText, Ticket } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -22,6 +22,11 @@ export const menusConfig = {
       title: "Envíos",
       icon: Truck,
       href: "/envios",
+    },
+    {
+      title: "Ecommerce",
+      icon: ShoppingBag,
+      href: "/ecommerce",
     },
     // {
     //   title: "Tienda web",
@@ -105,6 +110,11 @@ export const menusConfig = {
         title: "Envíos",
         icon: Truck,
         href: "/envios",
+      },
+      {
+        title: "Ecommerce",
+        icon: ShoppingBag,
+        href: "/ecommerce",
       },
         // {
         //   title: "Tienda web",
@@ -191,6 +201,11 @@ export const menusConfig = {
         title: "Envíos",
         icon: Truck,
         href: "/envios",
+      },
+      {
+        title: "Ecommerce",
+        icon: ShoppingBag,
+        href: "/ecommerce",
       },
       // {
       //   title: "Tienda web",
