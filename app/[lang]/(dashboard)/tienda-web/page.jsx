@@ -37,7 +37,7 @@ const TABS = [
   { id: "contacto", label: "Contacto", help: "Administrá los datos, horarios, redes y formulario de contacto globales de la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
-  { id: "transferencia", label: "Transferencia", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
+  { id: "transferencia", label: "Datos", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
 ];
 
 const NEW_ITEM = {
