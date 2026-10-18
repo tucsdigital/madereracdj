@@ -73,6 +73,20 @@ test("la ficha y el editor calculan coincidencias con los mismos criterios de la
   assert.equal(ui.productMatchesSectionRule({ id: "7" }, { tipo: "manual", productos: ["7"] }), true);
 });
 
+test("el catálogo de secciones conserva el orden público y excluye productos no publicados", () => {
+  const products = ui.normalizeStoreSectionCatalog({ items: [
+    { id: "a", producto: { id: "a", estadoTienda: "Activo", nombre: "Primero", categoria: "Machimbre" }, pricing: { precioUnitarioBase: 100, precioUnitarioFinal: 80 } },
+    { id: "b", producto: { id: "b", estadoTienda: "Activo", nombre: "Segundo", categoria: "Machimbre" }, pricing: { precioUnitarioBase: 100, precioUnitarioFinal: 100 } },
+    { id: "c", producto: { id: "c", estadoTienda: "Inactivo", categoria: "Machimbre" } },
+  ] });
+  const section = { activa: true, regla: { tipo: "categoria", valor: "Machimbre" }, limite: 1 };
+
+  assert.deepEqual(products.map((product) => product.id), ["a", "b"]);
+  assert.equal(products[0].discount.amount, 20);
+  assert.equal(ui.productBelongsToSection(products[0], section, products), true);
+  assert.equal(ui.productBelongsToSection(products[1], section, products), false);
+});
+
 test("las etiquetas de la ficha respetan secciones activas y el límite de la selección manual", () => {
   const selected = { tipo: "manual", productos: ["a", "b", "c"] };
   const candidates = [{ id: "a" }, { id: "b" }, { id: "c" }];

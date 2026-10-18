@@ -4,7 +4,7 @@ import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/provider/auth.provider";
 import { TIENDA_DEFAULTS, normalizeTiendaConfig, tiendaIssues } from "@/lib/tienda-config";
-import { countIssues, moveItem, newId, renumber } from "@/lib/tienda-web-ui";
+import { countIssues, moveItem, newId, normalizeStoreSectionCatalog, renumber } from "@/lib/tienda-web-ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -92,37 +92,7 @@ export default function TiendaWebPage() {
       const response = await fetch("/api/precios?all=1", { cache: "no-store" });
       if (!response.ok) throw new Error(`No se pudo cargar el catálogo (HTTP ${response.status}).`);
       const data = await response.json();
-      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : null;
-      if (!items) throw new Error("La respuesta del catálogo no tiene un formato válido.");
-
-      const products = items.flatMap((item) => {
-        const product = item?.producto || item || {};
-        if ((product.estadoTienda ?? item?.estadoTienda) !== "Activo") return [];
-        const pricing = item?.pricing || item || {};
-        const discount = product.discount || pricing.discount || {};
-        const discountPercentage = Number(discount.percentage ?? product.descuentoPorcentaje ?? pricing.descuentoPorcentaje) || 0;
-        const discountAmount = Number(discount.amount ?? product.descuentoMonto ?? pricing.descuentoMonto) || 0;
-        const basePrice = Number(pricing.precioUnitarioBase ?? product.precioLista ?? product.precioBase ?? product.valorVenta) || 0;
-        const finalPrice = Number(pricing.precioUnitarioFinal ?? product.valorVenta) || basePrice;
-        return [{
-          id: String(product.id ?? item.id),
-          nombre: product.nombre || product.descripcion || String(product.id ?? item.id),
-          codigo: product.codigo || "",
-          categoria: product.categoria || pricing.categoria || "",
-          subcategoria: product.subcategoria || product.subCategoria || "",
-          tipoProducto: product.tipoProducto || (product.esCombo ? "combo" : ""),
-          esCombo: product.esCombo === true || String(product.tipoProducto || "").toLowerCase() === "combo",
-          specialOffer: product.specialOffer === true || item?.specialOffer === true,
-          newArrival: product.newArrival === true || item?.newArrival === true,
-          featuredBrand: product.featuredBrand === true || item?.featuredBrand === true,
-          precio: basePrice || finalPrice,
-          descuento: { percentage: discountPercentage, amount: discountAmount || Math.max(0, basePrice - finalPrice) },
-          tipoMadera: product.tipoMadera || product.tipoMaterial || "",
-          unidad: product.unidadMedida || product.unidad || "",
-          uso: product.uso || product.aplicacion || "",
-          imagenes: product.imagenes || product.images || product.imagen || product.srcUrl || "",
-        }];
-      }).filter((product) => product.id && product.id !== "undefined");
+      const products = normalizeStoreSectionCatalog(data);
       setCatalog({ products, categories: [...new Set(products.map((product) => product.categoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), loading: false, error: "" });
     } catch (error) {
       setCatalog((current) => ({ ...current, loading: false, error: error?.message || "No se pudo cargar el catálogo." }));

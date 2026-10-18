@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
 import { shouldRestrictProductPricing } from "@/lib/access-control";
 import { applyDerivedComboStock, computeComboStock, getComboComponentIds, isComboProduct, isValidComboQuantity, normalizeComboComponents } from "@/lib/combos";
-import { productBelongsToSection } from "@/lib/tienda-web-ui";
+import { normalizeStoreSectionCatalog, productBelongsToSection } from "@/lib/tienda-web-ui";
 import {
   DEFAULT_UNITS, KIND_HELP, KIND_LABEL, SECTION_OF_FIELD, WOOD_UNITS,
   buildProductUpdates, computePiecePrice, diffForm, getMeasureFields, getPriceModel, getUnitKey, kindForCategory,
@@ -45,7 +45,9 @@ export default function ProductoDetailPage() {
   const [comboValid, setComboValid] = useState(true);
   const [suggested, setSuggested] = useState(null);
   const [catalog, setCatalog] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [storeCatalog, setStoreCatalog] = useState([]);
+  const [storeCatalogLoading, setStoreCatalogLoading] = useState(true);
+  const [storeCatalogError, setStoreCatalogError] = useState("");
   const [tiendaSections, setTiendaSections] = useState([]);
   const [tiendaSectionsLoading, setTiendaSectionsLoading] = useState(true);
   const [tiendaSectionsError, setTiendaSectionsError] = useState("");
@@ -86,14 +88,26 @@ export default function ProductoDetailPage() {
   }, [productId, searchParams]);
 
   const loadCatalog = useCallback(async () => {
-    setCatalogLoading(true);
     try {
       const snap = await getDocs(collection(db, "productos"));
       setCatalog(applyDerivedComboStock(snap.docs.map((d) => ({ id: d.id, ...d.data(), __collection: "productos" }))));
     } catch (error) {
       console.error("Error al cargar el catálogo:", error);
+    }
+  }, []);
+
+  const loadStoreCatalog = useCallback(async () => {
+    setStoreCatalogLoading(true);
+    setStoreCatalogError("");
+    try {
+      const response = await fetch("/api/precios?all=1", { cache: "no-store" });
+      if (!response.ok) throw new Error(`No se pudo cargar el catálogo público (HTTP ${response.status}).`);
+      setStoreCatalog(normalizeStoreSectionCatalog(await response.json()));
+    } catch (error) {
+      setStoreCatalogError(error?.message || "No se pudo verificar el catálogo de la tienda.");
+      setStoreCatalog([]);
     } finally {
-      setCatalogLoading(false);
+      setStoreCatalogLoading(false);
     }
   }, []);
 
@@ -101,8 +115,9 @@ export default function ProductoDetailPage() {
     if (!productId) return;
     load();
     loadCatalog();
+    loadStoreCatalog();
     return () => clearTimeout(savedTimer.current);
-  }, [productId, load, loadCatalog]);
+  }, [productId, load, loadCatalog, loadStoreCatalog]);
 
   useEffect(() => {
     let active = true;
@@ -112,7 +127,7 @@ export default function ProductoDetailPage() {
     }
     setTiendaSectionsLoading(true);
     user.getIdToken()
-      .then((token) => fetch("/api/tienda/config", { headers: { Authorization: `Bearer ${token}` } }))
+      .then((token) => fetch("/api/tienda/config", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }))
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data?.error || "No se pudieron cargar las secciones de la tienda.");
@@ -356,10 +371,21 @@ export default function ProductoDetailPage() {
       percentage: form.discountMode === "percentage" ? Number(form.discountValue) || 0 : 0,
     },
   };
-  const sectionCatalog = catalog
-    .filter((item) => item.estadoTienda === "Activo")
-    .map((item) => String(item.id) === String(sectionProduct.id) ? sectionProduct : item);
-  if (sectionProduct.estadoTienda === "Activo" && !sectionCatalog.some((item) => String(item.id) === String(sectionProduct.id))) sectionCatalog.push(sectionProduct);
+  const sectionPricingChanged = changedFields.some((field) => ["precio", "discountMode", "discountValue"].includes(field));
+  const sectionCatalog = storeCatalog
+    .map((item) => {
+      if (String(item.id) !== String(sectionProduct.id)) return item;
+      const preview = { ...item, ...sectionProduct, category: sectionProduct.categoria };
+      if (!sectionPricingChanged) {
+        preview.price = item.price;
+        preview.precio = item.precio;
+        preview.discount = item.discount;
+        preview.descuento = item.descuento;
+      }
+      return preview;
+    })
+    .filter((item) => item.estadoTienda === undefined || item.estadoTienda === "Activo");
+  const productIsInStoreCatalog = sectionCatalog.some((item) => String(item.id) === String(sectionProduct.id));
   const matchingTiendaSections = tiendaSections.filter((section) => productBelongsToSection(sectionProduct, section, sectionCatalog));
   const piece = kind === "madera" ? computePiecePrice(form, unitKey) : 0;
   const cost = parseNumber(form.costo);
@@ -583,9 +609,9 @@ export default function ProductoDetailPage() {
                   </div>
                   <div className="flex min-h-8 flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span className="mr-1 text-xs font-medium text-default-500">Secciones</span>
-                    {tiendaSectionsLoading || catalogLoading ? <span className="h-5 w-16 animate-pulse rounded-full bg-default-100" aria-label="Cargando secciones" />
-                      : tiendaSectionsError ? <span className="text-xs text-default-400" title="No se pudieron cargar las secciones">—</span>
-                        : form.estadoTienda !== "Activo" || matchingTiendaSections.length === 0 ? <span className="text-xs text-default-400">—</span>
+                    {tiendaSectionsLoading || storeCatalogLoading ? <span className="h-5 w-16 animate-pulse rounded-full bg-default-100" aria-label="Cargando secciones" />
+                      : tiendaSectionsError || storeCatalogError ? <span className="text-xs text-default-400" title={tiendaSectionsError || storeCatalogError}>No disponible</span>
+                        : form.estadoTienda !== "Activo" || !productIsInStoreCatalog || matchingTiendaSections.length === 0 ? <span className="text-xs text-default-400" title="El producto no aparece actualmente en ninguna sección activa del inicio">—</span>
                           : matchingTiendaSections.map((section) => <span key={section.id} className="rounded-full bg-default-100 px-2.5 py-1 text-xs text-default-700">{section.titulo}</span>)}
                     <Link href={`/${params.lang || "es"}/tienda-web`} aria-label="Editar secciones de la tienda" title="Editar secciones" className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-default-500 hover:bg-default-100 hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" /></Link>
                   </div>

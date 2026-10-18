@@ -99,19 +99,19 @@ const Footer = () => {
         </div>
       </div>
       <div className="relative bg-default-900 dark:bg-default-50 py-6">
-        <div className="container flex flex-col text-center md:text-start md:flex-row gap-2">
-          <p className="text-primary-foreground flex-1 text-base xl:text-lg font-medium">
-            COPYRIGHT &copy; 2025 Maderas Caballero. Todos los derechos reservados.
+        <div className="block md:flex md:justify-between text-muted-foreground">
+          <p className="sm:mb-0 text-xs md:text-sm">
+            Copyright © {new Date().getFullYear()} Maderas Caballero. Todos los derechos reservados.
           </p>
-          <p className="text-primary-foreground flex-none text-base font-medium">
+          <p className="mb-0 text-xs md:text-sm">
             Desarrollado por{" "}
-            <Link
-              href="https://github.com/lauticodes"
-              target="_blank"
-              className="text-primary hover:underline"
+            <a
+              className="text-primary"
+              target="__blank"
+              href="https://tucsdigital.com/"
             >
               Tucs Digital
-            </Link>
+            </a>
           </p>
         </div>
       </div>
