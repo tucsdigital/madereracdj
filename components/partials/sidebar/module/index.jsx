@@ -9,7 +9,6 @@ import NestedMenus from "./nested-menus";
 import Image from "next/image";
 import Link from "next/link";
 import FooterMenu from "./footer-menu";
-import { SiteLogo } from "@/components/svg";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import MenuOverlayPortal from "./MenuOverlayPortal";
@@ -156,7 +155,13 @@ const ModuleSidebar = ({ trans }) => {
         >
           <div className=" pt-4 ">
             <Link href={localize("/dashboard")}>
-              <SiteLogo className=" mx-auto text-primary h-8 w-8" />
+              <Image
+                src="/logo.png"
+                alt="Maderas Caballero"
+                width={48}
+                height={32}
+                className="mx-auto h-8 w-12 object-contain"
+              />
             </Link>
           </div>
           {/* end logo */}
