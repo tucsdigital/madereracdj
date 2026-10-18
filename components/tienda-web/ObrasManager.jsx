@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
+import { previewUrl } from "@/lib/tienda-web-ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,7 @@ import {
 
 const uid = (prefix) => `${prefix}-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
 const slugify = (value) => String(value || "obra").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nueva-obra";
-const MediaContext = createContext(null);
+const MediaContext = createContext({ media: null, tiendaUrl: "" });
 
 function newProject() {
   const title = "Nueva obra";
@@ -70,7 +71,8 @@ const IMAGE_GUIDE = {
 
 function ImageField({ label, value, onChange, uploadImage, media, multiline = false, ratio }) {
   const mediaContext = useContext(MediaContext);
-  media = media || mediaContext;
+  media = media || mediaContext.media;
+  const storeUrl = mediaContext.tiendaUrl;
   const visibleLabel = label.replace(/\s*\(una URL por línea\)/i, "");
   const labelText = visibleLabel.toLocaleLowerCase("es");
   const ratioKey = ratio || (labelText.includes("material") || labelText.includes("opción") || labelText === "imagen principal" ? "square" : labelText.includes("compartir") || labelText.includes("fondo") || labelText.includes("soluciones") ? "panoramic" : labelText.includes("adicional") || labelText.includes("complement") ? "wide" : "landscape");
@@ -108,7 +110,7 @@ function ImageField({ label, value, onChange, uploadImage, media, multiline = fa
     <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-medium text-default-600">{visibleLabel}</span><span className="text-[10px] text-default-400">Ideal {guide.ratio} · {guide.size}</span></div>
     {images.length ? <div className={cn("grid gap-2", multiline ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1")}>
       {images.map((image, index) => <div key={`${image}-${index}`} className="group relative overflow-hidden rounded-xl border border-border/70 bg-muted/30">
-        <div className={cn("relative w-full", guide.className)}><img src={image} alt={`${label}${multiline ? ` ${index + 1}` : ""}`} className="h-full w-full object-cover" />
+        <div className={cn("relative w-full", guide.className)}>{previewUrl(image, storeUrl) ? <img src={previewUrl(image, storeUrl)} alt={`${label}${multiline ? ` ${index + 1}` : ""}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
           <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span>
           <button type="button" aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive"><X className="h-4 w-4" /></button>
         </div>
@@ -123,7 +125,7 @@ function ImageField({ label, value, onChange, uploadImage, media, multiline = fa
       {multiline ? <span className="text-[10px] text-default-400">Podés agregar varias imágenes.</span> : null}
     </div>
     {showLibrary ? <div className="rounded-xl border border-border bg-muted/20 p-2.5">
-      {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><img src={item.url} alt="" className="h-full w-full object-cover" />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
+      {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><img src={previewUrl(item.url, storeUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
     </div> : null}
     {error ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{error}</p> : null}
   </div>;
@@ -327,9 +329,8 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
 
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-default-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando obras…</div>;
 
-  return <MediaContext.Provider value={media}><div className="space-y-4">
+  return <MediaContext.Provider value={{ media, tiendaUrl }}><div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-base font-semibold">Obras</h2><p className="mt-1 text-sm text-default-500">Administrá páginas, materiales e imágenes de cada obra desde un solo lugar.</p></div>
       <div className="flex items-center gap-2">
         {draft && published && tiendaUrl ? <a href={`${tiendaUrl.replace(/\/$/, "")}/obras/${selectedSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-default-600 hover:bg-default-100">Ver publicada <ArrowUpRight className="h-3.5 w-3.5" /></a> : null}
         <Btn variant="primary" onClick={startNew}><Plus className="h-4 w-4" />Nueva obra</Btn>
@@ -347,7 +348,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
             const cover = project?.banner?.slides?.[0]?.backgroundImage || project?.seo?.ogImage;
             return <div key={item.id} className={cn("group flex items-center gap-1 rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
               <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : null}</span>
+                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={previewUrl(cover, tiendaUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
                 <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
               </button>
               <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>

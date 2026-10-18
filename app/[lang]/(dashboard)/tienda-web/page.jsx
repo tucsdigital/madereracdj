@@ -383,7 +383,7 @@ export default function TiendaWebPage() {
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
       {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} />}
-      {tab === "productos" && <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} />}
+      {tab === "productos" && <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} tiendaUrl={tiendaUrl} />}
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
       <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />

@@ -5,6 +5,7 @@ import { Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react
 import { cn } from "@/lib/utils";
 import { Btn } from "@/components/tienda-web/ui";
 import { resolveProductContent } from "@/lib/tienda-productos-contenido";
+import { previewUrl } from "@/lib/tienda-web-ui";
 
 const inputClass = "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-default-400 focus:border-foreground/40 focus:ring-2 focus:ring-foreground/10";
 const newId = () => `contenido-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
@@ -26,7 +27,12 @@ function Panel({ title, description, action, children }) {
   </section>;
 }
 
-function GalleryEditor({ images, onChange, media, uploadImage }) {
+function ImagePreview({ src, tiendaUrl, alt = "", className = "" }) {
+  const resolved = previewUrl(src, tiendaUrl);
+  return resolved ? <img src={resolved} alt={alt} className={className} onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null;
+}
+
+function GalleryEditor({ images, onChange, media, uploadImage, tiendaUrl }) {
   const [showLibrary, setShowLibrary] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -74,14 +80,14 @@ function GalleryEditor({ images, onChange, media, uploadImage }) {
     {showLibrary ? <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
       {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
         {library.map((item) => <button key={item.id || item.key || item.url} type="button" onClick={() => { add(item.url); if (item.width && item.height && Math.abs(item.width / item.height - 1) > 0.2) setError("La imagen no es cuadrada. La tienda la recortará al centro; conviene dejar el producto dentro del 70 % central."); }} className="group relative aspect-square overflow-hidden rounded-xl border border-border/60 bg-muted text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground" aria-label="Usar imagen de la biblioteca">
-          <img src={item.url} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+          <ImagePreview src={item.url} tiendaUrl={tiendaUrl} className="h-full w-full object-cover transition group-hover:scale-105" />
           {images.some((image) => image.url === item.url) ? <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3.5 w-3.5" /></span> : null}
         </button>)}
       </div> : <p className="text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
     </div> : null}
     {images.length ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {images.map((image, index) => <div key={`${image.url}-${index}`} className="group relative overflow-hidden rounded-2xl border border-border/70 bg-muted/30">
-        <div className="relative aspect-square"><img src={image.url} alt={image.alt || "Vista previa de producto"} className="h-full w-full object-cover" />
+        <div className="relative aspect-square"><ImagePreview src={image.url} tiendaUrl={tiendaUrl} alt={image.alt || "Vista previa de producto"} className="h-full w-full object-cover" />
           <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold text-foreground shadow-sm">{index === 0 ? "Portada" : `Imagen ${index + 1}`}</span>
           <button type="button" aria-label={`Quitar imagen ${index + 1}`} onClick={() => onChange(images.filter((_, i) => i !== index))} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive"><X className="h-4 w-4" /></button>
         </div>
@@ -91,7 +97,7 @@ function GalleryEditor({ images, onChange, media, uploadImage }) {
   </div>;
 }
 
-function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImage, busy, previewProduct, previewContent }) {
+function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImage, busy, previewProduct, previewContent, tiendaUrl }) {
   if (!editor) return null;
   const patch = editor.content || {};
   const changeContent = (update) => onChange({ ...editor, content: { ...patch, ...update } });
@@ -119,7 +125,7 @@ function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImag
       </div>
       <div className="space-y-3">
         <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={Array.isArray(patch.images)} onChange={(event) => toggleImages(event.target.checked)} className="h-4 w-4 accent-foreground" />Definir imágenes en este nivel</label>
-        {Array.isArray(patch.images) ? <GalleryEditor images={patch.images} onChange={(images) => changeContent({ images })} media={media} uploadImage={uploadImage} /> : <p className="text-xs text-muted-foreground">Se heredan las imágenes del nivel anterior o las del catálogo.</p>}
+        {Array.isArray(patch.images) ? <GalleryEditor images={patch.images} onChange={(images) => changeContent({ images })} media={media} uploadImage={uploadImage} tiendaUrl={tiendaUrl} /> : <p className="text-xs text-muted-foreground">Se heredan las imágenes del nivel anterior o las del catálogo.</p>}
       </div>
       <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 pt-4">
         {editor.kind === "product" ? <Btn variant="ghost" disabled={busy} onClick={() => onCommit({ remove: true })}><Trash2 className="h-4 w-4" />Quitar excepción</Btn> : null}
@@ -131,7 +137,7 @@ function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImag
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Vista previa</p>
         {previewProduct ? <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card">
           <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1">
-            {(previewContent?.images || []).slice(0, 3).map((image, index) => <div key={`${image.url}-${index}`} className="aspect-square overflow-hidden rounded-lg bg-muted">{image.url ? <img src={image.url} alt="" className="h-full w-full object-cover" /> : null}</div>)}
+            {(previewContent?.images || []).slice(0, 3).map((image, index) => <div key={`${image.url}-${index}`} className="aspect-square overflow-hidden rounded-lg bg-muted"><ImagePreview src={image.url} tiendaUrl={tiendaUrl} className="h-full w-full object-cover" /></div>)}
             {!previewContent?.images?.length ? <div className="col-span-3 flex aspect-square items-center justify-center text-xs text-muted-foreground">Sin imagen</div> : null}
           </div>
           <div className="space-y-1.5 p-3"><p className="line-clamp-2 text-xs font-semibold text-foreground">{previewProduct.nombre || previewProduct.name || "Producto"}</p><p className="line-clamp-5 whitespace-pre-line text-[11px] leading-5 text-muted-foreground">{previewContent?.description || "Sin descripción."}</p><p className="pt-1 text-[10px] text-muted-foreground">La tarjeta usa la primera imagen; la ficha muestra la galería completa.</p></div>
@@ -141,7 +147,7 @@ function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImag
   </Panel>;
 }
 
-export default function ProductosContenidoManager({ products = [], categories = [], media, uploadImage, authFetch }) {
+export default function ProductosContenidoManager({ products = [], categories = [], media, uploadImage, authFetch, tiendaUrl }) {
   const [config, setConfig] = useState(null);
   const [savedConfig, setSavedConfig] = useState(null);
   const [version, setVersion] = useState(0);
@@ -198,7 +204,7 @@ export default function ProductosContenidoManager({ products = [], categories = 
     if (name === "unidad") setUnit(value);
     if (name === "uso") setUse(value);
   };
-  const activeMatch = Object.fromEntries(Object.entries({ categoria: category, subcategoria, tipoProducto: type, tipoMadera: wood, unidad: unit, uso: use }).filter(([, value]) => value));
+  const activeMatch = Object.fromEntries(Object.entries({ categoria: category, subcategoria: subcategory, tipoProducto: type, tipoMadera: wood, unidad: unit, uso: use }).filter(([, value]) => value));
   const openRule = () => {
     if (!Object.keys(activeMatch).length) return;
     setEditor({ kind: "rule", id: newId(), active: true, match: activeMatch, content: {} });
@@ -323,7 +329,7 @@ export default function ProductosContenidoManager({ products = [], categories = 
                 const thumb = resolved.images[0]?.url || imageUrl(product);
                 return <tr key={product.id} className="transition hover:bg-muted/30">
                   <td className="px-3 py-2.5"><input type="checkbox" aria-label={`Seleccionar ${product.nombre}`} checked={selected.includes(product.id)} onChange={() => toggleOne(product.id)} className="h-4 w-4 accent-foreground" /></td>
-                  <td className="max-w-[300px] px-2 py-2.5"><div className="flex min-w-0 items-center gap-3"><div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate text-xs font-medium text-foreground">{product.nombre}</p><p className="truncate text-[10px] text-muted-foreground">{[product.codigo, product.categoria, product.subcategoria].filter(Boolean).join(" · ")}</p></div></div></td>
+                  <td className="max-w-[300px] px-2 py-2.5"><div className="flex min-w-0 items-center gap-3"><div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted"><ImagePreview src={thumb} tiendaUrl={tiendaUrl} className="h-full w-full object-cover" /></div><div className="min-w-0"><p className="truncate text-xs font-medium text-foreground">{product.nombre}</p><p className="truncate text-[10px] text-muted-foreground">{[product.codigo, product.categoria, product.subcategoria].filter(Boolean).join(" · ")}</p></div></div></td>
                   <td className="px-3 py-2.5">{override ? <span className="rounded-full border border-foreground/10 bg-muted/40 px-2.5 py-1 text-[10px] font-medium">Excepción</span> : resolved.source.images !== "catalogo" || resolved.source.description !== "catalogo" ? <span className="rounded-full border border-foreground/10 bg-muted/40 px-2.5 py-1 text-[10px] font-medium">Por regla</span> : <span className="text-xs text-muted-foreground">Catálogo</span>}</td>
                   <td className="px-3 py-2.5 text-right"><button type="button" onClick={() => openProductEditor([product.id])} className="rounded-full px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted">Editar</button></td>
                 </tr>;
@@ -337,7 +343,7 @@ export default function ProductosContenidoManager({ products = [], categories = 
 
       <div className="space-y-4">
         <Panel title="Herencia global" description="Base para todo el catálogo. Las reglas más específicas pueden reemplazarla." action={<Btn size="sm" variant="outline" onClick={() => setEditor({ kind: "global", content: { ...config.global } })}>Editar</Btn>}>
-          <div className="flex items-center gap-3"><div className="relative h-12 w-12 overflow-hidden rounded-xl bg-muted">{config.global?.images?.[0]?.url ? <img src={config.global.images[0].url} alt="" className="h-full w-full object-cover" /> : null}</div><p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{config.global?.description || "Sin descripción general definida."}</p></div>
+          <div className="flex items-center gap-3"><div className="relative h-12 w-12 overflow-hidden rounded-xl bg-muted"><ImagePreview src={config.global?.images?.[0]?.url} tiendaUrl={tiendaUrl} className="h-full w-full object-cover" /></div><p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{config.global?.description || "Sin descripción general definida."}</p></div>
         </Panel>
         <Panel title="Reglas activas" description="Se aplican a cada producto que coincida; los cambios también alcanzan futuras variantes.">
           <div className="space-y-2">
@@ -351,6 +357,6 @@ export default function ProductosContenidoManager({ products = [], categories = 
       </div>
     </div>
 
-    <ContentEditor editor={editor} onChange={setEditor} onCancel={() => setEditor(null)} onCommit={commitEditor} media={media} uploadImage={uploadImage} busy={saving} previewProduct={previewProduct} previewContent={previewContent} />
+    <ContentEditor editor={editor} onChange={setEditor} onCancel={() => setEditor(null)} onCommit={commitEditor} media={media} uploadImage={uploadImage} busy={saving} previewProduct={previewProduct} previewContent={previewContent} tiendaUrl={tiendaUrl} />
   </div>;
 }

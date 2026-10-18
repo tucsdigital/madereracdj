@@ -74,6 +74,10 @@ test("reordenar mueve el elemento y renumera sin perder datos", () => {
 test("las miniaturas usan la URL de la tienda para rutas propias y nunca http", () => {
   assert.equal(ui.previewUrl("https://media.ejemplo.com/a.webp", ""), "https://media.ejemplo.com/a.webp");
   assert.equal(ui.previewUrl("/images/a.png", "https://tienda.com/"), "https://tienda.com/images/a.png");
+  assert.equal(ui.previewUrl("images/a.png", "https://tienda.com"), "https://tienda.com/images/a.png");
+  assert.equal(ui.previewUrl("public/images/a.png", "https://tienda.com"), "https://tienda.com/images/a.png");
+  assert.equal(ui.previewUrl("http://tienda.com/images/a.png", "https://tienda.com"), "https://tienda.com/images/a.png");
+  assert.equal(ui.previewUrl("http://www.tienda.com/images/a.png", "https://tienda.com"), "https://www.tienda.com/images/a.png");
   assert.equal(ui.previewUrl("/images/a.png", ""), null);
   assert.equal(ui.previewUrl("http://inseguro.com/a.png", "https://tienda.com"), null);
   assert.equal(ui.previewUrl("", "https://tienda.com"), null);
