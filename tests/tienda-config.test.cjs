@@ -20,6 +20,8 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.contacto.email, "info@maderascaballero.com");
   assert.equal(cfg.inicio.about.story.length, 3);
   assert.equal(cfg.inicio.benefits.items.length, 4);
+  assert.equal(cfg.obrasInicio.hero.titleLine1, "Tu idea.");
+  assert.equal(cfg.obrasInicio.workTypes.items.length, 7);
   assert.equal(cfg.notificacionesPedidos.enabled, false);
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
@@ -42,6 +44,22 @@ test("los avisos validan cantidad y formato de destinatarios sin publicar sus da
 test("un bloque vacío se respeta y un bloque ausente toma el valor por defecto", () => {
   assert.equal(normalizeTiendaConfig({ banners: [] }).banners.length, 0);
   assert.equal(normalizeTiendaConfig({ banners: [] }).secciones.length, 4);
+});
+
+test("el contenido de la portada de la tienda y el inicio de Obras se guardan por separado", () => {
+  const config = normalizeTiendaConfig({
+    inicio: { categories: { title: "Materiales de la tienda" } },
+    obrasInicio: { hero: { titleLine1: "Obras personalizadas" }, faq: { items: [] } },
+  });
+  assert.equal(config.inicio.categories.title, "Materiales de la tienda");
+  assert.equal(config.obrasInicio.hero.titleLine1, "Obras personalizadas");
+  assert.equal(config.obrasInicio.hero.titleLine2, "Nuestro oficio.");
+  assert.deepEqual(config.obrasInicio.faq.items, []);
+
+  const published = publicTiendaConfig(config);
+  assert.equal(published.inicio.categories.title, "Materiales de la tienda");
+  assert.equal(published.obrasInicio.hero.titleLine1, "Obras personalizadas");
+  assert.ok(validateTiendaConfig(config).errors.length === 0);
 });
 
 test("normaliza identificadores, límites y reglas desconocidas", () => {

@@ -73,10 +73,10 @@ const IMAGE_GUIDE = {
   portrait: { ratio: "4:5", size: "1080 × 1350 px", className: "aspect-[4/5]" },
 };
 
-function ImageField({ label, value, onChange, uploadImage, media, multiline = false, ratio }) {
+function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, multiline = false, ratio }) {
   const mediaContext = useContext(MediaContext);
   media = media || mediaContext.media;
-  const storeUrl = mediaContext.tiendaUrl;
+  const storeUrl = tiendaUrl || mediaContext.tiendaUrl;
   const visibleLabel = label.replace(/\s*\(una URL por línea\)/i, "");
   const labelText = visibleLabel.toLocaleLowerCase("es");
   const ratioKey = ratio || (labelText.includes("material") || labelText.includes("opción") || labelText === "imagen principal" ? "square" : labelText.includes("compartir") || labelText.includes("fondo") || labelText.includes("soluciones") ? "panoramic" : labelText.includes("adicional") || labelText.includes("complement") ? "wide" : "landscape");
@@ -155,7 +155,7 @@ function HomeField({ label, value, onChange, maxLength = 180, multiline = false,
 const BENEFIT_ICON_OPTIONS = [["truck", "Envíos"], ["headphones", "Asesoramiento"], ["shield", "Garantía"], ["package", "Stock"]];
 const PILLAR_ICON_OPTIONS = [["sprout", "Ideas"], ["boxes", "Productos"], ["badge", "Calidad"], ["pin", "Local"]];
 
-function HomeContentEditor({ value, onChange, uploadImage, media, onNavigateTab }) {
+export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaUrl, onNavigateTab }) {
   const content = value || {};
   const updatePath = (path, nextValue) => {
     const next = structuredClone(content);
@@ -201,10 +201,10 @@ function HomeContentEditor({ value, onChange, uploadImage, media, onNavigateTab 
       <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.works?.eyebrow} maxLength={40} onChange={(next) => updatePath(["works", "eyebrow"], next)} /><HomeField label="Título" value={content.works?.title} maxLength={80} onChange={(next) => updatePath(["works", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.works?.description} maxLength={180} multiline onChange={(next) => updatePath(["works", "description"], next)} /></div><HomeField label="Texto del botón" value={content.works?.linkLabel} maxLength={36} onChange={(next) => updatePath(["works", "linkLabel"], next)} /></div>
     </Card>
     <Card title="Asesoramiento" description="Imagen apaisada recomendada 21:10 · 2400 × 1143 px. Se adapta al recorte del diseño actual.">
-      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Etiqueta" value={content.advisory?.badge} maxLength={40} onChange={(next) => updatePath(["advisory", "badge"], next)} /><HomeField label="Título" value={content.advisory?.title} maxLength={90} onChange={(next) => updatePath(["advisory", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.advisory?.description} maxLength={220} multiline onChange={(next) => updatePath(["advisory", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de fondo" value={content.advisory?.image} ratio="advisory" onChange={(next) => updatePath(["advisory", "image"], next)} uploadImage={uploadImage} media={media} /></div><HomeField label="Texto alternativo de la imagen" value={content.advisory?.imageAlt} maxLength={140} onChange={(next) => updatePath(["advisory", "imageAlt"], next)} /><HomeField label="Botón de WhatsApp" value={content.advisory?.whatsappLabel} maxLength={40} onChange={(next) => updatePath(["advisory", "whatsappLabel"], next)} /><HomeField label="Botón de obras" value={content.advisory?.worksLabel} maxLength={32} onChange={(next) => updatePath(["advisory", "worksLabel"], next)} /></div>
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Etiqueta" value={content.advisory?.badge} maxLength={40} onChange={(next) => updatePath(["advisory", "badge"], next)} /><HomeField label="Título" value={content.advisory?.title} maxLength={90} onChange={(next) => updatePath(["advisory", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.advisory?.description} maxLength={220} multiline onChange={(next) => updatePath(["advisory", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de fondo" value={content.advisory?.image} ratio="advisory" onChange={(next) => updatePath(["advisory", "image"], next)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div><HomeField label="Texto alternativo de la imagen" value={content.advisory?.imageAlt} maxLength={140} onChange={(next) => updatePath(["advisory", "imageAlt"], next)} /><HomeField label="Botón de WhatsApp" value={content.advisory?.whatsappLabel} maxLength={40} onChange={(next) => updatePath(["advisory", "whatsappLabel"], next)} /><HomeField label="Botón de obras" value={content.advisory?.worksLabel} maxLength={32} onChange={(next) => updatePath(["advisory", "worksLabel"], next)} /></div>
     </Card>
     <Card title="Nosotros" description="La imagen se muestra aproximadamente en 3:2 en móvil y 36:25 en escritorio.">
-      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.about?.eyebrow} maxLength={40} onChange={(next) => updatePath(["about", "eyebrow"], next)} /><HomeField label="Título" value={content.about?.title} maxLength={100} multiline hint="Usá un salto de línea para definir el corte del título." onChange={(next) => updatePath(["about", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.about?.description} maxLength={180} multiline onChange={(next) => updatePath(["about", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de historia" value={content.about?.image} ratio="about" onChange={(next) => updatePath(["about", "image"], next)} uploadImage={uploadImage} media={media} /></div><HomeField label="Texto alternativo de la imagen" value={content.about?.imageAlt} maxLength={140} onChange={(next) => updatePath(["about", "imageAlt"], next)} /><HomeField label="Ubicación debajo de la imagen" value={content.about?.location} maxLength={60} onChange={(next) => updatePath(["about", "location"], next)} /></div>
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.about?.eyebrow} maxLength={40} onChange={(next) => updatePath(["about", "eyebrow"], next)} /><HomeField label="Título" value={content.about?.title} maxLength={100} multiline hint="Usá un salto de línea para definir el corte del título." onChange={(next) => updatePath(["about", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.about?.description} maxLength={180} multiline onChange={(next) => updatePath(["about", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de historia" value={content.about?.image} ratio="about" onChange={(next) => updatePath(["about", "image"], next)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div><HomeField label="Texto alternativo de la imagen" value={content.about?.imageAlt} maxLength={140} onChange={(next) => updatePath(["about", "imageAlt"], next)} /><HomeField label="Ubicación debajo de la imagen" value={content.about?.location} maxLength={60} onChange={(next) => updatePath(["about", "location"], next)} /></div>
       <div className="mt-4"><ListEditor title="Historia" items={content.about?.story || []} onAdd={(index, remove) => remove ? removeEntry(["about", "story"], index) : addEntry(["about", "story"], { id: uid("hito"), title: "Nuevo hito", text: "" })}>{(item, index) => <div className="grid gap-3"><HomeField label="Título" value={item.title} maxLength={60} onChange={(next) => updateEntry(["about", "story"], index, { title: next })} /><HomeField label="Texto" value={item.text} maxLength={220} multiline onChange={(next) => updateEntry(["about", "story"], index, { text: next })} /></div>}</ListEditor></div>
       <div className="mt-4"><ListEditor title="Pilares" items={content.about?.pillars || []} onAdd={(index, remove) => remove ? removeEntry(["about", "pillars"], index) : addEntry(["about", "pillars"], { id: uid("pilar"), icon: "sprout", title: "Nuevo pilar", description: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["about", "pillars"], index, { icon: event.target.value })}>{PILLAR_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label><HomeField label="Título" value={item.title} maxLength={56} onChange={(next) => updateEntry(["about", "pillars"], index, { title: next })} /><div className="sm:col-span-2"><HomeField label="Descripción" value={item.description} maxLength={140} multiline onChange={(next) => updateEntry(["about", "pillars"], index, { description: next })} /></div></div>}</ListEditor></div>
     </Card>
@@ -217,7 +217,132 @@ function HomeContentEditor({ value, onChange, uploadImage, media, onNavigateTab 
   </div>;
 }
 
-export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media, homeContent, onHomeContentChange, onNavigateTab, openHomeEditor = false }) {
+function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaUrl }) {
+  const content = value || {};
+  const updatePath = (path, nextValue) => {
+    const next = structuredClone(content);
+    let target = next;
+    for (let index = 0; index < path.length - 1; index += 1) target = target[path[index]] = { ...(target[path[index]] || {}) };
+    target[path[path.length - 1]] = nextValue;
+    onChange(next);
+  };
+  const updateEntry = (path, index, patch) => {
+    const next = structuredClone(content);
+    const list = path.reduce((object, key) => object?.[key], next);
+    list[index] = { ...list[index], ...patch };
+    onChange(next);
+  };
+  const addEntry = (path, seed) => {
+    const next = structuredClone(content);
+    path.reduce((object, key) => object[key], next).push(seed);
+    onChange(next);
+  };
+  const removeEntry = (path, index) => {
+    const next = structuredClone(content);
+    path.reduce((object, key) => object[key], next).splice(index, 1);
+    onChange(next);
+  };
+  const field = (label, value, path, multiline = false) => <Field label={label} value={value} multiline={multiline} onChange={(next) => updatePath(path, next)} />;
+  const icons = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
+
+  return <div className="space-y-4">
+    <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs leading-5 text-default-500">
+      Este contenido corresponde a la página pública de obras (<span className="font-medium text-foreground">/obras</span>). Las tarjetas principales, sus imágenes y su orden se vinculan con las obras publicadas; acá administrás los textos y elementos propios de esta página.
+    </div>
+
+    <Card title="Portada de Obras" description="Las diapositivas de respaldo se usan cuando todavía no hay obras publicadas; con obras activas, el carrusel toma sus portadas y respeta el orden de Obras.">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {field("Antetítulo", content.hero?.eyebrow, ["hero", "eyebrow"])}
+        {field("Primera línea del título", content.hero?.titleLine1, ["hero", "titleLine1"])}
+        {field("Segunda línea del título", content.hero?.titleLine2, ["hero", "titleLine2"])}
+        <div className="sm:col-span-2">{field("Descripción", content.hero?.description, ["hero", "description"], true)}</div>
+        {field("Botón principal", content.hero?.primaryLabel, ["hero", "primaryLabel"])}
+        {field("Botón secundario", content.hero?.secondaryLabel, ["hero", "secondaryLabel"])}
+      </div>
+      <div className="mt-4">
+        <ListEditor title="Diapositivas de respaldo" items={content.hero?.slides || []}
+          onAdd={(index, remove) => remove ? removeEntry(["hero", "slides"], index) : addEntry(["hero", "slides"], { label: "Nueva obra", href: "/obras", image: "", mobileImage: "", alt: "" })}>
+          {(slide, index) => <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Etiqueta" value={slide.label} onChange={(value) => updateEntry(["hero", "slides"], index, { label: value })} />
+            <Field label="Enlace" value={slide.href} onChange={(value) => updateEntry(["hero", "slides"], index, { href: value })} />
+            <Field label="Descripción de imagen" value={slide.alt} onChange={(value) => updateEntry(["hero", "slides"], index, { alt: value })} />
+            <div className="sm:col-span-2"><ImageField label="Imagen de escritorio" value={slide.image} ratio="panoramic" onChange={(image) => updateEntry(["hero", "slides"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+            <div className="sm:col-span-2"><ImageField label="Imagen para celular" value={slide.mobileImage} ratio="portrait" onChange={(mobileImage) => updateEntry(["hero", "slides"], index, { mobileImage })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+          </div>}
+        </ListEditor>
+      </div>
+    </Card>
+
+    <Card title="Servicios destacados" description="Una frase por línea; se muestran debajo del carrusel.">
+      <Field label="Frases" value={(content.highlights || []).join("\n")} multiline onChange={(value) => updatePath(["highlights"], value.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8))} />
+    </Card>
+
+    <Card title="Tipos de obras" description="El contenido de cada tarjeta se puede ajustar acá. El nombre de una obra publicada se toma de su ficha; sus detalles e imagen se administran acá.">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {field("Antetítulo", content.workTypes?.eyebrow, ["workTypes", "eyebrow"])}
+        {field("Título", content.workTypes?.title, ["workTypes", "title"])}
+        <div className="sm:col-span-2">{field("Descripción", content.workTypes?.description, ["workTypes", "description"], true)}</div>
+        {field("Botón de obra publicada", content.workTypes?.detailLabel, ["workTypes", "detailLabel"])}
+        {field("Botón de consulta", content.workTypes?.contactLabel, ["workTypes", "contactLabel"])}
+        {field("Botón en celular", content.workTypes?.mobileLabel, ["workTypes", "mobileLabel"])}
+      </div>
+      <div className="mt-4">
+        <ListEditor title="Tarjetas" items={content.workTypes?.items || []}
+          onAdd={(index, remove) => remove ? removeEntry(["workTypes", "items"], index) : addEntry(["workTypes", "items"], { slug: "nueva-obra", title: "Nueva obra", label: "", icon: "hammer", image: "", summary: "", features: [] })}>
+          {(item, index) => <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Slug de la obra" value={item.slug} onChange={(value) => updateEntry(["workTypes", "items"], index, { slug: slugify(value) })} />
+            <Field label="Título alternativo" value={item.title} onChange={(value) => updateEntry(["workTypes", "items"], index, { title: value })} />
+            <Field label="Etiqueta" value={item.label} onChange={(value) => updateEntry(["workTypes", "items"], index, { label: value })} />
+            <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["workTypes", "items"], index, { icon: event.target.value })}>{icons.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
+            <div className="sm:col-span-2"><Field label="Descripción" value={item.summary} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { summary: value })} /></div>
+            <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(item.features || []).join("\n")} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { features: value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4) })} /></div>
+            <div className="sm:col-span-2"><ImageField label="Imagen" value={item.image} ratio="portrait" onChange={(image) => updateEntry(["workTypes", "items"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+          </div>}
+        </ListEditor>
+      </div>
+    </Card>
+
+    <Card title="Reseñas de clientes" description="El widget externo sigue mostrando las reseñas; acá podés cambiar su encabezado y su identificador.">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Antetítulo", content.reviews?.eyebrow, ["reviews", "eyebrow"])}{field("Título", content.reviews?.title, ["reviews", "title"])}<div className="sm:col-span-2">{field("Descripción", content.reviews?.description, ["reviews", "description"], true)}</div>{field("ID del widget", content.reviews?.widgetId, ["reviews", "widgetId"])}</div>
+    </Card>
+
+    <Card title="Empresas que confían en nosotros">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Antetítulo", content.partners?.eyebrow, ["partners", "eyebrow"])}{field("Título", content.partners?.title, ["partners", "title"])}<div className="sm:col-span-2">{field("Descripción", content.partners?.description, ["partners", "description"], true)}</div></div>
+      <div className="mt-4"><ListEditor title="Logos" items={content.partners?.items || []} onAdd={(index, remove) => remove ? removeEntry(["partners", "items"], index) : addEntry(["partners", "items"], { name: "Nueva empresa", logo: "" })}>
+        {(item, index) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Nombre" value={item.name} onChange={(name) => updateEntry(["partners", "items"], index, { name })} /><div className="sm:col-span-2"><ImageField label="Logo" value={item.logo} ratio="wide" onChange={(logo) => updateEntry(["partners", "items"], index, { logo })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div></div>}
+      </ListEditor></div>
+    </Card>
+
+    <Card title="Galería de trabajos" description="Las fotos se cargan desde las galerías de las obras publicadas.">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Antetítulo", content.gallery?.eyebrow, ["gallery", "eyebrow"])}{field("Título", content.gallery?.title, ["gallery", "title"])}<div className="sm:col-span-2">{field("Descripción", content.gallery?.description, ["gallery", "description"], true)}</div></div>
+    </Card>
+
+    <Card title="Indicadores" description="Se muestran en la franja de resultados debajo de la galería.">
+      <ListEditor title="Datos" items={content.metrics || []} onAdd={(index, remove) => remove ? removeEntry(["metrics"], index) : addEntry(["metrics"], { value: "", label: "" })}>
+        {(item, index) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Valor" value={item.value} onChange={(value) => updateEntry(["metrics"], index, { value })} /><Field label="Descripción" value={item.label} onChange={(label) => updateEntry(["metrics"], index, { label })} /></div>}
+      </ListEditor>
+    </Card>
+
+    <Card title="Instagram" description="El widget y sus textos son exclusivos de la página de Obras.">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Antetítulo", content.instagram?.eyebrow, ["instagram", "eyebrow"])}{field("Título", content.instagram?.title, ["instagram", "title"])}<div className="sm:col-span-2">{field("Descripción", content.instagram?.description, ["instagram", "description"], true)}</div>{field("ID del widget", content.instagram?.appId, ["instagram", "appId"])}</div>
+    </Card>
+
+    <Card title="Preguntas frecuentes">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Antetítulo", content.faq?.eyebrow, ["faq", "eyebrow"])}{field("Título", content.faq?.title, ["faq", "title"])}<div className="sm:col-span-2">{field("Descripción", content.faq?.description, ["faq", "description"], true)}</div>{field("Texto del enlace de consulta", content.faq?.ctaLabel, ["faq", "ctaLabel"])}</div>
+      <div className="mt-4"><ImageField label="Imagen" value={content.faq?.image} ratio="landscape" onChange={(image) => updatePath(["faq", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+      <div className="mt-4"><ListEditor title="Preguntas y respuestas" items={content.faq?.items || []} onAdd={(index, remove) => remove ? removeEntry(["faq", "items"], index) : addEntry(["faq", "items"], { question: "", answer: "" })}>
+        {(item, index) => <div className="grid gap-3"><Field label="Pregunta" value={item.question} onChange={(question) => updateEntry(["faq", "items"], index, { question })} /><Field label="Respuesta" value={item.answer} multiline onChange={(answer) => updateEntry(["faq", "items"], index, { answer })} /></div>}
+      </ListEditor></div>
+    </Card>
+
+    <Card title="Cierre y contacto" description="El WhatsApp y el teléfono se usan desde la configuración general de Contacto.">
+      <div className="grid gap-3 sm:grid-cols-2">{field("Etiqueta", content.closing?.badge, ["closing", "badge"])}{field("Título", content.closing?.title, ["closing", "title"])}<div className="sm:col-span-2">{field("Descripción", content.closing?.description, ["closing", "description"], true)}</div>{field("Botón de WhatsApp", content.closing?.whatsappLabel, ["closing", "whatsappLabel"])}</div>
+      <div className="mt-4"><ImageField label="Imagen de fondo" value={content.closing?.image} ratio="panoramic" onChange={(image) => updatePath(["closing", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+    </Card>
+  </div>;
+}
+
+export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media, obrasInicioContent, onObrasInicioChange, openObrasInicio = false, onObrasInicioOpened }) {
   const [items, setItems] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState("");
   const [draft, setDraft] = useState(null);
@@ -254,7 +379,11 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   }, [authFetch]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { if (openHomeEditor) setView("inicio"); }, [openHomeEditor]);
+  useEffect(() => {
+    if (!openObrasInicio) return;
+    setView("inicio");
+    onObrasInicioOpened?.();
+  }, [openObrasInicio, onObrasInicioOpened]);
 
   const setPath = (path, value) => setDraft((current) => {
     const next = structuredClone(current);
@@ -551,7 +680,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       </main>}
     </div>
     <div className={view === "inicio" ? "" : "hidden"}>
-      <HomeContentEditor value={homeContent} onChange={onHomeContentChange} uploadImage={uploadImage} media={media} onNavigateTab={onNavigateTab} />
+      <ObrasInicioContentEditor value={obrasInicioContent} onChange={onObrasInicioChange} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
     </div>
   </div><AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
     <AlertDialogContent>
