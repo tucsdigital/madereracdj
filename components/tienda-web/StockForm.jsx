@@ -162,20 +162,20 @@ export default function StockForm({ stock, onChange, products, productsState, on
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className={cn("space-y-1 text-sm font-medium", cfg.politica !== "bajo_pedido" && "opacity-50")}>
-                <span className="flex items-center gap-1">Tope sin stock <Tip text={`Unidades que se pueden pedir por encima del stock, por producto (1 a ${LIMITES_STOCK.tope}).`} /></span>
-                <NumberField label="Tope general" value={cfg.tope} onChange={(v) => patch({ tope: v })} placeholder="20" />
+                <span className="flex items-center gap-1">Tope sin stock <Tip text={`Unidades que se pueden pedir por encima del stock, por producto (1 a ${LIMITES_STOCK.tope}). Vacío: no se permiten unidades sin stock.`} /></span>
+                <NumberField label="Tope general" value={cfg.tope} onChange={(v) => patch({ tope: v })} placeholder="Desactivado" />
               </label>
               <label className={cn("space-y-1 text-sm font-medium", cfg.politica !== "bajo_pedido" && "opacity-50")}>
                 <span className="flex items-center gap-1">Plazo de entrega <Tip text="Se muestra al cliente en los productos sin stock. Por ejemplo: “5 a 7 días hábiles”." /></span>
                 <input aria-label="Plazo general" className={inputClass} value={cfg.plazo ?? ""} onChange={(e) => patch({ plazo: e.target.value })} placeholder="Sin plazo" maxLength={80} />
               </label>
               <label className="space-y-1 text-sm font-medium">
-                <span className="flex items-center gap-1">Stock bajo desde <Tip text="Con esta cantidad o menos la tienda avisa “Quedan N”. Usá 0 para no avisar nunca." /></span>
-                <NumberField label="Stock bajo general" value={cfg.umbralBajo} onChange={(v) => patch({ umbralBajo: v })} placeholder="5" />
+                <span className="flex items-center gap-1">Stock bajo desde <Tip text="Con esta cantidad o menos la tienda avisa “Quedan N”. Vacío: no se muestra el aviso." /></span>
+                <NumberField label="Stock bajo general" value={cfg.umbralBajo} onChange={(v) => patch({ umbralBajo: v })} placeholder="Desactivado" />
               </label>
               <label className="space-y-1 text-sm font-medium">
-                <span className="flex items-center gap-1">Etiqueta <Tip text="Texto de la marca que ven los clientes en los productos sin stock." /></span>
-                <input aria-label="Etiqueta" className={inputClass} value={cfg.etiqueta ?? ""} onChange={(e) => patch({ etiqueta: e.target.value })} placeholder="Bajo pedido" maxLength={40} />
+                <span className="flex items-center gap-1">Etiqueta <Tip text="Texto de la marca que ven los clientes en los productos sin stock. Vacío: oculta la etiqueta." /></span>
+                <input aria-label="Etiqueta" className={inputClass} value={cfg.etiqueta ?? ""} onChange={(e) => patch({ etiqueta: e.target.value })} placeholder="Sin etiqueta" maxLength={40} />
               </label>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm">

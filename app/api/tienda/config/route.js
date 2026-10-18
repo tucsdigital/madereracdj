@@ -44,7 +44,9 @@ export async function PUT(request) {
     const body = await request.json().catch(() => ({}));
     const config = normalizeTiendaConfig(body?.config);
 
-    const issues = tiendaIssues(config, { imageHosts: imageHosts() });
+    // Validar contra el cuerpo original para distinguir un campo vacío de uno inválido
+    // que la normalización convertiría en vacío.
+    const issues = tiendaIssues(body?.config, { imageHosts: imageHosts() });
     if (issues.length) {
       return NextResponse.json({ error: "Hay datos que corregir antes de guardar.", errores: issues.map((i) => i.message), issues }, { status: 400 });
     }

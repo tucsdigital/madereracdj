@@ -4,6 +4,7 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
 import { paymentDecision } from "@/lib/ecommerce-payment-policy.mjs";
 import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
+import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
 const toShippingType = (method) => {
   const value = String(method || "").trim().toLowerCase();
@@ -108,7 +109,11 @@ export async function POST(request, { params }) {
     catch (error) { return NextResponse.json({ error: error.message }, { status: 409 }); }
     const eventKey = crypto.createHash("sha256").update(`${id}:${payment.paymentId}:${payment.paymentStatus}`).digest("hex");
     const eventRef = db.collection("paymentsWebhooks").doc(eventKey);
-    if ((await eventRef.get()).exists) return NextResponse.json({ success: true, idempotente: true });
+    if ((await eventRef.get()).exists) {
+      const latestOrder = (await ref.get()).data() || order;
+      await notifyOrderTransition(id, payment, latestOrder).catch((error) => console.error("No se pudo emitir el aviso de estado del pedido:", error?.message));
+      return NextResponse.json({ success: true, idempotente: true });
+    }
 
     const shouldCreateSale = payment.paymentStatus === "approved" &&
       (status === "success" || order.status === "cancelled");
@@ -208,8 +213,27 @@ export async function POST(request, { params }) {
         t.set(db.collection("ventas").doc(currentOrder.ventaId || saleId), { requiereRevision: true, revisionPago: payment.paymentStatus }, { merge: true });
       }
     });
+    const latestOrder = (await ref.get()).data() || order;
+    await notifyOrderTransition(id, payment, latestOrder, inventoryReview).catch((error) => console.error("No se pudo emitir el aviso de estado del pedido:", error?.message));
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: error.status || 500 });
+  }
+}
+
+async function notifyOrderTransition(orderId, payment, order, inventoryReview = false) {
+  const currentStatus = String(order?.status || "").toLowerCase();
+  const isAlreadyPaid = ["success", "paid", "approved", "pagado"].includes(currentStatus);
+  if (payment.paymentStatus === "approved") {
+    await sendOrderAdminNotification(orderId, "confirmed", { fallbackOrder: order, status: "confirmed", paymentStatus: "approved" });
+    if (inventoryReview || order?.status === "review") {
+      await sendOrderAdminNotification(orderId, "review", { fallbackOrder: order, status: "review", paymentStatus: "approved" });
+    }
+  } else if (["refunded", "charged_back"].includes(payment.paymentStatus)) {
+    await sendOrderAdminNotification(orderId, "review", { fallbackOrder: order, status: "review", paymentStatus: payment.paymentStatus });
+  } else if (payment.paymentStatus === "cancelled" && !isAlreadyPaid) {
+    await sendOrderAdminNotification(orderId, "cancelled", { fallbackOrder: order, status: "cancelled", paymentStatus: "cancelled" });
+  } else if (payment.paymentStatus === "rejected" && !isAlreadyPaid && currentStatus !== "review") {
+    await sendOrderAdminNotification(orderId, "paymentFailed", { fallbackOrder: order, status: "failed", paymentStatus: "rejected" });
   }
 }

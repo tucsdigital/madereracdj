@@ -22,6 +22,7 @@ import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tiend
 import ObrasManager from "@/components/tienda-web/ObrasManager";
 import ContactoForm from "@/components/tienda-web/ContactoForm";
 import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
+import NotificacionesPedidosForm from "@/components/tienda-web/NotificacionesPedidosForm";
 import PreciosForm from "@/components/tienda-web/PreciosForm";
 import StockForm from "@/components/tienda-web/StockForm";
 import ProductosContenidoManager from "@/components/tienda-web/ProductosContenidoManager";
@@ -31,19 +32,20 @@ import { collection, getDocs, query as fsQuery, where } from "firebase/firestore
 const TABS = [
   { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
   { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
-  { id: "obras", label: "Obras", help: "Creá y publicá las páginas de obras, sus materiales, adicionales, galería y preguntas frecuentes." },
+  { id: "obras", label: "Obras", help: "Administrá obras y el contenido de Inicio. Arrastrá las obras para definir su orden en el panel y en todos los listados públicos." },
   { id: "productos", label: "Productos", help: "Administrá imágenes y descripciones por categoría, tipo o producto, sin modificar precios ni stock." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "Administrá los datos, horarios, redes y formulario de contacto globales de la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
   { id: "transferencia", label: "Datos", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
+  { id: "notificaciones", label: "Avisos de pedidos", help: "Configurá qué eventos de pedidos se notifican por email al equipo y consultá el historial de entregas." },
 ];
 
 const NEW_ITEM = {
   banners: () => ({ id: newId("banner"), activo: true, titulo: "Nuevo banner", enlace: "/shop", imagen: "", imagenMovil: "", alt: "", desde: "", hasta: "" }),
   secciones: () => ({
-    id: newId("seccion"), activa: true, eyebrow: "", titulo: "Nueva sección", subtitulo: "", fondo: "gris",
+    id: newId("seccion"), activa: true, eyebrow: "", titulo: "Nueva sección", subtitulo: "", linkLabel: "Ver todos", linkSuffix: " los productos", fondo: "gris",
     regla: { tipo: "oferta", valor: "", minDescuento: 0, productos: [] }, limite: 8, enlace: "/shop?filter=specialOffer",
   }),
   categorias: () => ({ id: newId("categoria"), activa: true, titulo: "Nueva categoría", etiqueta: "", enlace: "/shop", imagen: "" }),
@@ -66,9 +68,10 @@ export default function TiendaWebPage() {
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState(null);
   const [showProblems, setShowProblems] = useState(false);
+  const [openHomeEditor, setOpenHomeEditor] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [media, setMedia] = useState({ storage: null, items: [], loaded: false });
-  const [catalog, setCatalog] = useState({ products: [], categories: [] });
+  const [catalog, setCatalog] = useState({ products: [], categories: [], loading: true, error: "" });
   const [productSaveState, setProductSaveState] = useState({ dirty: false, saving: false, save: null, discard: null });
   const [priceProducts, setPriceProducts] = useState({ items: [], loading: false, all: false, loaded: false });
   const loadedFor = useRef(null);
@@ -81,6 +84,48 @@ export default function TiendaWebPage() {
     if (!res.ok) throw Object.assign(new Error(data?.error || "No se pudo completar la acción."), { data });
     return data;
   }, [user]);
+
+  const loadCatalog = useCallback(async () => {
+    setCatalog((current) => ({ ...current, loading: true, error: "" }));
+    try {
+      const response = await fetch("/api/precios?all=1", { cache: "no-store" });
+      if (!response.ok) throw new Error(`No se pudo cargar el catálogo (HTTP ${response.status}).`);
+      const data = await response.json();
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : null;
+      if (!items) throw new Error("La respuesta del catálogo no tiene un formato válido.");
+
+      const products = items.flatMap((item) => {
+        const product = item?.producto || item || {};
+        if ((product.estadoTienda ?? item?.estadoTienda) !== "Activo") return [];
+        const pricing = item?.pricing || item || {};
+        const discount = product.discount || pricing.discount || {};
+        const discountPercentage = Number(discount.percentage ?? product.descuentoPorcentaje ?? pricing.descuentoPorcentaje) || 0;
+        const discountAmount = Number(discount.amount ?? product.descuentoMonto ?? pricing.descuentoMonto) || 0;
+        const basePrice = Number(pricing.precioUnitarioBase ?? product.precioLista ?? product.precioBase ?? product.valorVenta) || 0;
+        const finalPrice = Number(pricing.precioUnitarioFinal ?? product.valorVenta) || basePrice;
+        return [{
+          id: String(product.id ?? item.id),
+          nombre: product.nombre || product.descripcion || String(product.id ?? item.id),
+          codigo: product.codigo || "",
+          categoria: product.categoria || pricing.categoria || "",
+          subcategoria: product.subcategoria || product.subCategoria || "",
+          tipoProducto: product.tipoProducto || (product.esCombo ? "combo" : ""),
+          esCombo: product.esCombo === true || String(product.tipoProducto || "").toLowerCase() === "combo",
+          specialOffer: product.specialOffer === true || item?.specialOffer === true || discountAmount > 0 || discountPercentage > 0 || finalPrice < basePrice,
+          newArrival: product.newArrival === true || item?.newArrival === true,
+          precio: basePrice || finalPrice,
+          descuento: { percentage: discountPercentage, amount: discountAmount || Math.max(0, basePrice - finalPrice) },
+          tipoMadera: product.tipoMadera || product.tipoMaterial || "",
+          unidad: product.unidadMedida || product.unidad || "",
+          uso: product.uso || product.aplicacion || "",
+          imagenes: product.imagenes || product.images || product.imagen || product.srcUrl || "",
+        }];
+      }).filter((product) => product.id && product.id !== "undefined");
+      setCatalog({ products, categories: [...new Set(products.map((product) => product.categoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), loading: false, error: "" });
+    } catch (error) {
+      setCatalog((current) => ({ ...current, loading: false, error: error?.message || "No se pudo cargar el catálogo." }));
+    }
+  }, []);
 
   const apply = useCallback((data) => {
     const next = normalizeTiendaConfig(data.config);
@@ -97,25 +142,8 @@ export default function TiendaWebPage() {
     loadedFor.current = who;
     authFetch("/api/tienda/config").then(apply).catch((e) => setLoadError(e.message));
     authFetch("/api/tienda/media").then((d) => setMedia({ storage: d.storage, items: d.items || [], loaded: true })).catch(() => setMedia((m) => ({ ...m, loaded: true })));
-    fetch("/api/precios?all=1").then((r) => r.json()).then((d) => {
-      const products = (d?.items || []).map((it) => {
-        const product = it?.producto || it || {};
-        return {
-          id: String(product.id ?? it.id),
-          nombre: product.nombre || product.descripcion || String(product.id ?? it.id),
-          codigo: product.codigo || "",
-          categoria: product.categoria || "",
-          subcategoria: product.subcategoria || product.subCategoria || "",
-          tipoProducto: product.tipoProducto || (product.esCombo ? "combo" : ""),
-          tipoMadera: product.tipoMadera || product.tipoMaterial || "",
-          unidad: product.unidadMedida || product.unidad || "",
-          uso: product.uso || product.aplicacion || "",
-          imagenes: product.imagenes || product.images || product.imagen || product.srcUrl || "",
-        };
-      }).filter((product) => product.id && product.id !== "undefined");
-      setCatalog({ products, categories: [...new Set(products.map((p) => p.categoria).filter(Boolean))].sort() });
-    }).catch(() => {});
-  }, [user, authFetch, apply]);
+    void loadCatalog();
+  }, [user, authFetch, apply, loadCatalog]);
 
   const loadPriceProducts = useCallback(async (all = false) => {
     setPriceProducts((prev) => ({ ...prev, loading: true }));
@@ -179,6 +207,7 @@ export default function TiendaWebPage() {
 
   const goTo = (issue) => {
     setTab(issue.scope);
+    if (issue.scope === "obras") setOpenHomeEditor(true);
     if (issue.scope !== "contacto" && issue.id) setEditing({ scope: issue.scope, id: issue.id });
   };
 
@@ -412,14 +441,15 @@ export default function TiendaWebPage() {
         <TransferenciaForm transferencia={config.transferencia} issues={issues}
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
-      {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} />}
+      {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} homeContent={config.inicio} onHomeContentChange={(inicio) => setConfig((prev) => ({ ...prev, inicio }))} onNavigateTab={setTab} openHomeEditor={openHomeEditor} />}
+      {tab === "notificaciones" && <NotificacionesPedidosForm notifications={config.notificacionesPedidos} issues={issues.filter((issue) => issue.scope === "notificaciones")} onChange={(notificacionesPedidos) => setConfig((prev) => ({ ...prev, notificacionesPedidos }))} authFetch={authFetch} />}
       <div className={tab === "productos" ? "" : "hidden"}>
         <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} tiendaUrl={tiendaUrl} active={tab === "productos"} onSaveStateChange={setProductSaveState} />
       </div>
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
       <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />
-      <SeccionEditor {...editorProps("secciones")} seccion={editing?.scope === "secciones" ? editItem : null} products={catalog.products} />
+      <SeccionEditor {...editorProps("secciones")} seccion={editing?.scope === "secciones" ? editItem : null} products={catalog.products} catalogLoading={catalog.loading} catalogError={catalog.error} onReloadCatalog={loadCatalog} />
 
       {hasUnsavedChanges && (
         <div className="fixed inset-x-4 bottom-4 z-30 mx-auto flex w-fit max-w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-lg" role="region" aria-label="Cambios sin guardar">

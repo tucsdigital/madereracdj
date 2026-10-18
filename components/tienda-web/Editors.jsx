@@ -87,7 +87,33 @@ const QUE_MOSTRAR = [
   { value: "manual", label: "Los que elija", help: "Uno por uno" },
 ];
 
-function ProductPicker({ selected, products, onChange, error }) {
+const matchKey = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+function productsForRule(rule, products) {
+  const percent = (product) => {
+    const explicit = Number(product.descuento?.percentage) || 0;
+    if (explicit > 0) return explicit;
+    const amount = Number(product.descuento?.amount) || 0;
+    const price = Number(product.precio) || 0;
+    return amount > 0 && price > 0 ? (amount / price) * 100 : 0;
+  };
+  switch (rule?.tipo) {
+    case "oferta": return products.filter((product) => product.specialOffer === true);
+    case "nuevos": return products.filter((product) => product.newArrival === true);
+    case "combos": return products.filter((product) => product.esCombo === true || product.tipoProducto?.toLowerCase() === "combo");
+    case "categoria": return products.filter((product) => matchKey(product.categoria) === matchKey(rule.valor));
+    case "descuento": {
+      const minimum = Math.max(0, Number(rule.minDescuento) || 0);
+      return products.filter((product) => percent(product) > 0 && percent(product) >= minimum);
+    }
+    case "manual": {
+      const selected = new Set((rule.productos || []).map(String));
+      return products.filter((product) => selected.has(String(product.id)));
+    }
+    default: return [];
+  }
+}
+
+function ProductPicker({ selected, products, onChange, error, loading = false, catalogError = "", onReload }) {
   const [term, setTerm] = useState("");
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const results = useMemo(() => {
@@ -118,15 +144,20 @@ function ProductPicker({ selected, products, onChange, error }) {
           ))}
         </div>
       )}
+      {!products.length ? <p className="text-xs text-default-500">
+        {loading ? "Cargando productos activos…" : catalogError ? <>{catalogError} <button type="button" className="font-medium underline underline-offset-2" onClick={onReload}>Reintentar</button></> : "No hay productos activos disponibles para seleccionar."}
+      </p> : term.trim() && !results.length ? <p className="text-xs text-default-500">No encontramos productos activos con esa búsqueda.</p> : null}
     </Field>
   );
 }
 
-export function SeccionEditor({ open, onOpenChange, seccion, index, issues, onChange, onDuplicate, onDelete, categories, products }) {
+export function SeccionEditor({ open, onOpenChange, seccion, index, issues, onChange, onDuplicate, onDelete, categories, products, catalogLoading = false, catalogError = "", onReloadCatalog }) {
+  const matchingProducts = useMemo(() => productsForRule(seccion?.regla, products || []), [seccion?.regla, products]);
   if (!seccion) return null;
   const e = err(issues, "secciones", index);
   const regla = seccion.regla;
   const setRegla = (patch) => onChange({ regla: { ...regla, ...patch } });
+  const matchCount = matchingProducts.length;
   return (
     <EditorSheet open={open} onOpenChange={onOpenChange} title={seccion.titulo || "Nueva sección"} subtitle="Sección de productos del inicio"
       onDuplicate={onDuplicate} onDelete={onDelete} deleteMessage="La sección deja de mostrarse en la tienda cuando guardes los cambios.">
@@ -136,6 +167,10 @@ export function SeccionEditor({ open, onOpenChange, seccion, index, issues, onCh
       <Field label="Descripción" hint="Opcional. Aparece debajo del título." htmlFor="sec-sub">
         <input id="sec-sub" className={inputClass} value={seccion.subtitulo} onChange={(ev) => onChange({ subtitulo: ev.target.value })} />
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Texto del enlace" htmlFor="sec-link-label"><input id="sec-link-label" maxLength={36} className={inputClass} value={seccion.linkLabel} onChange={(ev) => onChange({ linkLabel: ev.target.value })} /></Field>
+        <Field label="Texto adicional en escritorio" hint="En celular no se muestra." htmlFor="sec-link-suffix"><input id="sec-link-suffix" maxLength={40} className={inputClass} value={seccion.linkSuffix} onChange={(ev) => onChange({ linkSuffix: ev.target.value })} /></Field>
+      </div>
 
       <Field label="Qué productos muestra">
         <div className="grid grid-cols-2 gap-2">
@@ -160,7 +195,13 @@ export function SeccionEditor({ open, onOpenChange, seccion, index, issues, onCh
           <input id="sec-desc" inputMode="numeric" className={cn(inputClass, e.minDescuento && inputErrorClass)} value={regla.minDescuento || ""} onChange={(ev) => setRegla({ minDescuento: ev.target.value })} />
         </Field>
       )}
-      {regla.tipo === "manual" && <ProductPicker selected={regla.productos} products={products} error={e.productos} onChange={(productos) => setRegla({ productos })} />}
+      {regla.tipo === "manual" && <ProductPicker selected={regla.productos} products={products} error={e.productos} onChange={(productos) => setRegla({ productos })} loading={catalogLoading} catalogError={catalogError} onReload={onReloadCatalog} />}
+      <div aria-live="polite" className={cn("rounded-lg px-3 py-2.5 text-xs", catalogError ? "bg-amber-50 text-amber-900" : "bg-default-50 text-default-600")}>
+        {catalogError ? <span>No pudimos verificar qué productos coinciden. <button type="button" className="font-semibold underline underline-offset-2" onClick={onReloadCatalog}>Actualizar catálogo</button></span>
+          : catalogLoading ? "Verificando productos activos…"
+            : matchCount === 0 ? "Esta regla no encuentra productos activos; la sección no aparecerá en Inicio hasta que coincida alguno."
+              : `${matchCount} ${matchCount === 1 ? "producto activo coincide" : "productos activos coinciden"}. Se mostrarán hasta ${seccion.limite || 8}.`}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad máxima" hint="Entre 1 y 24 productos." htmlFor="sec-limite">

@@ -68,14 +68,28 @@ test("los combos nunca se venden sin stock", () => {
 
 test("normalización y validación de la configuración de stock", () => {
   const n = config.normalizeStock({ activo: true, politica: "x", tope: "99999", umbralBajo: "-3", etiqueta: "", grupos: [{ categoria: "A", politica: "ocultar", tope: "" }, { categoria: "a" }, { categoria: "" }], productos: [{ id: "p", tope: "7" }, { id: "p" }] });
-  assert.deepEqual([n.politica, n.tope, n.umbralBajo, n.etiqueta], ["solo_stock", 9999, 0, "Bajo pedido"]);
+  assert.deepEqual([n.politica, n.tope, n.umbralBajo, n.etiqueta], ["solo_stock", 9999, 0, ""]);
   assert.equal(n.grupos.length, 1);
   assert.equal(n.grupos[0].politica, "ocultar");
   assert.deepEqual(n.productos, [{ id: "p", politica: "", tope: 7, plazo: "", umbralBajo: "" }]);
   assert.equal(config.normalizeTiendaConfig({}).stock.activo, false);
   assert.ok(config.tiendaIssues({ stock: { tope: 0 } }).some((i) => i.scope === "stock"));
+  assert.equal(config.tiendaIssues({ stock: { tope: "", plazo: "", umbralBajo: "", etiqueta: "" } }).some((i) => i.scope === "stock"), false);
   assert.equal(config.tiendaIssues({ stock: { tope: 5 } }).some((i) => i.scope === "stock"), false);
   assert.equal("stock" in config.publicTiendaConfig({ stock: { activo: true } }), false);
+});
+
+test("los campos globales vacíos desactivan su efecto y los ausentes conservan defaults históricos", () => {
+  const normalized = config.normalizeStock({ activo: true, politica: "bajo_pedido", tope: "", plazo: "", umbralBajo: "", etiqueta: "" });
+  assert.deepEqual([normalized.tope, normalized.plazo, normalized.umbralBajo, normalized.etiqueta], ["", "", "", ""]);
+  assert.deepEqual(
+    [config.normalizeStock({}).tope, config.normalizeStock({}).umbralBajo, config.normalizeStock({}).etiqueta],
+    [20, 5, "Bajo pedido"]
+  );
+
+  const info = S.stockInfo(tornillo, normalized, 0);
+  assert.deepEqual([info.tope, info.umbralBajo, info.etiqueta, info.low], [0, null, "", false]);
+  assert.deepEqual(S.publicStockPolicy(info), { backorder: false, cap: 0, leadTime: "", lowThreshold: null, showQuantity: true, label: "" });
 });
 
 test("las unidades sin stock no descuentan ni reservan inventario", () => {

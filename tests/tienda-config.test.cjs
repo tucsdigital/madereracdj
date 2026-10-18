@@ -18,9 +18,25 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.contacto.whatsapp, "541121781148");
   assert.equal(cfg.contacto.telefono, "011 2178-1148");
   assert.equal(cfg.contacto.email, "info@maderascaballero.com");
+  assert.equal(cfg.inicio.about.story.length, 3);
+  assert.equal(cfg.inicio.benefits.items.length, 4);
+  assert.equal(cfg.notificacionesPedidos.enabled, false);
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
   assert.deepEqual(validateTiendaConfig(TIENDA_DEFAULTS).errors, []);
+});
+
+test("los avisos validan cantidad y formato de destinatarios sin publicar sus datos", () => {
+  const invalid = normalizeTiendaConfig({ notificacionesPedidos: {
+    enabled: true,
+    recipients: ["ventas@example.com", "no-es-email", ...Array.from({ length: 10 }, (_, i) => `equipo${i}@example.com`)],
+  } });
+  const errors = validateTiendaConfig(invalid).errors;
+  assert.ok(errors.some((message) => /no es un email válido/.test(message)));
+  assert.ok(errors.some((message) => /hasta 10 destinatarios/.test(message)));
+  const publicConfig = publicTiendaConfig({ notificacionesPedidos: { enabled: true, recipients: ["privado@example.com"] } });
+  assert.equal("notificacionesPedidos" in publicConfig, false);
+  assert.equal(publicConfig.inicio.about.story.length, 3);
 });
 
 test("un bloque vacío se respeta y un bloque ausente toma el valor por defecto", () => {

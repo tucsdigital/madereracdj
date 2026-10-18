@@ -10,12 +10,23 @@ const MENSAJES = [
   ["mensajeAsesoria", "Asesoramiento y obras", "Se envía desde las secciones de asesoramiento y de obras a medida."],
 ];
 
+const CONTACT_COPY_FIELDS = [
+  ["helpHeading", "Título de información"], ["whatsappLabel", "Etiqueta de WhatsApp"], ["phoneLabel", "Etiqueta del teléfono"],
+  ["emailLabel", "Etiqueta del email"], ["hoursLabel", "Etiqueta de horarios"], ["socialFallback", "Nombre de red sin etiqueta"],
+  ["nameLabel", "Etiqueta: nombre"], ["namePlaceholder", "Ayuda: nombre"], ["lastNameLabel", "Etiqueta: apellido"], ["lastNamePlaceholder", "Ayuda: apellido"],
+  ["phoneFieldLabel", "Etiqueta: teléfono del formulario"], ["phonePlaceholder", "Ayuda: teléfono"], ["emailFieldLabel", "Etiqueta: email del formulario"], ["emailPlaceholder", "Ayuda: email"],
+  ["messageLabel", "Etiqueta: mensaje"], ["messagePlaceholder", "Ayuda: mensaje"], ["requiredNote", "Aviso de campos obligatorios"],
+  ["submitLabel", "Texto del botón de WhatsApp"], ["submitHelp", "Ayuda debajo del botón"], ["visitHeading", "Título de ubicación"],
+  ["directionsLabel", "Texto del enlace de mapa"], ["mapTitle", "Descripción accesible del mapa"],
+];
+
 export default function ContactoForm({ contacto, issues = [], onChange }) {
   const digits = (contacto.whatsapp || "").replace(/\D/g, "");
   const errorFor = (field) => issues.find((issue) => issue.field === field)?.message;
   const updateRow = (key, index, patch) => onChange({
     [key]: (contacto[key] || []).map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row),
   });
+  const updateCopy = (key, value) => onChange({ copy: { ...contacto.copy, [key]: value } });
 
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
@@ -60,6 +71,20 @@ export default function ContactoForm({ contacto, issues = [], onChange }) {
           <div className="sm:col-span-2">
             <Field label="Descripción" htmlFor="contacto-description"><textarea id="contacto-description" className={cn(inputClass, "min-h-20 resize-y")} value={contacto.description} onChange={(e) => onChange({ description: e.target.value })} /></Field>
           </div>
+        </div>
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-6">
+        <div>
+          <h2 className="text-sm font-semibold">Textos de la sección de contacto</h2>
+          <p className="mt-1 text-xs text-default-500">Etiquetas y ayudas del formulario, información de contacto y mapa. Estos textos también se usan en Inicio.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {CONTACT_COPY_FIELDS.map(([key, label]) => (
+            <Field key={key} label={label} htmlFor={`contacto-copy-${key}`}>
+              <input id={`contacto-copy-${key}`} maxLength={key.toLowerCase().includes("placeholder") ? 100 : 140} className={inputClass} value={contacto.copy?.[key] || ""} onChange={(event) => updateCopy(key, event.target.value)} />
+            </Field>
+          ))}
         </div>
       </section>
 

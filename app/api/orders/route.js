@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import crypto from "crypto";
 import { createVentaEngine, reserveEcommerceOrderStock } from "@/lib/erp/ventas-engine";
+import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -501,14 +502,24 @@ export async function POST(request) {
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(String(orderData.orderId || ""))) {
       return withCors(NextResponse.json({ error: "Identificador de pedido inválido" }, { status: 400 }));
     }
+    const notifyCreatedOrder = async (order) => {
+      await sendOrderAdminNotification(orderData.orderId, "created", { fallbackOrder: order })
+        .catch((error) => console.error("No se pudo enviar el aviso de nuevo pedido:", error?.message));
+      if (["success", "paid", "approved", "pagado"].includes(String(order?.status || "").toLowerCase())) {
+        await sendOrderAdminNotification(orderData.orderId, "confirmed", { fallbackOrder: order, status: "confirmed" })
+          .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
+      }
+    };
     const previous = await getDoc(doc(db, "orders", orderData.orderId));
     if (previous.exists() && previous.data().requestFingerprint !== requestFingerprint) {
       return withCors(NextResponse.json({ error: "La referencia ya pertenece a otro pedido" }, { status: 409 }));
     }
     if (previous.exists() && previous.data().ventaId) {
+      await notifyCreatedOrder(previous.data());
       return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data() }));
     }
     if (previous.exists() && previous.data().paymentMethod === "mercadopago") {
+      await notifyCreatedOrder(previous.data());
       return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data(), venta: null }));
     }
     const quote = previous.exists() ? previous.data() : await quoteOrder(orderData);
@@ -839,6 +850,9 @@ export async function POST(request) {
     }
 
     console.log(`Orden ${orderData.orderId} creada exitosamente`);
+
+    // Los avisos no deben convertir una compra ya creada en una respuesta de error.
+    await notifyCreatedOrder(orderForFirestore);
 
     return withCors(
       NextResponse.json({

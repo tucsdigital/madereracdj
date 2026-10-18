@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 
 import { verifyFirebaseToken } from "@/lib/firebase-admin";
 import { updateVentaEngine } from "@/lib/erp/ventas-engine";
+import { getAdminDb } from "@/lib/firebase-admin";
+import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
 export async function PUT(request, { params }) {
   try {
@@ -19,7 +21,15 @@ export async function PUT(request, { params }) {
     const ventaId = String(params?.id || "").trim();
     if (!ventaId) return NextResponse.json({ ok: false, error: "ventaId requerido" }, { status: 400 });
 
+    const db = getAdminDb();
+    const before = (await db.collection("ventas").doc(ventaId).get()).data() || null;
     const res = await updateVentaEngine({ actor, ventaId, ventaData: venta, origen });
+    const after = (await db.collection("ventas").doc(ventaId).get()).data() || null;
+    const becamePaid = ["pendiente", "parcial"].includes(String(before?.estadoPago || "").toLowerCase()) && String(after?.estadoPago || "").toLowerCase() === "pagado";
+    if (becamePaid && (before?.ecommerceLifecycle || before?.origen === "ecommerce_externo") && before?.idExterno) {
+      await sendOrderAdminNotification(before.idExterno, "confirmed", { fallbackOrder: { ...before, ...after, orderId: before.idExterno }, status: "confirmed", paymentStatus: "approved" })
+        .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
+    }
     return NextResponse.json({ ok: true, ventaId: res.id, flags: res.flags, version: res.version }, { status: 200 });
   } catch (err) {
     const status = err?.status || 500;

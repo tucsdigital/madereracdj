@@ -14,7 +14,7 @@ const mockRequire = (name) => {
   return require(name);
 };
 new Function("require", "module", "exports", compiled)(mockRequire, mod, mod.exports);
-const { normalizeProject, projectIssues, projectImageUrls } = mod.exports;
+const { normalizeProject, projectIssues, projectImageUrls, sortProjectsByManualOrder } = mod.exports;
 
 test("normaliza y conserva el contenido de las obras heredadas", () => {
   for (const raw of legacyProjects) {
@@ -63,4 +63,15 @@ test("publicar requiere imágenes para portada, materiales, adicionales y galer�
 
 test("recolecta todas las imágenes de una obra para protegerlas de la limpieza", () => {
   assert.deepEqual(projectImageUrls({ banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["antes", "avatar", "galeria", "portada"]);
+});
+
+test("normaliza la portada vertical de la tarjeta y respeta el orden manual de obras", () => {
+  const projects = [
+    { slug: "deck", title: "Deck" },
+    { slug: "muelles", title: "Muelles" },
+    { slug: "pergolas", title: "Pérgolas" },
+  ];
+  assert.deepEqual(sortProjectsByManualOrder(projects, ["pergolas", "deck"]).map(({ slug }) => slug), ["pergolas", "deck", "muelles"]);
+  const project = normalizeProject({ slug: "deck", title: "Deck", seo: { ogImage: "/images/deck.webp" }, banner: { slides: [] } });
+  assert.equal(project.homeCardImage, "/images/deck.webp");
 });

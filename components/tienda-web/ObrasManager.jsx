@@ -5,6 +5,7 @@ import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } 
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
 import { previewUrl } from "@/lib/tienda-web-ui";
+import { SortableItem, SortableList } from "@/components/tienda-web/SortableList";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,9 @@ function Field({ label, value, onChange, multiline = false, type = "text", place
 
 const IMAGE_GUIDE = {
   panoramic: { ratio: "21:10", size: "2400 × 1143 px", className: "aspect-[21/10]" },
+  advisory: { ratio: "21:10", size: "2400 × 1143 px", className: "aspect-[21/10]" },
+  about: { ratio: "36:25", size: "1800 × 1250 px", className: "aspect-[36/25]" },
+  workCard: { ratio: "27:38", size: "1080 × 1520 px", className: "aspect-[27/38]" },
   wide: { ratio: "3:1", size: "2400 × 800 px", className: "aspect-[3/1]" },
   landscape: { ratio: "3:2", size: "1800 × 1200 px", className: "aspect-[3/2]" },
   square: { ratio: "1:1", size: "1200 × 1200 px", className: "aspect-square" },
@@ -138,7 +142,82 @@ function ListEditor({ title, items, onAdd, children }) {
   </Card>;
 }
 
-export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media }) {
+function HomeField({ label, value, onChange, maxLength = 180, multiline = false, hint }) {
+  const common = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-default-400 focus:border-primary focus:ring-2 focus:ring-primary/10";
+  return <label className="block min-w-0 space-y-1.5">
+    <span className="flex items-center justify-between gap-2 text-xs font-medium text-default-600"><span>{label}</span><span className="shrink-0 text-[10px] font-normal text-default-400">{String(value || "").length}/{maxLength}</span></span>
+    {multiline ? <textarea maxLength={maxLength} className={cn(common, "min-h-20 resize-y")} value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+      : <input maxLength={maxLength} className={common} value={value ?? ""} onChange={(event) => onChange(event.target.value)} />}
+    {hint ? <span className="block text-[10px] leading-4 text-default-400">{hint}</span> : null}
+  </label>;
+}
+
+const BENEFIT_ICON_OPTIONS = [["truck", "Envíos"], ["headphones", "Asesoramiento"], ["shield", "Garantía"], ["package", "Stock"]];
+const PILLAR_ICON_OPTIONS = [["sprout", "Ideas"], ["boxes", "Productos"], ["badge", "Calidad"], ["pin", "Local"]];
+
+function HomeContentEditor({ value, onChange, uploadImage, media, onNavigateTab }) {
+  const content = value || {};
+  const updatePath = (path, nextValue) => {
+    const next = structuredClone(content);
+    let target = next;
+    for (let index = 0; index < path.length - 1; index += 1) target = target[path[index]] = { ...(target[path[index]] || {}) };
+    target[path[path.length - 1]] = nextValue;
+    onChange(next);
+  };
+  const updateEntry = (path, index, patch) => {
+    const next = structuredClone(content);
+    const list = path.reduce((object, key) => object?.[key], next);
+    list[index] = { ...list[index], ...patch };
+    onChange(next);
+  };
+  const addEntry = (path, seed) => {
+    const next = structuredClone(content);
+    path.reduce((object, key) => object[key], next).push(seed);
+    onChange(next);
+  };
+  const removeEntry = (path, index) => {
+    const next = structuredClone(content);
+    path.reduce((object, key) => object[key], next).splice(index, 1);
+    onChange(next);
+  };
+  const reorderTextList = (value) => value.split("\n").slice(0, 6);
+
+  return <div className="space-y-4">
+    <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs leading-5 text-default-500">
+      Editá los textos e imágenes del inicio sin cambiar su estructura ni diseño. Para evitar duplicar configuraciones, los banners, categorías, secciones de productos y contacto se siguen editando en sus controles existentes.
+      {onNavigateTab ? <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">{[["banners", "Banners"], ["categorias", "Categorías"], ["secciones", "Secciones de productos"], ["contacto", "Contacto"]].map(([tab, label]) => <button key={tab} type="button" onClick={() => onNavigateTab(tab)} className="font-medium text-foreground underline underline-offset-2">Editar {label}</button>)}</span> : null}
+    </div>
+    <Card title="Frases destacadas de la portada" description="Se muestran debajo del carrusel. Hasta 6 frases; máximo 48 caracteres cada una.">
+      <HomeField label="Una frase por línea" value={(content.highlights || []).join("\n")} maxLength={300} multiline onChange={(next) => updatePath(["highlights"], reorderTextList(next).map((item) => item.slice(0, 48)))} />
+    </Card>
+    <Card title="Encabezado de categorías" description="Las tarjetas e imágenes se editan desde la pestaña Categorías.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.categories?.eyebrow} maxLength={40} onChange={(next) => updatePath(["categories", "eyebrow"], next)} /><HomeField label="Título" value={content.categories?.title} maxLength={80} onChange={(next) => updatePath(["categories", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.categories?.description} maxLength={180} multiline onChange={(next) => updatePath(["categories", "description"], next)} /></div></div>
+    </Card>
+    <Card title="Beneficios" description="Se conservan las tarjetas y sus íconos. Hasta 8 beneficios; título 64 caracteres y descripción 180.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.benefits?.eyebrow} maxLength={40} onChange={(next) => updatePath(["benefits", "eyebrow"], next)} /><HomeField label="Título" value={content.benefits?.title} maxLength={80} onChange={(next) => updatePath(["benefits", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.benefits?.description} maxLength={180} multiline onChange={(next) => updatePath(["benefits", "description"], next)} /></div></div>
+      <div className="mt-4"><ListEditor title="Tarjetas de beneficios" items={content.benefits?.items || []} onAdd={(index, remove) => remove ? removeEntry(["benefits", "items"], index) : addEntry(["benefits", "items"], { id: uid("beneficio"), icon: "package", title: "Nuevo beneficio", detail: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["benefits", "items"], index, { icon: event.target.value })}>{BENEFIT_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label><HomeField label="Título" value={item.title} maxLength={64} onChange={(next) => updateEntry(["benefits", "items"], index, { title: next })} /><div className="sm:col-span-2"><HomeField label="Descripción" value={item.detail} maxLength={180} multiline onChange={(next) => updateEntry(["benefits", "items"], index, { detail: next })} /></div></div>}</ListEditor></div>
+    </Card>
+    <Card title="Tarjetas de obras" description="Las tarjetas se generan con las portadas de las obras publicadas y respetan el orden de la lista. Proporción visible: 27:38.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.works?.eyebrow} maxLength={40} onChange={(next) => updatePath(["works", "eyebrow"], next)} /><HomeField label="Título" value={content.works?.title} maxLength={80} onChange={(next) => updatePath(["works", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.works?.description} maxLength={180} multiline onChange={(next) => updatePath(["works", "description"], next)} /></div><HomeField label="Texto del botón" value={content.works?.linkLabel} maxLength={36} onChange={(next) => updatePath(["works", "linkLabel"], next)} /></div>
+    </Card>
+    <Card title="Asesoramiento" description="Imagen apaisada recomendada 21:10 · 2400 × 1143 px. Se adapta al recorte del diseño actual.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Etiqueta" value={content.advisory?.badge} maxLength={40} onChange={(next) => updatePath(["advisory", "badge"], next)} /><HomeField label="Título" value={content.advisory?.title} maxLength={90} onChange={(next) => updatePath(["advisory", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.advisory?.description} maxLength={220} multiline onChange={(next) => updatePath(["advisory", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de fondo" value={content.advisory?.image} ratio="advisory" onChange={(next) => updatePath(["advisory", "image"], next)} uploadImage={uploadImage} media={media} /></div><HomeField label="Texto alternativo de la imagen" value={content.advisory?.imageAlt} maxLength={140} onChange={(next) => updatePath(["advisory", "imageAlt"], next)} /><HomeField label="Botón de WhatsApp" value={content.advisory?.whatsappLabel} maxLength={40} onChange={(next) => updatePath(["advisory", "whatsappLabel"], next)} /><HomeField label="Botón de obras" value={content.advisory?.worksLabel} maxLength={32} onChange={(next) => updatePath(["advisory", "worksLabel"], next)} /></div>
+    </Card>
+    <Card title="Nosotros" description="La imagen se muestra aproximadamente en 3:2 en móvil y 36:25 en escritorio.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.about?.eyebrow} maxLength={40} onChange={(next) => updatePath(["about", "eyebrow"], next)} /><HomeField label="Título" value={content.about?.title} maxLength={100} multiline hint="Usá un salto de línea para definir el corte del título." onChange={(next) => updatePath(["about", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.about?.description} maxLength={180} multiline onChange={(next) => updatePath(["about", "description"], next)} /></div><div className="sm:col-span-2"><ImageField label="Imagen de historia" value={content.about?.image} ratio="about" onChange={(next) => updatePath(["about", "image"], next)} uploadImage={uploadImage} media={media} /></div><HomeField label="Texto alternativo de la imagen" value={content.about?.imageAlt} maxLength={140} onChange={(next) => updatePath(["about", "imageAlt"], next)} /><HomeField label="Ubicación debajo de la imagen" value={content.about?.location} maxLength={60} onChange={(next) => updatePath(["about", "location"], next)} /></div>
+      <div className="mt-4"><ListEditor title="Historia" items={content.about?.story || []} onAdd={(index, remove) => remove ? removeEntry(["about", "story"], index) : addEntry(["about", "story"], { id: uid("hito"), title: "Nuevo hito", text: "" })}>{(item, index) => <div className="grid gap-3"><HomeField label="Título" value={item.title} maxLength={60} onChange={(next) => updateEntry(["about", "story"], index, { title: next })} /><HomeField label="Texto" value={item.text} maxLength={220} multiline onChange={(next) => updateEntry(["about", "story"], index, { text: next })} /></div>}</ListEditor></div>
+      <div className="mt-4"><ListEditor title="Pilares" items={content.about?.pillars || []} onAdd={(index, remove) => remove ? removeEntry(["about", "pillars"], index) : addEntry(["about", "pillars"], { id: uid("pilar"), icon: "sprout", title: "Nuevo pilar", description: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["about", "pillars"], index, { icon: event.target.value })}>{PILLAR_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label><HomeField label="Título" value={item.title} maxLength={56} onChange={(next) => updateEntry(["about", "pillars"], index, { title: next })} /><div className="sm:col-span-2"><HomeField label="Descripción" value={item.description} maxLength={140} multiline onChange={(next) => updateEntry(["about", "pillars"], index, { description: next })} /></div></div>}</ListEditor></div>
+    </Card>
+    <Card title="Instagram" description="Se cambia el texto del bloque; el identificador apunta al widget de Elfsight.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.instagram?.eyebrow} maxLength={40} onChange={(next) => updatePath(["instagram", "eyebrow"], next)} /><HomeField label="Título" value={content.instagram?.title} maxLength={80} onChange={(next) => updatePath(["instagram", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.instagram?.description} maxLength={180} multiline onChange={(next) => updatePath(["instagram", "description"], next)} /></div><HomeField label="ID del widget" value={content.instagram?.appId} maxLength={80} hint="No lo cambies salvo que tengas un ID nuevo del widget." onChange={(next) => updatePath(["instagram", "appId"], next)} /></div>
+    </Card>
+    <Card title="Ventana de ofertas" description="El producto y su precio siguen viniendo del catálogo; sólo cambia el texto del aviso.">
+      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Etiqueta" value={content.offerPopup?.badge} maxLength={32} onChange={(next) => updatePath(["offerPopup", "badge"], next)} /><HomeField label="Título" value={content.offerPopup?.title} maxLength={48} onChange={(next) => updatePath(["offerPopup", "title"], next)} /><HomeField label="Descripción" value={content.offerPopup?.description} maxLength={90} onChange={(next) => updatePath(["offerPopup", "description"], next)} /><HomeField label="Botón" value={content.offerPopup?.buttonLabel} maxLength={32} onChange={(next) => updatePath(["offerPopup", "buttonLabel"], next)} /></div>
+    </Card>
+  </div>;
+}
+
+export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media, homeContent, onHomeContentChange, onNavigateTab, openHomeEditor = false }) {
   const [items, setItems] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState("");
   const [draft, setDraft] = useState(null);
@@ -150,6 +229,9 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
   const [section, setSection] = useState("general");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [orderVersion, setOrderVersion] = useState(0);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [view, setView] = useState("obras");
 
   const load = useCallback(async (preferredSlug) => {
     setLoading(true);
@@ -157,6 +239,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
       const data = await authFetch("/api/tienda/obras/admin");
       const next = data.items || [];
       setItems(next);
+      setOrderVersion(Number(data.orderVersion) || 0);
       const slug = preferredSlug || next[0]?.id || "";
       const entry = next.find((item) => item.id === slug);
       setSelectedSlug(slug);
@@ -171,6 +254,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
   }, [authFetch]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (openHomeEditor) setView("inicio"); }, [openHomeEditor]);
 
   const setPath = (path, value) => setDraft((current) => {
     const next = structuredClone(current);
@@ -200,7 +284,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
 
   const startNew = () => {
     const project = newProject();
-    setItems((current) => [{ id: project.slug, project, draft: project, version: 0 }, ...current]);
+    setItems((current) => [...current, { id: project.slug, project, draft: project, version: 0 }]);
     setSelectedSlug(project.slug);
     setDraft(project);
     setVersion(0);
@@ -232,7 +316,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
     duplicate.seo = { ...duplicate.seo, title: `${duplicate.title} - Maderas Caballero`, canonical: `/obras/${slug}` };
     duplicate.createdAt = now;
     duplicate.updatedAt = now;
-    setItems((current) => [{ id: slug, slug, project: duplicate, draft: duplicate, published: null, version: 0, publishedVersion: 0 }, ...current]);
+    setItems((current) => [...current, { id: slug, slug, project: duplicate, draft: duplicate, published: null, version: 0, publishedVersion: 0 }]);
     setSelectedSlug(slug);
     setDraft(duplicate);
     setVersion(0);
@@ -255,6 +339,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
       }
       const remaining = items.filter((item) => item.id !== deleteTarget.id);
       setItems(remaining);
+      if (Number(deleteTarget.version) > 0) await persistOrder(remaining.map((item) => item.id), false);
       if (selectedSlug === deleteTarget.id) {
         const next = remaining[0];
         setSelectedSlug(next?.id || "");
@@ -272,6 +357,41 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
     }
   };
 
+  const persistOrder = async (slugs, showNotice = true) => {
+    if (savingOrder) return { ok: false, error: "El orden ya se está guardando." };
+    setSavingOrder(true);
+    try {
+      const result = await authFetch("/api/tienda/obras/admin/orden", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slugs, baseVersion: orderVersion }),
+      });
+      setOrderVersion(Number(result.version) || orderVersion + 1);
+      if (showNotice) setNotice({ type: "ok", text: "Orden de obras guardado y aplicado en la tienda." });
+      return { ok: true };
+    } catch (error) {
+      if (showNotice) setNotice({ type: "error", text: error.message || "No se pudo guardar el orden de las obras." });
+      return { ok: false, error: error.message };
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const moveWork = async (from, to) => {
+    if (savingOrder || from < 0 || to < 0 || from === to) return;
+    const previous = items;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setItems(next);
+    const result = await persistOrder(next.map((item) => item.id), false);
+    if (result.ok) setNotice({ type: "ok", text: "Orden de obras guardado y aplicado en la tienda." });
+    else {
+      setItems(previous);
+      setNotice({ type: "error", text: result.error || "No se pudo guardar el orden de las obras." });
+    }
+  };
+
   const saveDraft = async () => {
     if (!draft) return;
     setSaving(true);
@@ -286,10 +406,19 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
       setSelectedSlug(nextSlug);
       setDraft(result.project);
       setVersion(result.version);
-      setItems((current) => {
-        const without = current.filter((item) => item.id !== nextSlug);
-        return [{ ...(current.find((item) => item.id === nextSlug) || {}), id: nextSlug, slug: nextSlug, project: result.project, draft: result.project, version: result.version, published: current.find((item) => item.id === nextSlug)?.published || null }, ...without];
-      });
+      const previousIndex = items.findIndex((item) => item.id === selectedSlug || item.id === nextSlug);
+      const existing = items.find((item) => item.id === nextSlug || item.id === selectedSlug) || {};
+      const savedItem = { ...existing, id: nextSlug, slug: nextSlug, project: result.project, draft: result.project, version: result.version, published: existing.published || null };
+      const nextItems = items.filter((item) => item.id !== selectedSlug && item.id !== nextSlug);
+      nextItems.splice(previousIndex < 0 ? nextItems.length : previousIndex, 0, savedItem);
+      setItems(nextItems);
+      if (version === 0 || selectedSlug !== nextSlug) {
+        const orderResult = await persistOrder(nextItems.map((item) => item.id), false);
+        if (!orderResult.ok) {
+          setNotice({ type: "error", text: `Borrador guardado, pero no se pudo persistir el orden: ${orderResult.error}` });
+          return;
+        }
+      }
       setNotice({ type: "ok", text: "Borrador guardado. Todavía no se muestra en la tienda." });
     } catch (error) {
       setNotice({ type: "error", text: error.data?.issues?.join(" · ") || error.message });
@@ -331,32 +460,39 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
 
   return <MediaContext.Provider value={{ media, tiendaUrl }}><div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        {draft && published && tiendaUrl ? <a href={`${tiendaUrl.replace(/\/$/, "")}/obras/${selectedSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-default-600 hover:bg-default-100">Ver publicada <ArrowUpRight className="h-3.5 w-3.5" /></a> : null}
-        <Btn variant="primary" onClick={startNew}><Plus className="h-4 w-4" />Nueva obra</Btn>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex rounded-lg border border-border bg-card p-1" role="tablist" aria-label="Contenido de Obras y de Inicio">
+          <button type="button" role="tab" aria-selected={view === "obras"} onClick={() => setView("obras")} className={cn("rounded-md px-3 py-1.5 text-xs", view === "obras" ? "bg-default-100 font-semibold" : "text-default-500")}>Obras</button>
+          <button type="button" role="tab" aria-selected={view === "inicio"} onClick={() => setView("inicio")} className={cn("rounded-md px-3 py-1.5 text-xs", view === "inicio" ? "bg-default-100 font-semibold" : "text-default-500")}>Inicio</button>
+        </div>
+        {view === "obras" && draft && published && tiendaUrl ? <a href={`${tiendaUrl.replace(/\/$/, "")}/obras/${selectedSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-default-600 hover:bg-default-100">Ver publicada <ArrowUpRight className="h-3.5 w-3.5" /></a> : null}
+        {view === "obras" ? <Btn variant="primary" onClick={startNew}><Plus className="h-4 w-4" />Nueva obra</Btn> : null}
       </div>
     </div>
 
-    {notice ? <div role="status" className={cn("flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm", notice.type === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}><span>{notice.text}</span><button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button></div> : null}
+    {notice && view === "obras" ? <div role="status" className={cn("flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm", notice.type === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}><span>{notice.text}</span><button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button></div> : null}
 
-    <div className="grid items-start gap-4 xl:grid-cols-[250px_minmax(0,1fr)]">
+    <div className={cn("grid items-start gap-4 xl:grid-cols-[250px_minmax(0,1fr)]", view !== "obras" && "hidden")}>
       <aside className="rounded-xl border border-border bg-card p-2">
-        <p className="px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-default-400">{items.length} obras</p>
-        <div className="space-y-1">
+        <p className="flex items-center justify-between px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-default-400"><span>{items.length} obras</span><span>{savingOrder ? "Guardando orden…" : "Arrastrá para ordenar"}</span></p>
+        <SortableList ids={items.map((item) => item.id)} onMove={moveWork} disabled={savingOrder} className="space-y-1">
           {items.map((item) => {
             const project = item.project || item.draft || item.published;
             const cover = project?.banner?.slides?.[0]?.backgroundImage || project?.seo?.ogImage;
-            return <div key={item.id} className={cn("group flex items-center gap-1 rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
-              <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={previewUrl(cover, tiendaUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
-                <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
-              </button>
-              <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>
-              <button type="button" aria-label={`Eliminar ${project?.title || item.id}`} title="Eliminar obra" onClick={() => setDeleteTarget(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>;
+            return <SortableItem key={item.id} id={item.id} disabled={savingOrder} className={cn("group rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
+              {(handle) => <div className="flex items-center gap-1">
+                {handle}
+                <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
+                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={previewUrl(cover, tiendaUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
+                  <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
+                </button>
+                <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>
+                <button type="button" aria-label={`Eliminar ${project?.title || item.id}`} title="Eliminar obra" onClick={() => setDeleteTarget(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>}
+            </SortableItem>;
           })}
           {!items.length ? <p className="px-3 py-5 text-xs leading-5 text-default-500">No hay obras todavía. Creá la primera para empezar.</p> : null}
-        </div>
+        </SortableList>
       </aside>
 
       {!draft ? <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-default-500">Elegí una obra o creá una nueva.</div> : <main className="min-w-0 space-y-4">
@@ -381,7 +517,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
           <Card title="SEO" description="Estos textos se usan en buscadores y vistas previas al compartir.">
             <div className="grid gap-3 sm:grid-cols-2"><Field label="Título SEO" value={draft.seo?.title} onChange={(value) => setPath(["seo", "title"], value)} /><Field label="Descripción SEO" value={draft.seo?.description} onChange={(value) => setPath(["seo", "description"], value)} multiline /><Field label="Palabras clave (separadas por coma)" value={(draft.seo?.keywords || []).join(", ")} onChange={(value) => setPath(["seo", "keywords"], value.split(",").map((item) => item.trim()).filter(Boolean))} /><Field label="URL canónica" value={draft.seo?.canonical} onChange={(value) => setPath(["seo", "canonical"], value)} /><div className="sm:col-span-2"><ImageField label="Imagen para compartir" value={draft.seo?.ogImage} onChange={(value) => setPath(["seo", "ogImage"], value)} uploadImage={uploadImage} /></div></div>
           </Card>
-          <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">
+           <Card title="Imagen de tarjeta en Inicio" description="Esta imagen se usa en la tarjeta vertical de esta obra. Proporción ideal 27:38 · 1080 × 1520 px.">
+             <ImageField label="Imagen de tarjeta de Inicio" value={draft.homeCardImage || ""} ratio="workCard" onChange={(value) => setPath(["homeCardImage"], value)} uploadImage={uploadImage} media={media} />
+           </Card>
+           <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">
             <div className="space-y-3">{(draft.banner?.slides || []).slice(0, 1).map((slide, index) => <div key={slide.id || index} className="rounded-lg border border-border/70 p-3"><div className="grid gap-3 sm:grid-cols-2"><Field label="Título" value={slide.title} onChange={(value) => setEntry(["banner", "slides"], index, { title: value })} /><Field label="Bajada" value={slide.subtitle} onChange={(value) => setEntry(["banner", "slides"], index, { subtitle: value })} /><div className="sm:col-span-2"><Field label="Descripción" value={slide.description} onChange={(value) => setEntry(["banner", "slides"], index, { description: value })} multiline /></div><div className="sm:col-span-2"><ImageField label="Imagen de portada" value={slide.backgroundImage} onChange={(value) => setEntry(["banner", "slides"], index, { backgroundImage: value })} uploadImage={uploadImage} /></div><Field label="Texto del botón" value={slide.ctaText} onChange={(value) => setEntry(["banner", "slides"], index, { ctaText: value })} /><Field label="Destino del botón" value={slide.ctaUrl} onChange={(value) => setEntry(["banner", "slides"], index, { ctaUrl: value })} /></div></div>)}</div>
           </Card>
           <Card title="Textos y botones de portada" description="Opcional: estos textos reemplazan los de la diapositiva principal.">
@@ -410,6 +549,9 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media 
         {section === "faq" ? <div className="space-y-4"><Card title="Encabezado de preguntas frecuentes"><div className="grid gap-3 sm:grid-cols-2"><Field label="Antetítulo" value={draft.pageContent?.faq?.eyebrow} onChange={(value) => setPath(["pageContent", "faq", "eyebrow"], value)} /><Field label="Título" value={draft.pageContent?.faq?.title} onChange={(value) => setPath(["pageContent", "faq", "title"], value)} /><div className="sm:col-span-2"><Field label="Descripción" value={draft.pageContent?.faq?.description} onChange={(value) => setPath(["pageContent", "faq", "description"], value)} multiline /></div><Field label="Texto del enlace" value={draft.pageContent?.faq?.ctaLabel} onChange={(value) => setPath(["pageContent", "faq", "ctaLabel"], value)} /></div></Card><ListEditor title="Preguntas frecuentes" items={draft.faqs || []} onAdd={(index, remove) => remove ? removeEntry(["faqs"], index) : addEntry(["faqs"], { id: uid("faq"), question: "", answer: "" })}>{(item, index) => <div className="grid gap-3"><Field label="Pregunta" value={item.question} onChange={(value) => setEntry(["faqs"], index, { question: value })} /><Field label="Respuesta" value={item.answer} onChange={(value) => setEntry(["faqs"], index, { answer: value })} multiline /></div>}</ListEditor></div> : null}
 
       </main>}
+    </div>
+    <div className={view === "inicio" ? "" : "hidden"}>
+      <HomeContentEditor value={homeContent} onChange={onHomeContentChange} uploadImage={uploadImage} media={media} onNavigateTab={onNavigateTab} />
     </div>
   </div><AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
     <AlertDialogContent>

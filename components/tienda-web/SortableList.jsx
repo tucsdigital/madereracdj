@@ -6,13 +6,13 @@ import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Lista ordenable por arrastre (con teclado también). `onMove(desde, hasta)` recibe posiciones. */
-export function SortableList({ ids, onMove, grid = false, className, children }) {
+export function SortableList({ ids, onMove, grid = false, disabled = false, className, children }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const handleDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return;
+    if (disabled || !over || active.id === over.id) return;
     onMove(ids.indexOf(active.id), ids.indexOf(over.id));
   };
   return (
@@ -25,13 +25,14 @@ export function SortableList({ ids, onMove, grid = false, className, children })
 }
 
 /** Elemento ordenable. `children` recibe el control de arrastre ya armado para ubicarlo donde convenga. */
-export function SortableItem({ id, className, handleClassName, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+export function SortableItem({ id, className, handleClassName, disabled = false, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   const handle = (
     <button
       type="button"
       aria-label="Arrastrar para cambiar el orden"
-      className={cn("flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-default-400 hover:bg-default-100 hover:text-default-700 active:cursor-grabbing", handleClassName)}
+      disabled={disabled}
+      className={cn("flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-default-400 hover:bg-default-100 hover:text-default-700 active:cursor-grabbing disabled:cursor-wait disabled:opacity-40", handleClassName)}
       {...attributes}
       {...listeners}
     >
