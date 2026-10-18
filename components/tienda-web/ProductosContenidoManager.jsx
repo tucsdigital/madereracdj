@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Btn } from "@/components/tienda-web/ui";
@@ -147,7 +147,7 @@ function ContentEditor({ editor, onChange, onCancel, onCommit, media, uploadImag
   </Panel>;
 }
 
-export default function ProductosContenidoManager({ products = [], categories = [], media, uploadImage, authFetch, tiendaUrl }) {
+export default function ProductosContenidoManager({ products = [], categories = [], media, uploadImage, authFetch, tiendaUrl, active = true, onSaveStateChange }) {
   const [config, setConfig] = useState(null);
   const [savedConfig, setSavedConfig] = useState(null);
   const [version, setVersion] = useState(0);
@@ -173,6 +173,10 @@ export default function ProductosContenidoManager({ products = [], categories = 
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [authFetch]);
+
+  useEffect(() => {
+    if (!active) setEditor(null);
+  }, [active]);
 
   const categoryOptions = useMemo(() => [...new Set([...categories, ...products.map((p) => p.categoria).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "es")), [categories, products]);
   const subcategoryOptions = useMemo(() => [...new Set(products.filter((p) => !category || p.categoria === category).map((p) => p.subcategoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [products, category]);
@@ -214,7 +218,7 @@ export default function ProductosContenidoManager({ products = [], categories = 
     setEditor({ kind: "product", ids, content: { ...current } });
   };
 
-  const save = async () => {
+  const save = useCallback(async () => {
     setSaving(true);
     setError("");
     setNotice("");
@@ -228,12 +232,22 @@ export default function ProductosContenidoManager({ products = [], categories = 
       setSavedConfig(data.config);
       setVersion(data.version);
       setNotice("Contenido publicado. La tienda ya usa esta versión.");
+      return { ok: true };
     } catch (cause) {
-      setError(cause.data?.issues?.join(" · ") || cause.message || "No se pudo guardar.");
+      const message = cause.data?.issues?.join(" · ") || cause.message || "No se pudo guardar.";
+      setError(message);
+      return { ok: false, message };
     } finally {
       setSaving(false);
     }
-  };
+  }, [authFetch, config, version]);
+
+  const discard = useCallback(() => {
+    if (savedConfig) setConfig(savedConfig);
+    setEditor(null);
+    setError("");
+    setNotice("");
+  }, [savedConfig]);
 
   const commitEditor = ({ remove = false } = {}) => {
     if (!editor || !config) return;
@@ -287,14 +301,14 @@ export default function ProductosContenidoManager({ products = [], categories = 
   }, [config, editor, previewProduct]);
   const dirty = Boolean(config && savedConfig && JSON.stringify(config) !== JSON.stringify(savedConfig));
 
+  useEffect(() => {
+    onSaveStateChange?.({ dirty, saving, save, discard });
+  }, [dirty, saving, save, discard, onSaveStateChange]);
+
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando catálogo editorial…</div>;
   if (!config) return <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{error || "No se pudo cargar el contenido de productos."}</div>;
 
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-border/70 bg-card px-4 py-5 sm:px-6">
-      <div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Catálogo editorial</p><h2 className="mt-1 text-lg font-semibold tracking-tight">Contenido de productos</h2><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Aplicá fotos y descripciones una vez a una familia completa, sin tocar precios ni stock.</p></div>
-      <Btn variant="primary" disabled={saving || !dirty} onClick={save}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{saving ? "Publicando…" : "Guardar y publicar"}</Btn>
-    </header>
     {error ? <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">{notice}</div> : null}
 

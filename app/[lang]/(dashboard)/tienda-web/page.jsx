@@ -69,6 +69,7 @@ export default function TiendaWebPage() {
   const [confirm, setConfirm] = useState(null);
   const [media, setMedia] = useState({ storage: null, items: [], loaded: false });
   const [catalog, setCatalog] = useState({ products: [], categories: [] });
+  const [productSaveState, setProductSaveState] = useState({ dirty: false, saving: false, save: null, discard: null });
   const [priceProducts, setPriceProducts] = useState({ items: [], loading: false, all: false, loaded: false });
   const loadedFor = useRef(null);
 
@@ -133,14 +134,15 @@ export default function TiendaWebPage() {
   }, [tab, priceProducts.loaded, priceProducts.loading, loadPriceProducts]);
 
   const dirty = useMemo(() => Boolean(config && saved && JSON.stringify(normalizeTiendaConfig(config)) !== JSON.stringify(saved)), [config, saved]);
+  const hasUnsavedChanges = dirty || productSaveState.dirty;
   const issues = useMemo(() => (config ? tiendaIssues(config, { imageHosts: meta.imageHosts }) : []), [config, meta.imageHosts]);
 
   useEffect(() => {
-    if (!dirty) return undefined;
+    if (!hasUnsavedChanges) return undefined;
     const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     if (!notice || notice.type !== "ok") return undefined;
@@ -181,25 +183,48 @@ export default function TiendaWebPage() {
   };
 
   const save = async () => {
-    if (issues.length) {
-      setShowProblems(true);
-      setNotice(null);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
+    if ((!dirty && !productSaveState.dirty) || saving || productSaveState.saving) return;
     setSaving(true);
     setNotice(null);
+    const errors = [];
+    const successes = [];
     try {
-      const data = await authFetch("/api/tienda/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: normalizeTiendaConfig(config), baseVersion: meta.version }),
+      if (dirty) {
+        if (issues.length) {
+          setShowProblems(true);
+          errors.push("La configuración no se guardó: corregí los campos indicados.");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          try {
+            const data = await authFetch("/api/tienda/config", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ config: normalizeTiendaConfig(config), baseVersion: meta.version }),
+            });
+            apply(data);
+            setShowProblems(false);
+            successes.push("Cambios de la tienda guardados.");
+          } catch (e) {
+            errors.push(`No se guardó la configuración de la tienda: ${e.message}`);
+          }
+        }
+      }
+
+      if (productSaveState.dirty && productSaveState.save) {
+        try {
+          const result = await productSaveState.save();
+          if (result?.ok) successes.push("Contenido de productos publicado.");
+          else errors.push(`No se publicó el contenido de productos: ${result?.message || "intentá nuevamente."}`);
+        } catch (e) {
+          errors.push(`No se publicó el contenido de productos: ${e.message || "intentá nuevamente."}`);
+        }
+      }
+
+      const messages = [...successes, ...errors];
+      setNotice({
+        type: errors.length ? "error" : "ok",
+        text: messages.join(" ") || "No hay cambios pendientes para guardar.",
       });
-      apply(data);
-      setShowProblems(false);
-      setNotice({ type: "ok", text: "Cambios guardados. La tienda los mostrará en unos minutos." });
-    } catch (e) {
-      setNotice({ type: "error", text: e.message });
     } finally {
       setSaving(false);
     }
@@ -209,7 +234,12 @@ export default function TiendaWebPage() {
     title: "¿Descartar los cambios?",
     description: "Vas a volver a lo último que guardaste. Se pierden los cambios hechos desde entonces.",
     action: "Descartar",
-    run: () => { setConfig(saved); setShowProblems(false); setEditing(null); },
+    run: () => {
+      if (dirty) setConfig(saved);
+      productSaveState.discard?.();
+      setShowProblems(false);
+      setEditing(null);
+    },
   });
   const restoreDefaults = () => setConfirm({
     title: "¿Restaurar los valores originales?",
@@ -263,7 +293,7 @@ export default function TiendaWebPage() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">Tienda web</h1>
           <p className="flex items-center gap-1.5 truncate text-sm text-default-500">
-            {dirty ? (<><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</>) : meta.savedAt ? `Guardado el ${when(meta.savedAt)}` : "Todo está como al inicio"}
+            {hasUnsavedChanges ? (<><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</>) : meta.savedAt ? `Guardado el ${when(meta.savedAt)}` : "Todo está como al inicio"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -277,13 +307,13 @@ export default function TiendaWebPage() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuItem disabled={!dirty} onSelect={discard}>Descartar cambios</DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasUnsavedChanges} onSelect={discard}>Descartar cambios</DropdownMenuItem>
               <DropdownMenuItem onSelect={restoreDefaults}>Restaurar valores originales</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={reviewUnused}>Revisar imágenes sin usar</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Btn variant="primary" disabled={!dirty || saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
+          <Btn variant="primary" disabled={!hasUnsavedChanges || saving || productSaveState.saving} onClick={save}>{saving || productSaveState.saving ? "Guardando…" : "Guardar cambios"}</Btn>
         </div>
       </header>
 
@@ -383,17 +413,19 @@ export default function TiendaWebPage() {
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
       {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} />}
-      {tab === "productos" && <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} tiendaUrl={tiendaUrl} />}
+      <div className={tab === "productos" ? "" : "hidden"}>
+        <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} tiendaUrl={tiendaUrl} active={tab === "productos"} onSaveStateChange={setProductSaveState} />
+      </div>
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
       <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />
       <SeccionEditor {...editorProps("secciones")} seccion={editing?.scope === "secciones" ? editItem : null} products={catalog.products} />
 
-      {dirty && (
+      {hasUnsavedChanges && (
         <div className="fixed inset-x-4 bottom-4 z-30 mx-auto flex w-fit max-w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-lg" role="region" aria-label="Cambios sin guardar">
           <span className="hidden items-center gap-2 text-sm sm:flex"><span className="h-2 w-2 rounded-full bg-amber-500" /> Tenés cambios sin guardar</span>
           <Btn variant="ghost" size="sm" onClick={discard}>Descartar</Btn>
-          <Btn variant="primary" size="sm" disabled={saving} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</Btn>
+          <Btn variant="primary" size="sm" disabled={saving || productSaveState.saving} onClick={save}>{saving || productSaveState.saving ? "Guardando…" : "Guardar cambios"}</Btn>
         </div>
       )}
 
