@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { IMAGE_GUIDE } from "@/lib/tienda-media";
-import { issuesByField } from "@/lib/tienda-web-ui";
+import { issuesByField, productMatchesSectionRule } from "@/lib/tienda-web-ui";
 import ImageDrop from "./ImageDrop";
 import { DestinoField, EditorSheet, Field, Segmented, inputClass, inputErrorClass } from "./ui";
 
@@ -81,36 +81,15 @@ export function CategoriaEditor({ open, onOpenChange, categoria, index, issues, 
 const QUE_MOSTRAR = [
   { value: "oferta", label: "Ofertas", help: "Productos marcados en oferta" },
   { value: "nuevos", label: "Nuevos ingresos", help: "Lo último que se agregó" },
+  { value: "destacados", label: "Destacados", help: "Productos marcados como destacados" },
   { value: "combos", label: "Combos", help: "Combos armados" },
   { value: "categoria", label: "Una categoría", help: "Todos los de una categoría" },
   { value: "descuento", label: "Con descuento", help: "Desde un descuento mínimo" },
   { value: "manual", label: "Los que elija", help: "Uno por uno" },
 ];
 
-const matchKey = (value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 function productsForRule(rule, products) {
-  const percent = (product) => {
-    const explicit = Number(product.descuento?.percentage) || 0;
-    if (explicit > 0) return explicit;
-    const amount = Number(product.descuento?.amount) || 0;
-    const price = Number(product.precio) || 0;
-    return amount > 0 && price > 0 ? (amount / price) * 100 : 0;
-  };
-  switch (rule?.tipo) {
-    case "oferta": return products.filter((product) => product.specialOffer === true);
-    case "nuevos": return products.filter((product) => product.newArrival === true);
-    case "combos": return products.filter((product) => product.esCombo === true || product.tipoProducto?.toLowerCase() === "combo");
-    case "categoria": return products.filter((product) => matchKey(product.categoria) === matchKey(rule.valor));
-    case "descuento": {
-      const minimum = Math.max(0, Number(rule.minDescuento) || 0);
-      return products.filter((product) => percent(product) > 0 && percent(product) >= minimum);
-    }
-    case "manual": {
-      const selected = new Set((rule.productos || []).map(String));
-      return products.filter((product) => selected.has(String(product.id)));
-    }
-    default: return [];
-  }
+  return (products || []).filter((product) => productMatchesSectionRule(product, rule));
 }
 
 function ProductPicker({ selected, products, onChange, error, loading = false, catalogError = "", onReload }) {

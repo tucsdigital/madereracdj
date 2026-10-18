@@ -60,6 +60,17 @@ test("cada sección se resume en una frase simple", () => {
   assert.equal(ui.reglaResumen(s({ tipo: "descuento", minDescuento: 20 })), "Descuentos desde 20% · hasta 8");
   assert.equal(ui.reglaResumen(s({ tipo: "manual", productos: ["a"] })), "1 producto elegido · hasta 8");
   assert.equal(ui.reglaResumen(s({ tipo: "manual", productos: ["a", "b"] })), "2 productos elegidos · hasta 8");
+  assert.equal(ui.reglaResumen(s({ tipo: "destacados" })), "Productos destacados · hasta 8");
+});
+
+test("la ficha y el editor calculan coincidencias con los mismos criterios de las secciones", () => {
+  assert.equal(ui.productMatchesSectionRule({ id: "1", specialOffer: true, discount: { percentage: 0 } }, { tipo: "oferta" }), true);
+  assert.equal(ui.productMatchesSectionRule({ id: "2", specialOffer: false, discount: { percentage: 20 } }, { tipo: "oferta" }), false);
+  assert.equal(ui.productMatchesSectionRule({ id: "3", featuredBrand: true }, { tipo: "destacados" }), true);
+  assert.equal(ui.productMatchesSectionRule({ id: "4", categoria: "Revestimientos" }, { tipo: "categoria", valor: "REVESTIMIENTOS" }), true);
+  assert.equal(ui.productMatchesSectionRule({ id: "5", price: 1000, discount: { amount: 250 } }, { tipo: "descuento", minDescuento: 25 }), true);
+  assert.equal(ui.productMatchesSectionRule({ id: "6", price: 1000, discount: { amount: 250 } }, { tipo: "descuento", minDescuento: 26 }), false);
+  assert.equal(ui.productMatchesSectionRule({ id: "7" }, { tipo: "manual", productos: ["7"] }), true);
 });
 
 test("reordenar mueve el elemento y renumera sin perder datos", () => {

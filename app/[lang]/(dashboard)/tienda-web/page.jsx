@@ -112,8 +112,9 @@ export default function TiendaWebPage() {
           subcategoria: product.subcategoria || product.subCategoria || "",
           tipoProducto: product.tipoProducto || (product.esCombo ? "combo" : ""),
           esCombo: product.esCombo === true || String(product.tipoProducto || "").toLowerCase() === "combo",
-          specialOffer: product.specialOffer === true || item?.specialOffer === true || discountAmount > 0 || discountPercentage > 0 || finalPrice < basePrice,
+          specialOffer: product.specialOffer === true || item?.specialOffer === true,
           newArrival: product.newArrival === true || item?.newArrival === true,
+          featuredBrand: product.featuredBrand === true || item?.featuredBrand === true,
           precio: basePrice || finalPrice,
           descuento: { percentage: discountPercentage, amount: discountAmount || Math.max(0, basePrice - finalPrice) },
           tipoMadera: product.tipoMadera || product.tipoMaterial || "",
@@ -400,7 +401,7 @@ export default function TiendaWebPage() {
         </div>
       )}
 
-      {tab === "inicio" && <HomeContentEditor value={config.inicio} onChange={(inicio) => setConfig((prev) => ({ ...prev, inicio }))} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} onNavigateTab={setTab} />}
+      {tab === "inicio" && <HomeContentEditor value={config.inicio} sections={config.secciones} products={catalog.products} productsLoading={catalog.loading} onChange={(inicio) => setConfig((prev) => ({ ...prev, inicio }))} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} onNavigateTab={setTab} />}
       {tab === "secciones" && (
         <SeccionList items={config.secciones} problems={perItem(issues, "secciones", config.secciones.length)}
           onOpen={(i) => setEditing({ scope: "secciones", id: config.secciones[i].id })} onToggle={(i, v) => toggleItem("secciones", i, v)}

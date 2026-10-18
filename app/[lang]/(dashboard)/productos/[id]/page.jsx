@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
 import { shouldRestrictProductPricing } from "@/lib/access-control";
 import { applyDerivedComboStock, computeComboStock, getComboComponentIds, isComboProduct, isValidComboQuantity, normalizeComboComponents } from "@/lib/combos";
+import { productMatchesSectionRule } from "@/lib/tienda-web-ui";
 import {
   DEFAULT_UNITS, KIND_HELP, KIND_LABEL, SECTION_OF_FIELD, WOOD_UNITS,
   buildProductUpdates, computePiecePrice, diffForm, getMeasureFields, getPriceModel, getUnitKey, kindForCategory,
@@ -44,6 +45,9 @@ export default function ProductoDetailPage() {
   const [comboValid, setComboValid] = useState(true);
   const [suggested, setSuggested] = useState(null);
   const [catalog, setCatalog] = useState([]);
+  const [tiendaSections, setTiendaSections] = useState([]);
+  const [tiendaSectionsLoading, setTiendaSectionsLoading] = useState(true);
+  const [tiendaSectionsError, setTiendaSectionsError] = useState("");
   const [extra, setExtra] = useState({});
   const [status, setStatus] = useState("idle");
   const [saveMessage, setSaveMessage] = useState("");
@@ -95,6 +99,25 @@ export default function ProductoDetailPage() {
     loadCatalog();
     return () => clearTimeout(savedTimer.current);
   }, [productId, load, loadCatalog]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || typeof user.getIdToken !== "function") {
+      setTiendaSectionsLoading(false);
+      return () => { active = false; };
+    }
+    setTiendaSectionsLoading(true);
+    user.getIdToken()
+      .then((token) => fetch("/api/tienda/config", { headers: { Authorization: `Bearer ${token}` } }))
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.error || "No se pudieron cargar las secciones de la tienda.");
+        if (active) setTiendaSections(Array.isArray(data?.config?.secciones) ? data.config.secciones : []);
+      })
+      .catch((error) => { if (active) setTiendaSectionsError(error.message || "No se pudieron cargar las secciones de la tienda."); })
+      .finally(() => { if (active) setTiendaSectionsLoading(false); });
+    return () => { active = false; };
+  }, [user]);
 
   const kind = useMemo(() => {
     if (!form) return "general";
@@ -311,6 +334,25 @@ export default function ProductoDetailPage() {
 
   const saving = status === "saving";
   const preview = previewStorePrice(form, kind);
+  const sectionProduct = {
+    ...producto,
+    ...form,
+    id: String(producto?.id || productId),
+    codigo: producto?.codigo,
+    tipoProducto: kind === "combo" ? "combo" : producto?.tipoProducto,
+    esCombo: kind === "combo" || producto?.esCombo === true,
+    price: preview.base,
+    precio: preview.base,
+    discount: {
+      amount: form.discountMode === "amount" ? Number(form.discountValue) || 0 : 0,
+      percentage: form.discountMode === "percentage" ? Number(form.discountValue) || 0 : 0,
+    },
+    descuento: {
+      amount: form.discountMode === "amount" ? Number(form.discountValue) || 0 : 0,
+      percentage: form.discountMode === "percentage" ? Number(form.discountValue) || 0 : 0,
+    },
+  };
+  const matchingTiendaSections = tiendaSections.filter((section) => section.activa && productMatchesSectionRule(sectionProduct, section.regla));
   const piece = kind === "madera" ? computePiecePrice(form, unitKey) : 0;
   const cost = parseNumber(form.costo);
   const price = parseNumber(form.precio);
@@ -527,9 +569,20 @@ export default function ProductoDetailPage() {
                     </FormField>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <ToggleCard checked={form.newArrival} onChange={(v) => set("newArrival", v)} title="Novedad" description="Se muestra en Novedades." />
-                    <ToggleCard checked={form.featuredBrand} onChange={(v) => set("featuredBrand", v)} title="Destacado" description="Se muestra entre los destacados." />
-                    <ToggleCard checked={form.specialOffer} onChange={(v) => set("specialOffer", v)} title="Oferta especial" description="Se marca como oferta." />
+                    <ToggleCard checked={form.newArrival} onChange={(v) => set("newArrival", v)} title="Novedad" description="Puede incluirse en una sección de Novedades." />
+                    <ToggleCard checked={form.featuredBrand} onChange={(v) => set("featuredBrand", v)} title="Destacado" description="Puede incluirse en una sección de Destacados." />
+                    <ToggleCard checked={form.specialOffer} onChange={(v) => set("specialOffer", v)} title="Oferta especial" description="Sección Ofertas; es independiente del descuento." />
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><h3 className="text-sm font-semibold">Secciones dinámicas de Inicio</h3><p className="mt-1 text-xs leading-5 text-default-500">Coincidencias calculadas con los valores actuales del formulario. Se aplican al guardar; el límite de cada sección también puede afectar su posición visible.</p></div>
+                      <Link href={`/${params.lang || "es"}/tienda-web`} className="shrink-0 text-xs font-medium text-foreground underline underline-offset-4">Configurar secciones</Link>
+                    </div>
+                    {tiendaSectionsLoading ? <p className="mt-3 text-xs text-default-500">Consultando las reglas publicadas…</p>
+                      : tiendaSectionsError ? <p role="status" className="mt-3 text-xs text-amber-700">{tiendaSectionsError}</p>
+                        : form.estadoTienda !== "Activo" ? <p className="mt-3 text-xs text-default-500">El producto está oculto en la tienda, por eso no coincide con secciones públicas.</p>
+                          : matchingTiendaSections.length ? <ul className="mt-3 flex flex-wrap gap-2">{matchingTiendaSections.map((section) => <li key={section.id} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">{section.titulo}</li>)}</ul>
+                            : <p className="mt-3 text-xs text-default-500">No coincide con ninguna sección activa. Revisá las marcas, el descuento o la regla configurada en cada sección.</p>}
                   </div>
                 </div>
               </EditCard>

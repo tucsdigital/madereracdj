@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
-import { previewUrl } from "@/lib/tienda-web-ui";
+import { previewUrl, productMatchesSectionRule } from "@/lib/tienda-web-ui";
 import { SortableItem, SortableList } from "@/components/tienda-web/SortableList";
 import {
   AlertDialog,
@@ -155,7 +155,7 @@ function HomeField({ label, value, onChange, maxLength = 180, multiline = false,
 const BENEFIT_ICON_OPTIONS = [["truck", "Envíos"], ["headphones", "Asesoramiento"], ["shield", "Garantía"], ["package", "Stock"]];
 const PILLAR_ICON_OPTIONS = [["sprout", "Ideas"], ["boxes", "Productos"], ["badge", "Calidad"], ["pin", "Local"]];
 
-export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaUrl, onNavigateTab }) {
+export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaUrl, onNavigateTab, sections = [], products = [], productsLoading = false }) {
   const content = value || {};
   const updatePath = (path, nextValue) => {
     const next = structuredClone(content);
@@ -181,12 +181,12 @@ export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaU
     onChange(next);
   };
   const reorderTextList = (value) => value.split("\n").slice(0, 6);
+  const popup = content.offerPopup || {};
+  const updatePopup = (patch) => updatePath(["offerPopup"], { ...popup, ...patch });
+  const selectedPopupSection = sections.find((section) => section.id === popup.sectionId);
+  const popupMatches = selectedPopupSection ? products.filter((product) => productMatchesSectionRule(product, selectedPopupSection.regla)).length : 0;
 
   return <div className="space-y-4">
-    <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs leading-5 text-default-500">
-      Editá los textos e imágenes del inicio sin cambiar su estructura ni diseño. Para evitar duplicar configuraciones, los banners, categorías, secciones de productos y contacto se siguen editando en sus controles existentes.
-      {onNavigateTab ? <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1">{[["banners", "Banners"], ["categorias", "Categorías"], ["secciones", "Secciones de productos"], ["contacto", "Contacto"]].map(([tab, label]) => <button key={tab} type="button" onClick={() => onNavigateTab(tab)} className="font-medium text-foreground underline underline-offset-2">Editar {label}</button>)}</span> : null}
-    </div>
     <Card title="Frases destacadas de la portada" description="Se muestran debajo del carrusel. Hasta 6 frases; máximo 48 caracteres cada una.">
       <HomeField label="Una frase por línea" value={(content.highlights || []).join("\n")} maxLength={300} multiline onChange={(next) => updatePath(["highlights"], reorderTextList(next).map((item) => item.slice(0, 48)))} />
     </Card>
@@ -211,8 +211,38 @@ export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaU
     <Card title="Instagram" description="Se cambia el texto del bloque; el identificador apunta al widget de Elfsight.">
       <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.instagram?.eyebrow} maxLength={40} onChange={(next) => updatePath(["instagram", "eyebrow"], next)} /><HomeField label="Título" value={content.instagram?.title} maxLength={80} onChange={(next) => updatePath(["instagram", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.instagram?.description} maxLength={180} multiline onChange={(next) => updatePath(["instagram", "description"], next)} /></div><HomeField label="ID del widget" value={content.instagram?.appId} maxLength={80} hint="No lo cambies salvo que tengas un ID nuevo del widget." onChange={(next) => updatePath(["instagram", "appId"], next)} /></div>
     </Card>
-    <Card title="Ventana de ofertas" description="El producto y su precio siguen viniendo del catálogo; sólo cambia el texto del aviso.">
-      <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Etiqueta" value={content.offerPopup?.badge} maxLength={32} onChange={(next) => updatePath(["offerPopup", "badge"], next)} /><HomeField label="Título" value={content.offerPopup?.title} maxLength={48} onChange={(next) => updatePath(["offerPopup", "title"], next)} /><HomeField label="Descripción" value={content.offerPopup?.description} maxLength={90} onChange={(next) => updatePath(["offerPopup", "description"], next)} /><HomeField label="Botón" value={content.offerPopup?.buttonLabel} maxLength={32} onChange={(next) => updatePath(["offerPopup", "buttonLabel"], next)} /></div>
+    <Card title="Ventana de ofertas" description="El popup utiliza exactamente los productos que coinciden con una sección dinámica activa de la portada.">
+      <div className="space-y-4">
+        <label className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
+          <span><span className="block text-sm font-medium">Activar popup</span><span className="mt-0.5 block text-xs text-default-500">Si está apagado, no aparece en la tienda.</span></span>
+          <input type="checkbox" checked={popup.enabled !== false} onChange={(event) => updatePopup({ enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Sección de productos</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.sectionId || ""} onChange={(event) => updatePopup({ sectionId: event.target.value })}>
+            <option value="">Elegí una sección</option>
+            {sections.map((section) => <option key={section.id} value={section.id}>{section.titulo || section.id}{section.activa ? "" : " (inactiva)"}</option>)}
+          </select></label>
+          <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Cómo elegir el producto</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.selectionStrategy || "random"} onChange={(event) => updatePopup({ selectionStrategy: event.target.value })}><option value="random">Al azar entre los productos de la sección</option><option value="first">Primero de la sección</option><option value="highestDiscount">Mayor descuento</option></select></label>
+        </div>
+        {!selectedPopupSection || !selectedPopupSection.activa ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-300">La sección seleccionada no está activa o ya no existe. El popup no mostrará productos hasta elegir una sección activa. <button type="button" onClick={() => onNavigateTab?.("secciones")} className="font-semibold underline underline-offset-2">Revisar secciones</button></p> : null}
+        {selectedPopupSection?.activa && (productsLoading ? <p className="text-xs text-default-500">Comprobando los productos de la sección…</p> : popupMatches ? <p className="text-xs text-default-500">{popupMatches} productos activos coinciden con la regla; el popup elegirá entre los primeros {Math.min(popupMatches, selectedPopupSection.limite)} de la sección.</p> : <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">No hay productos activos que coincidan con esta sección, así que el popup no aparecerá hasta que haya alguno.</p>)}
+        {popup.enabled && !popup.showOnDesktop && !popup.showOnMobile ? <p role="status" className="text-xs text-amber-700">El popup está activado, pero no se mostrará en ningún dispositivo.</p> : null}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Demora inicial (segundos)</span><input type="number" min="0" max="120" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.delaySeconds ?? 3} onChange={(event) => updatePopup({ delaySeconds: event.target.value })} /></label>
+          <label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Tiempo visible (segundos)</span><input type="number" min="2" max="120" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={popup.durationSeconds ?? 8} onChange={(event) => updatePopup({ durationSeconds: event.target.value })} /></label>
+          <label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Pausa entre avisos (minutos)</span><input type="number" min="1" max="1440" disabled={popup.oncePerSession} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50" value={popup.repeatEveryMinutes ?? 1} onChange={(event) => updatePopup({ repeatEveryMinutes: event.target.value })} /></label>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {[["oncePerSession", "Mostrar una sola vez por sesión"], ["showOnDesktop", "Mostrar en computadora"], ["showOnMobile", "Mostrar en celular"]].map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-xs"><input type="checkbox" checked={Boolean(popup[key])} onChange={(event) => updatePopup({ [key]: event.target.checked })} className="h-4 w-4 accent-primary" />{label}</label>)}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <HomeField label="Etiqueta" value={popup.badge} maxLength={32} onChange={(next) => updatePopup({ badge: next })} />
+          <HomeField label="Título" value={popup.title} maxLength={48} onChange={(next) => updatePopup({ title: next })} />
+          <HomeField label="Descripción" value={popup.description} maxLength={90} onChange={(next) => updatePopup({ description: next })} />
+          <HomeField label="Botón" value={popup.buttonLabel} maxLength={32} onChange={(next) => updatePopup({ buttonLabel: next })} />
+          <HomeField label="Texto al pie" value={popup.footerText} maxLength={80} onChange={(next) => updatePopup({ footerText: next })} />
+        </div>
+      </div>
     </Card>
   </div>;
 }
@@ -246,9 +276,6 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
   const icons = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
 
   return <div className="space-y-4">
-    <div className="rounded-xl border border-border bg-card px-4 py-3 text-xs leading-5 text-default-500">
-      Este contenido corresponde a la página pública de obras (<span className="font-medium text-foreground">/obras</span>). Las tarjetas principales, sus imágenes y su orden se vinculan con las obras publicadas; acá administrás los textos y elementos propios de esta página.
-    </div>
 
     <Card title="Portada de Obras" description="Las diapositivas de respaldo se usan cuando todavía no hay obras publicadas; con obras activas, el carrusel toma sus portadas y respeta el orden de Obras.">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -646,10 +673,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           <Card title="SEO" description="Estos textos se usan en buscadores y vistas previas al compartir.">
             <div className="grid gap-3 sm:grid-cols-2"><Field label="Título SEO" value={draft.seo?.title} onChange={(value) => setPath(["seo", "title"], value)} /><Field label="Descripción SEO" value={draft.seo?.description} onChange={(value) => setPath(["seo", "description"], value)} multiline /><Field label="Palabras clave (separadas por coma)" value={(draft.seo?.keywords || []).join(", ")} onChange={(value) => setPath(["seo", "keywords"], value.split(",").map((item) => item.trim()).filter(Boolean))} /><Field label="URL canónica" value={draft.seo?.canonical} onChange={(value) => setPath(["seo", "canonical"], value)} /><div className="sm:col-span-2"><ImageField label="Imagen para compartir" value={draft.seo?.ogImage} onChange={(value) => setPath(["seo", "ogImage"], value)} uploadImage={uploadImage} /></div></div>
           </Card>
-           <Card title="Imagen de tarjeta en Inicio" description="Esta imagen se usa en la tarjeta vertical de esta obra. Proporción ideal 27:38 · 1080 × 1520 px.">
-             <ImageField label="Imagen de tarjeta de Inicio" value={draft.homeCardImage || ""} ratio="workCard" onChange={(value) => setPath(["homeCardImage"], value)} uploadImage={uploadImage} media={media} />
-           </Card>
-           <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">
+          <Card title="Imagen de tarjeta en Inicio" description="Esta imagen se usa en la tarjeta vertical de esta obra. Proporción ideal 27:38 · 1080 × 1520 px.">
+            <ImageField label="Imagen de tarjeta de Inicio" value={draft.homeCardImage || ""} ratio="workCard" onChange={(value) => setPath(["homeCardImage"], value)} uploadImage={uploadImage} media={media} />
+          </Card>
+          <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">
             <div className="space-y-3">{(draft.banner?.slides || []).slice(0, 1).map((slide, index) => <div key={slide.id || index} className="rounded-lg border border-border/70 p-3"><div className="grid gap-3 sm:grid-cols-2"><Field label="Título" value={slide.title} onChange={(value) => setEntry(["banner", "slides"], index, { title: value })} /><Field label="Bajada" value={slide.subtitle} onChange={(value) => setEntry(["banner", "slides"], index, { subtitle: value })} /><div className="sm:col-span-2"><Field label="Descripción" value={slide.description} onChange={(value) => setEntry(["banner", "slides"], index, { description: value })} multiline /></div><div className="sm:col-span-2"><ImageField label="Imagen de portada" value={slide.backgroundImage} onChange={(value) => setEntry(["banner", "slides"], index, { backgroundImage: value })} uploadImage={uploadImage} /></div><Field label="Texto del botón" value={slide.ctaText} onChange={(value) => setEntry(["banner", "slides"], index, { ctaText: value })} /><Field label="Destino del botón" value={slide.ctaUrl} onChange={(value) => setEntry(["banner", "slides"], index, { ctaUrl: value })} /></div></div>)}</div>
           </Card>
           <Card title="Textos y botones de portada" description="Opcional: estos textos reemplazan los de la diapositiva principal.">
@@ -683,15 +710,15 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       <ObrasInicioContentEditor value={obrasInicioContent} onChange={onObrasInicioChange} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
     </div>
   </div><AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>¿Eliminar esta obra?</AlertDialogTitle>
-        <AlertDialogDescription>{deleteTarget?.published?.status === "active" ? "La página dejará de aparecer en la tienda. " : ""}Se eliminará el borrador y su publicación, pero las imágenes compartidas permanecerán en la biblioteca.</AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-        <AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); void deleteProject(); }}>{deleting ? "Eliminando…" : "Eliminar obra"}</AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog></MediaContext.Provider>;
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar esta obra?</AlertDialogTitle>
+          <AlertDialogDescription>{deleteTarget?.published?.status === "active" ? "La página dejará de aparecer en la tienda. " : ""}Se eliminará el borrador y su publicación, pero las imágenes compartidas permanecerán en la biblioteca.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); void deleteProject(); }}>{deleting ? "Eliminando…" : "Eliminar obra"}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog></MediaContext.Provider>;
 }

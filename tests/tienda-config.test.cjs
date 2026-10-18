@@ -22,6 +22,9 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.inicio.benefits.items.length, 4);
   assert.equal(cfg.obrasInicio.hero.titleLine1, "Tu idea.");
   assert.equal(cfg.obrasInicio.workTypes.items.length, 7);
+  assert.equal(cfg.inicio.offerPopup.sectionId, "ofertas");
+  assert.equal(cfg.inicio.offerPopup.enabled, true);
+  assert.equal(cfg.inicio.offerPopup.showOnDesktop, true);
   assert.equal(cfg.notificacionesPedidos.enabled, false);
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
@@ -60,6 +63,23 @@ test("el contenido de la portada de la tienda y el inicio de Obras se guardan po
   assert.equal(published.inicio.categories.title, "Materiales de la tienda");
   assert.equal(published.obrasInicio.hero.titleLine1, "Obras personalizadas");
   assert.ok(validateTiendaConfig(config).errors.length === 0);
+});
+
+test("el popup puede vincularse a una sección y normaliza sus controles de funcionamiento", () => {
+  const config = normalizeTiendaConfig({
+    secciones: [{ id: "destacados", titulo: "Destacados", regla: { tipo: "destacados" } }],
+    inicio: { offerPopup: { enabled: false, sectionId: "destacados", selectionStrategy: "highestDiscount", delaySeconds: 999, durationSeconds: 1, repeatEveryMinutes: 0, oncePerSession: true, showOnMobile: true } },
+  });
+  assert.equal(config.secciones[0].regla.tipo, "destacados");
+  assert.deepEqual(config.inicio.offerPopup, {
+    enabled: false, sectionId: "destacados", selectionStrategy: "highestDiscount", delaySeconds: 120,
+    durationSeconds: 2, repeatEveryMinutes: 1, oncePerSession: true, showOnDesktop: true, showOnMobile: true,
+    badge: "Oferta Especial", title: "¡Aprovecha!", description: "Producto seleccionado con descuento",
+    buttonLabel: "Ver oferta", footerText: "Oferta por tiempo limitado",
+  });
+  const publicConfig = publicTiendaConfig(config);
+  assert.equal(publicConfig.inicio.offerPopup.enabled, false);
+  assert.equal(publicConfig.secciones[0].regla.tipo, "destacados");
 });
 
 test("normaliza identificadores, límites y reglas desconocidas", () => {
