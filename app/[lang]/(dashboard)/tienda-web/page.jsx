@@ -40,7 +40,7 @@ const TABS = [
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
   { id: "transferencia", label: "Datos", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
-  { id: "notificaciones", label: "Avisos de pedidos", help: "Configurá qué eventos de pedidos se notifican por email al equipo y consultá el historial de entregas." },
+  { id: "notificaciones", label: "Avisos de pedidos", help: "Elegí el plazo de pago y qué avisos recibe tu equipo." },
 ];
 
 const NEW_ITEM = {
@@ -450,7 +450,14 @@ export default function TiendaWebPage() {
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
       {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} obrasInicioContent={config.obrasInicio} onObrasInicioChange={(obrasInicio) => setConfig((prev) => ({ ...prev, obrasInicio }))} openObrasInicio={openObrasInicio} onObrasInicioOpened={onObrasInicioOpened} />}
-      {tab === "notificaciones" && <NotificacionesPedidosForm notifications={config.notificacionesPedidos} issues={issues.filter((issue) => issue.scope === "notificaciones")} onChange={(notificacionesPedidos) => setConfig((prev) => ({ ...prev, notificacionesPedidos }))} authFetch={authFetch} />}
+      {tab === "notificaciones" && <NotificacionesPedidosForm
+        notifications={config.notificacionesPedidos}
+        reservationMinutes={config.checkout?.reservaStockMercadoPagoMinutos ?? 10}
+        onReservationMinutesChange={(reservaStockMercadoPagoMinutos) => setConfig((prev) => ({ ...prev, checkout: { ...prev.checkout, reservaStockMercadoPagoMinutos } }))}
+        issues={issues.filter((issue) => issue.scope === "notificaciones")}
+        onChange={(notificacionesPedidos) => setConfig((prev) => ({ ...prev, notificacionesPedidos }))}
+        authFetch={authFetch}
+      />}
       <div className={tab === "productos" ? "" : "hidden"}>
         <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} tiendaUrl={tiendaUrl} active={tab === "productos"} onSaveStateChange={setProductSaveState} />
       </div>

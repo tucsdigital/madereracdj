@@ -55,9 +55,9 @@ function fixture() {
     const filename = path.resolve(__dirname, "..", name.slice(2) + ".js");
     const source = fs.readFileSync(filename, "utf8");
     const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
-    const module = { exports: {} }; cache[name] = module;
-    new Function("require", "module", "exports", compiled)(load, module, module.exports);
-    return module.exports;
+    const compiledModule = { exports: {} }; cache[name] = compiledModule;
+    new Function("require", "module", "exports", compiled)(load, compiledModule, compiledModule.exports);
+    return compiledModule.exports;
   }
   return { data, engine: load("@/lib/erp/ventas-engine"), quote: load("@/lib/ecommerce-quote").quoteOrder };
 }
@@ -106,6 +106,8 @@ test("Mercado Pago reserva sobre el pedido y crea la venta recién al aprobar el
       idExterno: orderId,
       idempotencyKey: `ecommerce_${orderId}`,
       estadoPago: "pagado",
+      formaPago: "mercadopago",
+      pagoMercadoPago: { paymentId: "998877", status: "approved", amount: 2000, currency: "ARS" },
       montoAbonado: 2000,
       total: 2000,
       productos: [{ id: "pino", nombre: "Pino", cantidad: 2, precio: 1000 }],
@@ -114,6 +116,73 @@ test("Mercado Pago reserva sobre el pedido y crea la venta recién al aprobar el
   assert.equal(data.get("productos/pino").stock, 8);
   assert.equal(data.get(`reservasStock/${orderId}_pino`).estado, "consumida");
   assert.equal(data.get(`ventas/${created.id}`).estadoPago, "pagado");
+});
+test("un pago MP pendiente nunca descuenta stock y no puede marcarse pagado desde el panel", async () => {
+  const { data, engine } = fixture();
+  const created = await engine.createVentaEngine({ actor, ventaData: sale({
+    idExterno: "mp-pending-123456",
+    idempotencyKey: "mp-pending-123456",
+    formaPago: "mercadopago",
+    pagoMercadoPago: { paymentId: "123456", status: "pending" },
+  }) });
+  assert.equal(data.get("productos/pino").stock, 10);
+  assert.equal(data.get(`ventas/${created.id}`).inventarioAplicado, false);
+  await assert.rejects(engine.updateVentaEngine({
+    actor,
+    ventaId: created.id,
+    ventaData: {
+      ...data.get(`ventas/${created.id}`),
+      montoAbonado: 2000,
+      pagoMercadoPago: { paymentId: "654321", status: "approved", amount: 2000, currency: "ARS" },
+    },
+  }), /aprobación verificada de Mercado Pago/);
+  assert.equal(data.get("productos/pino").stock, 10);
+  assert.equal(data.get(`ventas/${created.id}`).pagoMercadoPago.status, "pending");
+});
+test("un pedido MP no admite estado pagado ni consumo de reserva sin aprobación verificada", async () => {
+  const { data, engine } = fixture();
+  await assert.rejects(engine.createVentaEngine({ actor, origen: "ecommerce_externo", ventaData: sale({
+    ecommerceLifecycle: false,
+    idExterno: "mp-no-approval-12345",
+    idempotencyKey: "mp-no-approval-12345",
+    formaPago: "mercadopago",
+    estadoPago: "pagado",
+    montoAbonado: 2000,
+  }) }), /pago aprobado y verificado/);
+  assert.equal(data.get("productos/pino").stock, 10);
+  assert.equal([...data.keys()].some((key) => key.startsWith("ventas/")), false);
+});
+test("el origen ecommerce fuerza reserva aunque el llamador omita el marcador de ciclo de pago", async () => {
+  const { data, engine } = fixture();
+  const created = await engine.createVentaEngine({ actor, origen: "ecommerce_externo", ventaData: sale({
+    ecommerceLifecycle: false,
+    idExterno: "legacy-mp-pending-123",
+    idempotencyKey: "legacy-mp-pending-123",
+    formaPago: "mercado_pago",
+    pagoMercadoPago: { paymentId: "654321", status: "pending" },
+  }) });
+  assert.equal(data.get("productos/pino").stock, 10);
+  assert.equal(data.get(`ventas/${created.id}`).inventarioAplicado, false);
+  assert.equal(data.get(`reservasStock/${created.id}_pino`).estado, "activa");
+});
+test("la aprobación del webhook permite consumir una venta MP antes reservada", async () => {
+  const { data, engine } = fixture();
+  const created = await engine.createVentaEngine({ actor, ventaData: sale({
+    idExterno: "mp-webhook-123456",
+    idempotencyKey: "mp-webhook-123456",
+    formaPago: "mercadopago",
+  }) });
+  await engine.updateVentaEngine({
+    actor: { uid: "", email: "mercadopago-webhook" },
+    ventaId: created.id,
+    ventaData: {
+      ...data.get(`ventas/${created.id}`),
+      montoAbonado: 2000,
+      pagoMercadoPago: { paymentId: "987654", status: "approved", amount: 2000, currency: "ARS" },
+    },
+  });
+  assert.equal(data.get("productos/pino").stock, 8);
+  assert.equal(data.get(`ventas/${created.id}`).inventarioAplicado, true);
 });
 test("pedido con unidades sin stock reserva y descuenta solo lo que hay y queda marcado a reponer", async () => {
   const { data, engine } = fixture();

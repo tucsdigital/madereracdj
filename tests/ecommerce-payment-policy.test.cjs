@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { paymentDecision } = require("../lib/ecommerce-payment-policy.mjs");
+const { paymentDecision, shouldCreateMercadoPagoSale } = require("../lib/ecommerce-payment-policy.mjs");
 
 const order = { orderId: "order_1234567890123456", total: 24500, status: "pending" };
 
@@ -26,6 +26,10 @@ test("rechazado, cancelado y pendiente nunca se consideran una compra aprobada",
   assert.equal(paymentDecision(order, { ...payment, paymentId: "1", paymentStatus: "rejected" }), "failed");
   assert.equal(paymentDecision(order, { ...payment, paymentId: "2", paymentStatus: "cancelled" }), "failed");
   assert.equal(paymentDecision(order, { ...payment, paymentId: "3", paymentStatus: "in_process" }), "pending");
+  for (const paymentStatus of ["pending", "in_process", "rejected", "cancelled"]) {
+    assert.equal(shouldCreateMercadoPagoSale(order, { paymentStatus }, "pending"), false);
+  }
+  assert.equal(shouldCreateMercadoPagoSale(order, { paymentStatus: "approved" }, "success"), true);
 });
 
 test("un rechazo tardío no degrada un pago previamente aprobado", () => {

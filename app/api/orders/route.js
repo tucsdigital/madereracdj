@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import crypto from "crypto";
 import { createVentaEngine, reserveEcommerceOrderStock } from "@/lib/erp/ventas-engine";
+import { getPublishedCheckoutSettings } from "@/lib/tienda-checkout";
 import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
 function normalizePaymentMethod(value) {
@@ -608,8 +609,10 @@ export async function POST(request) {
     const shippingTierKm = Number.isFinite(shippingTierKmNumber) ? shippingTierKmNumber : 0;
     const paymentMethod = normalizePaymentMethod(orderData.paymentMethod || orderData.medioPago || "");
     const isMercadoPago = paymentMethod === "mercadopago";
+    const checkoutSettings = isMercadoPago ? await getPublishedCheckoutSettings() : null;
+    const reservationMinutes = checkoutSettings?.reservaStockMercadoPagoMinutos || 10;
     const stockReservationExpiresAt = isMercadoPago
-      ? new Date(Date.now() + 30 * 60 * 1000).toISOString()
+      ? new Date(Date.now() + reservationMinutes * 60 * 1000).toISOString()
       : null;
     const pendingReason = orderData.pendingReason
       ? String(orderData.pendingReason).trim().toLowerCase()

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
-import { paymentDecision } from "@/lib/ecommerce-payment-policy.mjs";
+import { paymentDecision, shouldCreateMercadoPagoSale } from "@/lib/ecommerce-payment-policy.mjs";
 import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
 import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
@@ -85,6 +85,8 @@ function saleDataFromOrder(order, payment) {
     pagoMercadoPago: {
       paymentId: String(payment.paymentId),
       status: payment.paymentStatus,
+      amount: Number(payment.amount) || 0,
+      currency: String(payment.currency || ""),
       approvedAt: new Date().toISOString(),
     },
   };
@@ -115,8 +117,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: true, idempotente: true });
     }
 
-    const shouldCreateSale = payment.paymentStatus === "approved" &&
-      (status === "success" || order.status === "cancelled");
+    const shouldCreateSale = shouldCreateMercadoPagoSale(order, payment, status);
     let saleId = order.ventaId || null;
     let saleNumber = order.ventaNumeroPedido || null;
     let inventoryReview = false;
@@ -131,7 +132,20 @@ export async function POST(request, { params }) {
           const total = Number(order.pricing?.total ?? order.total);
           try {
             await updateVentaEngine({ actor, ventaId: saleId,
-              ventaData: { ...venta, estadoPago: "pagado", montoAbonado: total, total }, origen: "ecommerce_externo" });
+              ventaData: {
+                ...venta,
+                estadoPago: "pagado",
+                montoAbonado: total,
+                total,
+                pagoMercadoPago: {
+                  ...(venta.pagoMercadoPago || {}),
+                  paymentId: String(payment.paymentId),
+                  status: payment.paymentStatus,
+                  amount: Number(payment.amount) || 0,
+                  currency: String(payment.currency || ""),
+                  approvedAt: new Date().toISOString(),
+                },
+              }, origen: "ecommerce_externo" });
           } catch (error) {
             if (error.status !== 409 || !/Stock insuficiente/.test(error.message)) throw error;
             inventoryReview = true;

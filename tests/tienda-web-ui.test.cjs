@@ -73,6 +73,16 @@ test("la ficha y el editor calculan coincidencias con los mismos criterios de la
   assert.equal(ui.productMatchesSectionRule({ id: "7" }, { tipo: "manual", productos: ["7"] }), true);
 });
 
+test("las etiquetas de la ficha respetan secciones activas y el límite de la selección manual", () => {
+  const selected = { tipo: "manual", productos: ["a", "b", "c"] };
+  const candidates = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.equal(ui.productBelongsToSection(candidates[0], { activa: true, regla: selected, limite: 2 }, candidates), true);
+  assert.equal(ui.productBelongsToSection(candidates[1], { activa: true, regla: selected, limite: 2 }, candidates), true);
+  assert.equal(ui.productBelongsToSection(candidates[2], { activa: true, regla: selected, limite: 2 }, candidates), false);
+  assert.equal(ui.productBelongsToSection(candidates[0], { activa: false, regla: selected, limite: 2 }, candidates), false);
+  assert.equal(ui.productBelongsToSection({ id: "x", newArrival: true }, { activa: true, regla: { tipo: "nuevos" }, limite: 1 }), true);
+});
+
 test("reordenar mueve el elemento y renumera sin perder datos", () => {
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
   assert.deepEqual(ui.moveItem(items, 0, 2).map((i) => i.id), ["b", "c", "a"]);

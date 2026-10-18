@@ -2,13 +2,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Boxes, DollarSign, FileText, Image as ImageIcon, Layers, Loader2, Package, Ruler, Store } from "lucide-react";
+import { ArrowLeft, Boxes, DollarSign, ExternalLink, FileText, Image as ImageIcon, Layers, Loader2, Package, Ruler, Store } from "lucide-react";
 import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
 import { shouldRestrictProductPricing } from "@/lib/access-control";
 import { applyDerivedComboStock, computeComboStock, getComboComponentIds, isComboProduct, isValidComboQuantity, normalizeComboComponents } from "@/lib/combos";
-import { productMatchesSectionRule } from "@/lib/tienda-web-ui";
+import { productBelongsToSection } from "@/lib/tienda-web-ui";
 import {
   DEFAULT_UNITS, KIND_HELP, KIND_LABEL, SECTION_OF_FIELD, WOOD_UNITS,
   buildProductUpdates, computePiecePrice, diffForm, getMeasureFields, getPriceModel, getUnitKey, kindForCategory,
@@ -45,6 +45,7 @@ export default function ProductoDetailPage() {
   const [comboValid, setComboValid] = useState(true);
   const [suggested, setSuggested] = useState(null);
   const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [tiendaSections, setTiendaSections] = useState([]);
   const [tiendaSectionsLoading, setTiendaSectionsLoading] = useState(true);
   const [tiendaSectionsError, setTiendaSectionsError] = useState("");
@@ -85,11 +86,14 @@ export default function ProductoDetailPage() {
   }, [productId, searchParams]);
 
   const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true);
     try {
       const snap = await getDocs(collection(db, "productos"));
       setCatalog(applyDerivedComboStock(snap.docs.map((d) => ({ id: d.id, ...d.data(), __collection: "productos" }))));
     } catch (error) {
       console.error("Error al cargar el catálogo:", error);
+    } finally {
+      setCatalogLoading(false);
     }
   }, []);
 
@@ -352,7 +356,11 @@ export default function ProductoDetailPage() {
       percentage: form.discountMode === "percentage" ? Number(form.discountValue) || 0 : 0,
     },
   };
-  const matchingTiendaSections = tiendaSections.filter((section) => section.activa && productMatchesSectionRule(sectionProduct, section.regla));
+  const sectionCatalog = catalog
+    .filter((item) => item.estadoTienda === "Activo")
+    .map((item) => String(item.id) === String(sectionProduct.id) ? sectionProduct : item);
+  if (sectionProduct.estadoTienda === "Activo" && !sectionCatalog.some((item) => String(item.id) === String(sectionProduct.id))) sectionCatalog.push(sectionProduct);
+  const matchingTiendaSections = tiendaSections.filter((section) => productBelongsToSection(sectionProduct, section, sectionCatalog));
   const piece = kind === "madera" ? computePiecePrice(form, unitKey) : 0;
   const cost = parseNumber(form.costo);
   const price = parseNumber(form.precio);
@@ -552,8 +560,8 @@ export default function ProductoDetailPage() {
             </EditCard>
 
             {!isObra ? (
-              <EditCard id="tienda" title="Tienda online" description="Visibilidad, descuento y etiquetas." icon={Store} modified={mod("tienda")}>
-                <div className="space-y-5">
+              <EditCard id="tienda" title="Tienda online" icon={Store} modified={mod("tienda")}>
+                <div className="space-y-4">
                   <div className="grid gap-5 sm:grid-cols-2">
                     <FormField id="f-estadoTienda" label="Visibilidad" tip="Activo: el producto se muestra y se puede comprar. Inactivo: queda oculto.">
                       <select id="f-estadoTienda" className={inputClass} value={form.estadoTienda} onChange={(e) => set("estadoTienda", e.target.value)}>
@@ -569,20 +577,17 @@ export default function ProductoDetailPage() {
                     </FormField>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <ToggleCard checked={form.newArrival} onChange={(v) => set("newArrival", v)} title="Novedad" description="Puede incluirse en una sección de Novedades." />
-                    <ToggleCard checked={form.featuredBrand} onChange={(v) => set("featuredBrand", v)} title="Destacado" description="Puede incluirse en una sección de Destacados." />
-                    <ToggleCard checked={form.specialOffer} onChange={(v) => set("specialOffer", v)} title="Oferta especial" description="Sección Ofertas; es independiente del descuento." />
+                    <ToggleCard checked={form.newArrival} onChange={(v) => set("newArrival", v)} title="Novedad" />
+                    <ToggleCard checked={form.featuredBrand} onChange={(v) => set("featuredBrand", v)} title="Destacado" />
+                    <ToggleCard checked={form.specialOffer} onChange={(v) => set("specialOffer", v)} title="Oferta" />
                   </div>
-                  <div className="rounded-xl border border-border bg-muted/20 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div><h3 className="text-sm font-semibold">Secciones dinámicas de Inicio</h3><p className="mt-1 text-xs leading-5 text-default-500">Coincidencias calculadas con los valores actuales del formulario. Se aplican al guardar; el límite de cada sección también puede afectar su posición visible.</p></div>
-                      <Link href={`/${params.lang || "es"}/tienda-web`} className="shrink-0 text-xs font-medium text-foreground underline underline-offset-4">Configurar secciones</Link>
-                    </div>
-                    {tiendaSectionsLoading ? <p className="mt-3 text-xs text-default-500">Consultando las reglas publicadas…</p>
-                      : tiendaSectionsError ? <p role="status" className="mt-3 text-xs text-amber-700">{tiendaSectionsError}</p>
-                        : form.estadoTienda !== "Activo" ? <p className="mt-3 text-xs text-default-500">El producto está oculto en la tienda, por eso no coincide con secciones públicas.</p>
-                          : matchingTiendaSections.length ? <ul className="mt-3 flex flex-wrap gap-2">{matchingTiendaSections.map((section) => <li key={section.id} className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">{section.titulo}</li>)}</ul>
-                            : <p className="mt-3 text-xs text-default-500">No coincide con ninguna sección activa. Revisá las marcas, el descuento o la regla configurada en cada sección.</p>}
+                  <div className="flex min-h-8 flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <span className="mr-1 text-xs font-medium text-default-500">Secciones</span>
+                    {tiendaSectionsLoading || catalogLoading ? <span className="h-5 w-16 animate-pulse rounded-full bg-default-100" aria-label="Cargando secciones" />
+                      : tiendaSectionsError ? <span className="text-xs text-default-400" title="No se pudieron cargar las secciones">—</span>
+                        : form.estadoTienda !== "Activo" || matchingTiendaSections.length === 0 ? <span className="text-xs text-default-400">—</span>
+                          : matchingTiendaSections.map((section) => <span key={section.id} className="rounded-full bg-default-100 px-2.5 py-1 text-xs text-default-700">{section.titulo}</span>)}
+                    <Link href={`/${params.lang || "es"}/tienda-web`} aria-label="Editar secciones de la tienda" title="Editar secciones" className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-default-500 hover:bg-default-100 hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" /></Link>
                   </div>
                 </div>
               </EditCard>

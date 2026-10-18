@@ -132,7 +132,7 @@ export function ToggleCard({ checked, onChange, title, description, icon: Icon }
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5 text-sm font-medium">{Icon ? <Icon className="h-4 w-4 text-default-500" /> : null}{title}</span>
-        <span className="mt-0.5 block text-xs text-default-500">{description}</span>
+        {description ? <span className="mt-0.5 block text-xs text-default-500">{description}</span> : null}
       </span>
     </label>
   );

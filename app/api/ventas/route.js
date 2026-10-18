@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
+import { getPublishedCheckoutSettings } from "@/lib/tienda-checkout";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -296,6 +297,12 @@ export async function POST(request) {
           transportista = "";
         }
 
+        const isMercadoPago = medioPago === "mercado_pago";
+        const checkoutSettings = isMercadoPago ? await getPublishedCheckoutSettings() : null;
+        const reservaExpiresAt = isMercadoPago
+          ? new Date(Date.now() + (checkoutSettings?.reservaStockMercadoPagoMinutos || 10) * 60 * 1000).toISOString()
+          : ventaData.reservaExpiresAt || new Date(Date.now() + (medioPago === "transferencia" ? 24 : 0.5) * 60 * 60 * 1000).toISOString();
+
         const pagoEnEfectivo =
           Boolean(ventaData.pagoEnEfectivo) ||
           medioPago === "efectivo" ||
@@ -303,6 +310,8 @@ export async function POST(request) {
 
         const ventaBase = {
           estadoPago: ventaData.estado || "pendiente",
+          ecommerceLifecycle: true,
+          reservaExpiresAt,
           total: ventaData.total,
           subtotal,
           descuentos,

@@ -26,6 +26,7 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.inicio.offerPopup.enabled, true);
   assert.equal(cfg.inicio.offerPopup.showOnDesktop, true);
   assert.equal(cfg.notificacionesPedidos.enabled, false);
+  assert.equal(cfg.checkout.reservaStockMercadoPagoMinutos, 10);
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
   assert.deepEqual(validateTiendaConfig(TIENDA_DEFAULTS).errors, []);
@@ -42,6 +43,14 @@ test("los avisos validan cantidad y formato de destinatarios sin publicar sus da
   const publicConfig = publicTiendaConfig({ notificacionesPedidos: { enabled: true, recipients: ["privado@example.com"] } });
   assert.equal("notificacionesPedidos" in publicConfig, false);
   assert.equal(publicConfig.inicio.about.story.length, 3);
+});
+
+test("el plazo de reserva Mercado Pago es configurable entre 5 y 30 minutos y no se publica", () => {
+  assert.equal(normalizeTiendaConfig({ checkout: { reservaStockMercadoPagoMinutos: 5 } }).checkout.reservaStockMercadoPagoMinutos, 5);
+  assert.equal(normalizeTiendaConfig({ checkout: { reservaStockMercadoPagoMinutos: 30 } }).checkout.reservaStockMercadoPagoMinutos, 30);
+  assert.equal(normalizeTiendaConfig({ checkout: { reservaStockMercadoPagoMinutos: 1 } }).checkout.reservaStockMercadoPagoMinutos, 5);
+  assert.equal(normalizeTiendaConfig({ checkout: { reservaStockMercadoPagoMinutos: 90 } }).checkout.reservaStockMercadoPagoMinutos, 30);
+  assert.equal("checkout" in publicTiendaConfig({ checkout: { reservaStockMercadoPagoMinutos: 5 } }), false);
 });
 
 test("un bloque vacío se respeta y un bloque ausente toma el valor por defecto", () => {
