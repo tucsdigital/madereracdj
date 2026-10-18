@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import { deleteFileFromR2 } from "@/lib/r2-storage";
 import { KEY_PREFIX, imageUrlsOf, projectImageUrlsOf } from "@/lib/tienda-media";
+import { productContentImageUrls } from "@/lib/tienda-productos-contenido";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ export async function POST(request) {
 
     const data = (await db.collection("settings").doc("tienda").get()).data() || {};
     const used = new Set([...imageUrlsOf(data.published), ...imageUrlsOf(data.draft)]);
+    const productContent = (await db.collection("settings").doc("tiendaProductosContenido").get()).data() || {};
+    productContentImageUrls(productContent.published).forEach((url) => used.add(url));
     const projects = await db.collection("obrasTienda").get();
     projects.docs.forEach((doc) => {
       const project = doc.data() || {};

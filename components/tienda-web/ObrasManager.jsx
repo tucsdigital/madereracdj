@@ -1,12 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Check, ImagePlus, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const uid = (prefix) => `${prefix}-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
 const slugify = (value) => String(value || "obra").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nueva-obra";
+const MediaContext = createContext(null);
 
 function newProject() {
   const title = "Nueva obra";
@@ -49,34 +60,72 @@ function Field({ label, value, onChange, multiline = false, type = "text", place
   </label>;
 }
 
-function ImageField({ label, value, onChange, uploadImage, multiline = false }) {
+const IMAGE_GUIDE = {
+  panoramic: { ratio: "21:10", size: "2400 × 1143 px", className: "aspect-[21/10]" },
+  wide: { ratio: "3:1", size: "2400 × 800 px", className: "aspect-[3/1]" },
+  landscape: { ratio: "3:2", size: "1800 × 1200 px", className: "aspect-[3/2]" },
+  square: { ratio: "1:1", size: "1200 × 1200 px", className: "aspect-square" },
+  portrait: { ratio: "4:5", size: "1080 × 1350 px", className: "aspect-[4/5]" },
+};
+
+function ImageField({ label, value, onChange, uploadImage, media, multiline = false, ratio }) {
+  const mediaContext = useContext(MediaContext);
+  media = media || mediaContext;
+  const visibleLabel = label.replace(/\s*\(una URL por línea\)/i, "");
+  const labelText = visibleLabel.toLocaleLowerCase("es");
+  const ratioKey = ratio || (labelText.includes("material") || labelText.includes("opción") || labelText === "imagen principal" ? "square" : labelText.includes("compartir") || labelText.includes("fondo") || labelText.includes("soluciones") ? "panoramic" : labelText.includes("adicional") || labelText.includes("complement") ? "wide" : "landscape");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [showLibrary, setShowLibrary] = useState(false);
+  const images = multiline ? String(value || "").split("\n").map((image) => image.trim()).filter(Boolean) : value ? [value] : [];
+  const guide = IMAGE_GUIDE[ratioKey] || IMAGE_GUIDE.landscape;
+  const library = (media?.items || []).filter((item) => item?.url && item?.mime?.startsWith("image/"));
+  const update = (next) => onChange(multiline ? next.join("\n") : next[0] || "");
   const upload = async (file) => {
     if (!file) return;
     setUploading(true);
     setError("");
     try {
       const item = await uploadImage(file, "obras");
-      onChange(multiline ? [...String(value || "").split("\n").filter(Boolean), item.url].join("\n") : item.url);
+      update(multiline ? [...images, item.url] : [item.url]);
+      const sourceWidth = item.sourceWidth || item.width;
+      const sourceHeight = item.sourceHeight || item.height;
+      if (sourceWidth && sourceHeight && Math.abs(sourceWidth / sourceHeight - Number(guide.ratio.split(":")[0]) / Number(guide.ratio.split(":")[1])) > 0.2) {
+        setError(`La proporción ideal es ${guide.ratio} (${guide.size}). La imagen se recortará al centro.`);
+      }
     } catch (cause) {
-      setError(cause?.message || "No se pudo subir la imagen a R2.");
+      setError(cause?.message || "No se pudo cargar la imagen.");
     } finally {
       setUploading(false);
     }
   };
-  return <div className="min-w-0 space-y-1.5">
-    <span className="text-xs font-medium text-default-600">{label}</span>
-    <div className="flex min-w-0 gap-2">
-      {multiline ? <textarea aria-label={label} className="min-h-20 min-w-0 flex-1 resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" value={value || ""} placeholder="Una URL de imagen por línea" onChange={(event) => onChange(event.target.value)} /> : <input aria-label={label} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" value={value || ""} placeholder="URL de R2 o imagen existente" onChange={(event) => onChange(event.target.value)} />}
-      <label className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-default-600 transition hover:bg-default-50">
-        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-        <span className="hidden sm:inline">Subir a R2</span>
+  const choose = (url) => {
+    if (multiline) update(images.includes(url) ? images : [...images, url]);
+    else update([url]);
+    if (!multiline) setShowLibrary(false);
+  };
+  return <div className="min-w-0 space-y-2">
+    <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-medium text-default-600">{visibleLabel}</span><span className="text-[10px] text-default-400">Ideal {guide.ratio} · {guide.size}</span></div>
+    {images.length ? <div className={cn("grid gap-2", multiline ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1")}>
+      {images.map((image, index) => <div key={`${image}-${index}`} className="group relative overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+        <div className={cn("relative w-full", guide.className)}><img src={image} alt={`${label}${multiline ? ` ${index + 1}` : ""}`} className="h-full w-full object-cover" />
+          <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span>
+          <button type="button" aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive"><X className="h-4 w-4" /></button>
+        </div>
+      </div>)}
+    </div> : <div className={cn("flex items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-xs text-muted-foreground", multiline ? "min-h-20" : cn("w-full", guide.className))}>Sin imagen seleccionada</div>}
+    <div className="flex flex-wrap items-center gap-2">
+      <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground px-3 text-[11px] font-medium text-background transition hover:opacity-85", uploading && "pointer-events-none opacity-60")}>
+        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}{uploading ? "Subiendo…" : "Subir imagen"}
         <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={uploading} onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ""; }} />
       </label>
+      <button type="button" onClick={() => setShowLibrary((open) => !open)} className="h-8 rounded-full border border-border px-3 text-[11px] font-medium text-default-600 transition hover:bg-default-50">{showLibrary ? "Cerrar biblioteca" : "Elegir de biblioteca"}</button>
+      {multiline ? <span className="text-[10px] text-default-400">Podés agregar varias imágenes.</span> : null}
     </div>
-    {value ? <div className="flex items-center gap-2 truncate text-[11px] text-default-500"><Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /><span className="truncate">{value}</span></div> : null}
-    {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+    {showLibrary ? <div className="rounded-xl border border-border bg-muted/20 p-2.5">
+      {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><img src={item.url} alt="" className="h-full w-full object-cover" />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
+    </div> : null}
+    {error ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{error}</p> : null}
   </div>;
 }
 
@@ -87,7 +136,7 @@ function ListEditor({ title, items, onAdd, children }) {
   </Card>;
 }
 
-export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
+export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media }) {
   const [items, setItems] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState("");
   const [draft, setDraft] = useState(null);
@@ -97,6 +146,8 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
   const [section, setSection] = useState("general");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async (preferredSlug) => {
     setLoading(true);
@@ -156,6 +207,69 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
     setNotice(null);
   };
 
+  const duplicateProject = (item) => {
+    const source = item.project || item.draft || item.published;
+    if (!source) return;
+    const base = `${slugify(source.slug || source.title)}-copia`;
+    let slug = base;
+    let suffix = 2;
+    while (items.some((entry) => entry.id === slug)) slug = `${base}-${suffix++}`;
+    const now = new Date().toISOString();
+    const cloneWithFreshIds = (value) => {
+      if (Array.isArray(value)) return value.map(cloneWithFreshIds);
+      if (!value || typeof value !== "object") return value;
+      return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+        key,
+        key === "id" && child ? uid(String(child).split("-")[0] || "item") : cloneWithFreshIds(child),
+      ]));
+    };
+    const duplicate = cloneWithFreshIds(structuredClone(source));
+    duplicate.slug = slug;
+    duplicate.title = `${source.title || "Obra"} (copia)`;
+    duplicate.status = "inactive";
+    duplicate.seo = { ...duplicate.seo, title: `${duplicate.title} - Maderas Caballero`, canonical: `/obras/${slug}` };
+    duplicate.createdAt = now;
+    duplicate.updatedAt = now;
+    setItems((current) => [{ id: slug, slug, project: duplicate, draft: duplicate, published: null, version: 0, publishedVersion: 0 }, ...current]);
+    setSelectedSlug(slug);
+    setDraft(duplicate);
+    setVersion(0);
+    setPublished(false);
+    setSection("general");
+    setNotice({ type: "ok", text: "Copia creada como borrador. Guardala para continuar." });
+  };
+
+  const deleteProject = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setNotice(null);
+    try {
+      if (Number(deleteTarget.version) > 0) {
+        await authFetch(`/api/tienda/obras/admin/${encodeURIComponent(deleteTarget.id)}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ baseVersion: Number(deleteTarget.version) || 0 }),
+        });
+      }
+      const remaining = items.filter((item) => item.id !== deleteTarget.id);
+      setItems(remaining);
+      if (selectedSlug === deleteTarget.id) {
+        const next = remaining[0];
+        setSelectedSlug(next?.id || "");
+        setDraft(next?.project || next?.draft || next?.published || null);
+        setVersion(Number(next?.version) || 0);
+        setPublished(next?.published?.status === "active");
+        setSection("general");
+      }
+      setNotice({ type: "ok", text: Number(deleteTarget.version) > 0 ? "Obra eliminada. Sus imágenes se conservaron en la biblioteca." : "Borrador local descartado." });
+      setDeleteTarget(null);
+    } catch (error) {
+      setNotice({ type: "error", text: error.message || "No se pudo eliminar la obra." });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const saveDraft = async () => {
     if (!draft) return;
     setSaving(true);
@@ -213,7 +327,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
 
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-default-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando obras…</div>;
 
-  return <div className="space-y-4">
+  return <MediaContext.Provider value={media}><div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-base font-semibold">Obras</h2><p className="mt-1 text-sm text-default-500">Administrá páginas, materiales e imágenes de cada obra desde un solo lugar.</p></div>
       <div className="flex items-center gap-2">
@@ -230,10 +344,15 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
         <div className="space-y-1">
           {items.map((item) => {
             const project = item.project || item.draft || item.published;
-            return <button key={item.id} type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className={cn("w-full rounded-lg px-3 py-2.5 text-left transition", selectedSlug === item.id ? "bg-default-100" : "hover:bg-default-50")}>
-              <span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-medium">{project?.title || item.id}</span><span className={cn("h-2 w-2 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-default-300")} /></span>
-              <span className="mt-1 block truncate text-[11px] text-default-500">/obras/{item.id}</span>
-            </button>;
+            const cover = project?.banner?.slides?.[0]?.backgroundImage || project?.seo?.ogImage;
+            return <div key={item.id} className={cn("group flex items-center gap-1 rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
+              <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
+                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : null}</span>
+                <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
+              </button>
+              <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>
+              <button type="button" aria-label={`Eliminar ${project?.title || item.id}`} title="Eliminar obra" onClick={() => setDeleteTarget(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>;
           })}
           {!items.length ? <p className="px-3 py-5 text-xs leading-5 text-default-500">No hay obras todavía. Creá la primera para empezar.</p> : null}
         </div>
@@ -308,5 +427,16 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl }) {
         </div> : null}
       </main>}
     </div>
-  </div>;
+  </div><AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>¿Eliminar esta obra?</AlertDialogTitle>
+        <AlertDialogDescription>{deleteTarget?.published?.status === "active" ? "La página dejará de aparecer en la tienda. " : ""}Se eliminará el borrador y su publicación, pero las imágenes compartidas permanecerán en la biblioteca.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+        <AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); void deleteProject(); }}>{deleting ? "Eliminando…" : "Eliminar obra"}</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog></MediaContext.Provider>;
 }

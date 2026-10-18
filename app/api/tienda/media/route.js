@@ -57,11 +57,16 @@ export async function POST(request) {
     let ext = sniffed.ext;
     let width = null;
     let height = null;
+    let sourceWidth = null;
+    let sourceHeight = null;
     let optimized = false;
     let sharp = null;
     try {
       ({ default: sharp } = await import("sharp"));
     } catch (error) {
+      if (folder === "productos") {
+        return NextResponse.json({ error: "El procesamiento de imágenes cuadradas no está disponible en este servidor." }, { status: 503 });
+      }
       // Sólo si el procesador de imágenes no está disponible se conserva el archivo ya validado por su contenido.
       console.error("tienda/media: sharp no disponible, se sube sin optimizar", error?.message);
     }
@@ -71,14 +76,19 @@ export async function POST(request) {
         const image = sharp(original, { limitInputPixels: 50_000_000 });
         const meta = await image.metadata();
         if (!meta.width || !meta.height) throw new Error("sin dimensiones");
+        if (folder === "productos" && Math.min(meta.width, meta.height) < 1200) {
+          return NextResponse.json({ error: "Para productos, la imagen debe tener al menos 1200 px en cada lado antes del recorte." }, { status: 400 });
+        }
         if (Math.min(meta.width, meta.height) < MIN_SIDE_PX) {
           return NextResponse.json({ error: `La imagen es muy chica (mínimo ${MIN_SIDE_PX} px de lado).` }, { status: 400 });
         }
-        output = await image
-          .rotate()
-          .resize({ width: MAX_SIDE_PX, height: MAX_SIDE_PX, fit: "inside", withoutEnlargement: true })
-          .webp({ quality: 82 })
-          .toBuffer({ resolveWithObject: true });
+        sourceWidth = meta.width;
+        sourceHeight = meta.height;
+        const oriented = image.rotate();
+        const resized = folder === "productos"
+          ? oriented.resize({ width: 1200, height: 1200, fit: "cover", position: "centre", withoutEnlargement: true })
+          : oriented.resize({ width: MAX_SIDE_PX, height: MAX_SIDE_PX, fit: "inside", withoutEnlargement: true });
+        output = await resized.webp({ quality: 82 }).toBuffer({ resolveWithObject: true });
       } catch {
         // Cabecera válida pero contenido dañado o demasiado grande: no se guarda.
         return NextResponse.json({ error: "No se pudo leer la imagen: está dañada o es demasiado grande." }, { status: 400 });
@@ -107,6 +117,8 @@ export async function POST(request) {
       size: body.length,
       width,
       height,
+      sourceWidth,
+      sourceHeight,
       optimized,
       originalName: String(file.name || "").slice(0, 120),
       byEmail: String(actor?.email || ""),

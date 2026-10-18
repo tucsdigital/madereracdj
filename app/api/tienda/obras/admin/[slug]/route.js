@@ -97,3 +97,38 @@ export async function POST(request, { params }) {
     return fail(error);
   }
 }
+
+export async function DELETE(request, { params }) {
+  try {
+    const actor = await verifyFirebaseToken(request.headers.get("authorization"));
+    const slug = String(params.slug || "").trim().toLowerCase();
+    if (!OBRAS_SLUG_PATTERN.test(slug)) return NextResponse.json({ error: "El slug de la obra no es válido." }, { status: 400 });
+    const body = await request.json().catch(() => ({}));
+    const db = getAdminDb();
+    const ref = db.collection(OBRAS_COLLECTION).doc(slug);
+    const historyRef = db.collection("settingsHistory").doc();
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) throw Object.assign(new Error("No se encontró la obra."), { status: 404 });
+      const current = snapshot.data() || {};
+      const version = Number(current.version) || 0;
+      if (Number(body?.baseVersion) !== version) {
+        throw Object.assign(new Error("La obra cambió mientras la editabas. Recargá antes de eliminarla."), { status: 409 });
+      }
+      const at = new Date().toISOString();
+      transaction.set(historyRef, {
+        tipo: "obra_eliminada",
+        slug,
+        at,
+        byUid: String(actor?.uid || ""),
+        byEmail: String(actor?.email || ""),
+        before: current,
+        after: null,
+      });
+      transaction.delete(ref);
+    });
+    return NextResponse.json({ slug, deleted: true });
+  } catch (error) {
+    return fail(error);
+  }
+}

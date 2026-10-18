@@ -24,6 +24,7 @@ import ContactoForm from "@/components/tienda-web/ContactoForm";
 import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
 import PreciosForm from "@/components/tienda-web/PreciosForm";
 import StockForm from "@/components/tienda-web/StockForm";
+import ProductosContenidoManager from "@/components/tienda-web/ProductosContenidoManager";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query as fsQuery, where } from "firebase/firestore";
 
@@ -31,6 +32,7 @@ const TABS = [
   { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
   { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
   { id: "obras", label: "Obras", help: "Creá y publicá las páginas de obras, sus materiales, adicionales, galería y preguntas frecuentes." },
+  { id: "productos", label: "Productos", help: "Administrá imágenes y descripciones por categoría, tipo o producto, sin modificar precios ni stock." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
@@ -95,7 +97,21 @@ export default function TiendaWebPage() {
     authFetch("/api/tienda/config").then(apply).catch((e) => setLoadError(e.message));
     authFetch("/api/tienda/media").then((d) => setMedia({ storage: d.storage, items: d.items || [], loaded: true })).catch(() => setMedia((m) => ({ ...m, loaded: true })));
     fetch("/api/precios?all=1").then((r) => r.json()).then((d) => {
-      const products = (d?.items || []).map((it) => ({ id: String(it.id), nombre: it.producto?.nombre || it.producto?.descripcion || String(it.id), codigo: it.producto?.codigo || "", categoria: it.producto?.categoria || "" }));
+      const products = (d?.items || []).map((it) => {
+        const product = it?.producto || it || {};
+        return {
+          id: String(product.id ?? it.id),
+          nombre: product.nombre || product.descripcion || String(product.id ?? it.id),
+          codigo: product.codigo || "",
+          categoria: product.categoria || "",
+          subcategoria: product.subcategoria || product.subCategoria || "",
+          tipoProducto: product.tipoProducto || (product.esCombo ? "combo" : ""),
+          tipoMadera: product.tipoMadera || product.tipoMaterial || "",
+          unidad: product.unidadMedida || product.unidad || "",
+          uso: product.uso || product.aplicacion || "",
+          imagenes: product.imagenes || product.images || product.imagen || product.srcUrl || "",
+        };
+      }).filter((product) => product.id && product.id !== "undefined");
       setCatalog({ products, categories: [...new Set(products.map((p) => p.categoria).filter(Boolean))].sort() });
     }).catch(() => {});
   }, [user, authFetch, apply]);
@@ -366,7 +382,8 @@ export default function TiendaWebPage() {
         <TransferenciaForm transferencia={config.transferencia} issues={issues}
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
-      {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} tiendaUrl={tiendaUrl} />}
+      {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} />}
+      {tab === "productos" && <ProductosContenidoManager products={catalog.products} categories={catalog.categories} media={mediaApi} uploadImage={uploadImage} authFetch={authFetch} />}
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
       <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />

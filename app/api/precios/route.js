@@ -5,6 +5,8 @@ import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricin
 import { getExternalProductoFields } from "@/lib/producto-utils";
 import { applyStorePricing } from "@/lib/tienda-precios";
 import { getPublishedPrecios, getPublishedStock } from "@/lib/tienda-precios-server";
+import { getPublishedProductContent } from "@/lib/tienda-productos-contenido-server";
+import { resolveProductContent } from "@/lib/tienda-productos-contenido";
 import { publicStockPolicy, stockInfo } from "@/lib/tienda-stock";
 import { getProductMeasure } from "@/lib/product-measure";
 import {
@@ -14,6 +16,9 @@ import {
   normalizeComboComponents,
   withDerivedComboStock,
 } from "@/lib/combos";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function getIntegrationFields(prod) {
   const { minimoCompra, minCompra, pack, packSize } = getExternalProductoFields(prod);
@@ -161,7 +166,11 @@ export function OPTIONS() {
 // GET /api/precios?codigo=ABC123 o ?nombre=...
 export async function GET(request) {
   try {
-    const [precios, stockCfg] = await Promise.all([getPublishedPrecios(), getPublishedStock()]);
+    const [precios, stockCfg, productContent] = await Promise.all([
+      getPublishedPrecios(),
+      getPublishedStock(),
+      getPublishedProductContent(),
+    ]);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const codigo = searchParams.get("codigo");
@@ -196,6 +205,7 @@ export async function GET(request) {
         items.push({
           id: prod.id,
           producto: { ...prod, ...integration },
+          tiendaContent: resolveProductContent(prod, productContent),
           measure: getProductMeasure(prod),
            pricing,
           external,
@@ -267,6 +277,7 @@ export async function GET(request) {
       NextResponse.json({
         id: producto.id,
         producto: { ...producto, ...integration },
+        tiendaContent: resolveProductContent(producto, productContent),
         measure: getProductMeasure(producto),
         pricing,
         external,
@@ -282,7 +293,11 @@ export async function GET(request) {
 // POST /api/precios  Body: { items: [{ producto: {...}, cantidad } | { id, cantidad } ] }
 export async function POST(request) {
   try {
-    const [precios, stockCfg] = await Promise.all([getPublishedPrecios(), getPublishedStock()]);
+    const [precios, stockCfg, productContent] = await Promise.all([
+      getPublishedPrecios(),
+      getPublishedStock(),
+      getPublishedProductContent(),
+    ]);
     const body = await request.json();
     const items = Array.isArray(body?.items) ? body.items : [];
     const redondear = body?.redondear == null ? true : Boolean(body.redondear);
@@ -329,6 +344,7 @@ export async function POST(request) {
       return {
         id: prod.id ?? normalized.id,
         producto: { ...prod, ...integration },
+        tiendaContent: resolveProductContent(prod, productContent),
         measure: getProductMeasure(prod),
         pricing,
         external,

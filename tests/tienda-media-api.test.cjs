@@ -21,6 +21,16 @@ function loadRoute(relative, mocks) {
       }
       return cache[name];
     }
+    if (name === "@/lib/tienda-productos-contenido") {
+      if (!cache[name]) {
+        const src = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-productos-contenido.js"), "utf8");
+        const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+        const m = { exports: {} };
+        new Function("require", "module", "exports", out)(load, m, m.exports);
+        cache[name] = m.exports;
+      }
+      return cache[name];
+    }
     return require(name);
   };
   const src = fs.readFileSync(path.resolve(__dirname, relative), "utf8");
@@ -92,6 +102,21 @@ test("sube, reduce y convierte a WebP, y registra la URL pública", async () => 
   assert.equal(state.records[0].item.byEmail, "admin@ejemplo.com");
 });
 
+test("las imágenes nuevas de producto se recortan al centro y quedan cuadradas", async () => {
+  const { state, mocks } = setup();
+  const route = loadRoute("../app/api/tienda/media/route.js", mocks);
+  const res = await route.POST(request({ file: fileOf(await png(1800, 1200)), folder: "productos" }));
+  assert.equal(res.status, 200);
+  assert.match(state.uploads[0].key, /^tienda\/productos\/\d+-[a-z0-9]+\.webp$/);
+  assert.equal(res.body.item.width, 1200);
+  assert.equal(res.body.item.height, 1200);
+  assert.equal(res.body.item.sourceWidth, 1800);
+  assert.equal(res.body.item.sourceHeight, 1200);
+  const metadata = await sharp(state.uploads[0].bytes).metadata();
+  assert.equal(metadata.width, 1200);
+  assert.equal(metadata.height, 1200);
+});
+
 test("sin sesión no se sube nada", async () => {
   const { state, mocks } = setup();
   const route = loadRoute("../app/api/tienda/media/route.js", mocks);
@@ -141,11 +166,15 @@ test("la limpieza solo elimina imágenes de la tienda que no usa ni el borrador 
     published: { banners: [{ imagen: `${base}/tienda/banners/1-usada.webp` }] },
     draft: { categorias: [{ imagen: `${base}/tienda/categorias/2-borrador.webp` }] },
   };
+  state.docs["settings/tiendaProductosContenido"] = {
+    published: { global: { images: [{ url: `${base}/tienda/productos/4-producto.webp` }] } },
+  };
   state.mediaDocs = [
     { id: "a", key: "tienda/banners/1-usada.webp", url: `${base}/tienda/banners/1-usada.webp`, size: 10 },
     { id: "b", key: "tienda/categorias/2-borrador.webp", url: `${base}/tienda/categorias/2-borrador.webp`, size: 10 },
     { id: "c", key: "tienda/banners/3-huerfana.webp", url: `${base}/tienda/banners/3-huerfana.webp`, size: 10 },
     { id: "d", key: "comprobantes/ajeno.pdf", url: `${base}/comprobantes/ajeno.pdf`, size: 10 },
+    { id: "e", key: "tienda/productos/4-producto.webp", url: `${base}/tienda/productos/4-producto.webp`, size: 10 },
   ];
   const route = loadRoute("../app/api/tienda/media/limpiar/route.js", mocks);
   const post = (body) => ({ headers: { get: () => "Bearer t" }, json: async () => body });
