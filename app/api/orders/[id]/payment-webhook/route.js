@@ -3,7 +3,91 @@ import crypto from "crypto";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
 import { paymentDecision } from "@/lib/ecommerce-payment-policy.mjs";
-import { updateVentaEngine } from "@/lib/erp/ventas-engine";
+import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
+
+const toShippingType = (method) => {
+  const value = String(method || "").trim().toLowerCase();
+  if (["retiro", "retiro_local", "pickup"].includes(value)) return "retiro_local";
+  if (value === "cotizar") return "cotizar";
+  return value || "domicilio";
+};
+
+function saleDataFromOrder(order, payment) {
+  const pricing = order.pricing || {};
+  const delivery = order.deliveryInfo || {};
+  const items = Array.isArray(order.items) ? order.items : [];
+  const total = Number(pricing.total ?? order.total) || 0;
+  const subtotal = Number(pricing.subtotal) || items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
+  const discounts = Number(pricing.productDiscounts) || 0;
+  const shipping = Number(pricing.shipping ?? order.shippingPrice) || 0;
+  const createdAt = order.createdAt || new Date().toISOString();
+
+  return {
+    idExterno: order.orderId,
+    idempotencyKey: `ecommerce_${String(order.orderId)}`,
+    ecommerceLifecycle: true,
+    estadoPago: "pagado",
+    montoAbonado: total,
+    total,
+    subtotal,
+    descuentos,
+    descuentoTotal: discounts,
+    descuentoEfectivo: Number(pricing.transferDiscount) || 0,
+    totalSinEfectivo: Math.max(0, subtotal - discounts + shipping),
+    totalConEfectivo: null,
+    reservaExpiresAt: order.stockReservationExpiresAt || new Date().toISOString(),
+    fecha: new Date(createdAt).toLocaleDateString("es-AR"),
+    fechaCreacion: createdAt,
+    formaPago: "mercadopago",
+    vendedor: "ecommerce",
+    cliente: {
+      email: order.customerInfo?.email || order.userId || "",
+      nombre: order.customerInfo?.nombre || "",
+      nombrePila: order.customerInfo?.nombrePila || "",
+      apellido: order.customerInfo?.apellido || "",
+      telefono: order.customerInfo?.telefono || "",
+      dni: String(order.customerInfo?.dni || "").replace(/\D/g, ""),
+      direccion: delivery.direccion || "",
+      ciudad: delivery.ciudad || delivery.localidad || "",
+      codigoPostal: delivery.codigoPostal || "",
+    },
+    productos: items.map((item) => ({
+      id: item.id || "",
+      originalId: item.id || "",
+      nombre: item.name || "",
+      cantidad: Number(item.quantity) || 0,
+      precio: Number(item.price) || 0,
+      unidad: item.unidad || item.unidadMedida || item.unit || "",
+      unidadMedida: item.unidadMedida || item.unidad || item.unit || "",
+      categoria: item.category || "",
+      imagen: item.image || item.srcUrl || "",
+      alto: item.alto || 0,
+      ancho: item.ancho || 0,
+      largo: item.largo || 0,
+      esCombo: item.esCombo === true || item.tipoProducto === "combo",
+      tipoProducto: item.tipoProducto || (item.esCombo ? "combo" : "simple"),
+      componentesCombo: Array.isArray(item.componentesCombo) ? item.componentesCombo : [],
+      versionComposicion: Number(item.versionComposicion) || 1,
+      cantidadSinStock: Number(item.cantidadSinStock) || 0,
+      plazoEntrega: item.plazoEntrega || "",
+    })),
+    tipoEnvio: toShippingType(delivery.metodoEntrega),
+    estadoEnvio: "pendiente",
+    direccionEnvio: delivery.direccion || "",
+    localidadEnvio: delivery.localidad || delivery.ciudad || "",
+    codigoPostal: delivery.codigoPostal || "",
+    coordenadasEnvio: { lat: delivery.lat ?? null, lng: delivery.lng ?? null },
+    sucursal: delivery.sucursal || null,
+    storeId: delivery.storeId || null,
+    costoEnvio: shipping,
+    origen: "ecommerce_externo",
+    pagoMercadoPago: {
+      paymentId: String(payment.paymentId),
+      status: payment.paymentStatus,
+      approvedAt: new Date().toISOString(),
+    },
+  };
+}
 
 export async function POST(request, { params }) {
   try {
@@ -26,31 +110,65 @@ export async function POST(request, { params }) {
     const eventRef = db.collection("paymentsWebhooks").doc(eventKey);
     if ((await eventRef.get()).exists) return NextResponse.json({ success: true, idempotente: true });
 
-    if (status === "success" && payment.paymentStatus === "approved") {
-      if (!order.ventaId) throw new Error("El pedido todavía no está sincronizado con ventas");
-      const ventaRef = db.collection("ventas").doc(order.ventaId);
-      const venta = (await ventaRef.get()).data();
-      if (!venta) throw new Error("Venta no encontrada");
-      if (venta.estadoPago !== "pagado" || venta.inventarioAplicado === false) {
-        const total = Number(order.pricing?.total ?? order.total);
-        try {
-          await updateVentaEngine({ actor: { uid: "", email: "mercadopago-webhook" }, ventaId: order.ventaId,
-            ventaData: { ...venta, estadoPago: "pagado", montoAbonado: total, total }, origen: "ecommerce_externo" });
-        } catch (error) {
-          if (error.status === 409 && /Stock insuficiente/.test(error.message)) {
-            // Pago tardío después de vencer la reserva: conservar evidencia y pedir conciliación.
-            await db.runTransaction(async (t) => {
-              const current = await t.get(ref);
-              const event = await t.get(eventRef);
-              if (event.exists) return;
-              if (current.data().status !== "success") t.update(ref, { status: "review", paymentStatus: "approved", paymentId: String(payment.paymentId), revisionPago: error.message });
-              t.set(ventaRef, { requiereRevision: true, revisionPago: error.message, pagoPorConciliar: payment }, { merge: true });
-              t.create(eventRef, { ...payment, revision: error.message, receivedAt: new Date().toISOString() });
-            });
-            return NextResponse.json({ success: true, requiresReview: true });
+    const shouldCreateSale = payment.paymentStatus === "approved" &&
+      (status === "success" || order.status === "cancelled");
+    let saleId = order.ventaId || null;
+    let saleNumber = order.ventaNumeroPedido || null;
+    let inventoryReview = false;
+
+    if (shouldCreateSale) {
+      const actor = { uid: "", email: "mercadopago-webhook" };
+      if (saleId) {
+        const ventaRef = db.collection("ventas").doc(saleId);
+        const venta = (await ventaRef.get()).data();
+        if (!venta) throw new Error("Venta vinculada al pedido no encontrada");
+        if (venta.estadoPago !== "pagado" || venta.inventarioAplicado === false) {
+          const total = Number(order.pricing?.total ?? order.total);
+          try {
+            await updateVentaEngine({ actor, ventaId: saleId,
+              ventaData: { ...venta, estadoPago: "pagado", montoAbonado: total, total }, origen: "ecommerce_externo" });
+          } catch (error) {
+            if (error.status !== 409 || !/Stock insuficiente/.test(error.message)) throw error;
+            inventoryReview = true;
+            await db.collection("ventas").doc(saleId).set({
+              estadoPago: "pagado",
+              montoAbonado: total,
+              total,
+              inventarioAplicado: false,
+              requiereRevision: true,
+              revisionPago: error.message,
+              pagoPorConciliar: payment,
+            }, { merge: true });
           }
-          throw error;
         }
+        saleNumber = venta.numeroPedido || saleNumber;
+      } else {
+        const ventaData = saleDataFromOrder(order, payment);
+        let created;
+        try {
+          created = await createVentaEngine({ actor, ventaData, origen: "ecommerce_externo", orderReservationId: id });
+        } catch (error) {
+          const inventoryConflict = /Stock insuficiente|Un producto del pedido ya no existe|componentes del combo|combo sin componentes configurados/i.test(error.message || "");
+          if (!inventoryConflict) throw error;
+          inventoryReview = true;
+          created = await createVentaEngine({
+            actor,
+            ventaData: { ...ventaData, requiereRevision: true, revisionInventario: error.message },
+            origen: "ecommerce_externo",
+            orderReservationId: id,
+            skipInventory: true,
+          });
+        }
+        saleId = created.id;
+        saleNumber = created.numeroPedido || null;
+        await db.collection("ventasExternal").doc(id).set({
+          orderId: id,
+          ventaId: saleId,
+          numeroPedido: saleNumber,
+          createdAt: new Date().toISOString(),
+          source: "mercadopago_webhook",
+        }, { merge: true });
+        await ref.set({ ventaId: saleId, ventaNumeroPedido: saleNumber }, { merge: true });
       }
     }
     await db.runTransaction(async (t) => {
@@ -59,19 +177,35 @@ export async function POST(request, { params }) {
       if (event.exists) return;
       const currentOrder = current.data();
       const nextStatus = paymentDecision(currentOrder, payment);
-      const reservations = nextStatus === "failed" && currentOrder.ventaId
-        ? await t.get(db.collection("reservasStock").where("ventaId", "==", currentOrder.ventaId)) : null;
+      const paymentFailed = ["rejected", "cancelled"].includes(payment.paymentStatus);
+      const reservationQueries = paymentFailed || payment.paymentStatus === "approved"
+        ? await Promise.all([
+            t.get(db.collection("reservasStock").where("orderId", "==", id)),
+            (currentOrder.ventaId || saleId) ? t.get(db.collection("reservasStock").where("ventaId", "==", currentOrder.ventaId || saleId)) : Promise.resolve(null),
+          ])
+        : [];
       const now = new Date().toISOString();
       // Un rechazo viejo no debe sobrescribir un pago aprobado.
       if (nextStatus !== "success" || payment.paymentStatus === "approved") {
-        t.update(ref, { paymentId: String(payment.paymentId), paymentStatus: payment.paymentStatus, status: nextStatus, updatedAt: now });
+        t.update(ref, {
+          paymentId: String(payment.paymentId),
+          paymentStatus: payment.paymentStatus,
+          status: inventoryReview && nextStatus === "success" ? "review" : nextStatus,
+          ...(saleId ? { ventaId: saleId, ventaNumeroPedido: saleNumber } : {}),
+          ...(inventoryReview ? { revisionPago: "Pago aprobado; inventario requiere conciliación." } : {}),
+          ...(payment.paymentStatus === "approved" ? { stockReservationStatus: "consumed" } : paymentFailed ? { stockReservationStatus: "released" } : {}),
+          updatedAt: now,
+        });
       }
       t.create(eventRef, { ...payment, receivedAt: now });
-      reservations?.docs.forEach((reservation) => {
-        if (reservation.data().estado === "activa") t.update(reservation.ref, { estado: "liberada", actualizadoEn: now });
+      reservationQueries.flatMap((query) => query?.docs || []).forEach((reservation) => {
+        if (reservation.data().estado === "activa") {
+          const estado = payment.paymentStatus === "approved" ? "consumida" : "liberada";
+          t.update(reservation.ref, { estado, ...(estado === "consumida" && saleId ? { ventaId: saleId } : {}), actualizadoEn: now });
+        }
       });
-      if (nextStatus === "review" && currentOrder.ventaId) {
-        t.set(db.collection("ventas").doc(currentOrder.ventaId), { requiereRevision: true, revisionPago: payment.paymentStatus }, { merge: true });
+      if (nextStatus === "review" && (currentOrder.ventaId || saleId)) {
+        t.set(db.collection("ventas").doc(currentOrder.ventaId || saleId), { requiereRevision: true, revisionPago: payment.paymentStatus }, { merge: true });
       }
     });
     return NextResponse.json({ success: true });

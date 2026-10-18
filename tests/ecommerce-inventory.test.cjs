@@ -46,8 +46,8 @@ function fixture() {
     if (name === "@/lib/firebase-admin") return { getAdminDb: () => db };
     if (name === "@/lib/tienda-precios-server") return { getPublishedPrecios: async () => null, getPublishedStock: async () => globalThis.__stockCfg ?? null };
     if (name === "@/lib/settings") return { obtenerSettingsGeneral: async () => ({
-      locations: [{ id: "local", nombre: "Local", lat: -34, lng: -58, radio: 10000 }],
-      shippingTiers: [{ km: 10, price: 500 }], data: { transferenciaDescuentoPct: 10 },
+       locations: [{ id: "local", nombre: "Local", lat: -34, lng: -58, radio: 10000 }],
+       shippingTiers: [{ km: 10, price: 500 }], shippingRules: globalThis.__shippingRules || {}, data: { transferenciaDescuentoPct: 10 },
     }) };
     if (name === "firebase-admin/firestore") return { FieldValue: { serverTimestamp: () => new Date().toISOString() } };
     if (!name.startsWith("@/")) return require(name);
@@ -82,6 +82,38 @@ test("pedido pendiente reserva sin descontar; pago descuenta una sola vez", asyn
   await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: venta });
   assert.equal(data.get("productos/pino").stock, 8);
   assert.equal(data.get("orders/pedido-test").status, "success");
+});
+test("Mercado Pago reserva sobre el pedido y crea la venta recién al aprobar el pago", async () => {
+  const { data, engine } = fixture();
+  const orderId = "mp-order-123456789";
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  data.set(`orders/${orderId}`, {
+    orderId,
+    paymentMethod: "mercadopago",
+    status: "pending",
+    items: [{ id: "pino", name: "Pino", quantity: 2, price: 1000 }],
+  });
+
+  await engine.reserveEcommerceOrderStock({ orderId, expiresAt });
+  assert.equal(data.get("productos/pino").stock, 10, "la reserva no modifica las existencias físicas");
+  assert.equal(data.get(`reservasStock/${orderId}_pino`).estado, "activa");
+  assert.equal([...data.keys()].some((key) => key.startsWith("ventas/")), false, "no hay venta antes del cobro");
+
+  const created = await engine.createVentaEngine({
+    actor,
+    orderReservationId: orderId,
+    ventaData: sale({
+      idExterno: orderId,
+      idempotencyKey: `ecommerce_${orderId}`,
+      estadoPago: "pagado",
+      montoAbonado: 2000,
+      total: 2000,
+      productos: [{ id: "pino", nombre: "Pino", cantidad: 2, precio: 1000 }],
+    }),
+  });
+  assert.equal(data.get("productos/pino").stock, 8);
+  assert.equal(data.get(`reservasStock/${orderId}_pino`).estado, "consumida");
+  assert.equal(data.get(`ventas/${created.id}`).estadoPago, "pagado");
 });
 test("pedido con unidades sin stock reserva y descuenta solo lo que hay y queda marcado a reponer", async () => {
   const { data, engine } = fixture();
@@ -178,10 +210,17 @@ test("cotización rechaza productos inactivos, cantidades negativas y packs inco
   await assert.rejects(quote({ ...input, items: [{ id: "pino", quantity: -3 }] }), /cantidad/);
   assert.equal((await quote({ ...input, items: [{ id: "pino", quantity: 3 }] })).total, 3000);
 });
-test("envío sin peso conocido requiere cotización en lugar de cobrar cero", async () => {
+test("el peso faltante calcula el envío si es opcional y pide cotización si se exige", async () => {
   const { data, quote } = fixture();
   data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
-  await assert.rejects(quote({ items: [{ id: "pino", quantity: 1 }], deliveryInfo: { metodoEntrega: "envio", lat: -34, lng: -58, shippingPrice: 0 } }), /cotización/);
+  const input = { items: [{ id: "pino", quantity: 1 }], deliveryInfo: { metodoEntrega: "envio", lat: -34, lng: -58, shippingPrice: 0 } };
+  assert.equal((await quote(input)).pricing.shipping, 500);
+  globalThis.__shippingRules = { requireWeightForShipping: true };
+  try {
+    await assert.rejects(quote(input), /cotización/);
+  } finally {
+    globalThis.__shippingRules = null;
+  }
 });
 
 test("cotización m² redondea el total como ventas y respeta reservas", async () => {

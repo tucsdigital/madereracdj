@@ -1,0 +1,66 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const ts = require("typescript");
+
+const legacyProjects = require("../lib/legacy-projects.json");
+const source = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-obras.js"), "utf8");
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const mod = { exports: {} };
+const mockRequire = (name) => {
+  if (name === "@/lib/legacy-projects.json") return { __esModule: true, default: legacyProjects };
+  if (name === "@/lib/firebase-admin") return { getAdminDb: () => { throw new Error("Firebase no se usa en estas pruebas"); } };
+  return require(name);
+};
+new Function("require", "module", "exports", compiled)(mockRequire, mod, mod.exports);
+const { normalizeProject, projectIssues, projectImageUrls } = mod.exports;
+
+test("normaliza y conserva el contenido de las obras heredadas", () => {
+  for (const raw of legacyProjects) {
+    const project = normalizeProject(raw, raw.slug);
+    assert.equal(project.slug, raw.slug);
+    assert.ok(Array.isArray(project.banner.slides));
+    assert.ok(Array.isArray(project.gallery.items));
+    assert.ok(Array.isArray(project.info.features));
+    assert.deepEqual(projectIssues(project, []), []);
+    assert.deepEqual(projectIssues(project, [], { forPublish: true }), []);
+  }
+});
+
+test("valida imágenes nuevas con R2 y rechaza hosts o rutas no pertenecientes a la tienda", () => {
+  const base = normalizeProject({
+    slug: "obra-nueva",
+    title: "Obra nueva",
+    status: "active",
+    seo: { title: "Obra nueva", description: "Descripción" },
+    banner: { slides: [{ backgroundImage: "https://media.example.com/tienda/obras/1-a.webp" }] },
+    gallery: { items: [] },
+    faqs: [],
+  }, "obra-nueva");
+  assert.deepEqual(projectIssues(base, ["media.example.com"]), []);
+  assert.ok(projectIssues({ ...base, banner: { slides: [{ backgroundImage: "https://evil.example/file.webp" }] } }, ["media.example.com"]).some((issue) => /R2/.test(issue)));
+  assert.ok(projectIssues({ ...base, banner: { slides: [{ backgroundImage: "https://media.example.com/comprobantes/a.webp" }] } }, ["media.example.com"]).some((issue) => /R2/.test(issue)));
+});
+
+test("publicar requiere imágenes para portada, materiales, adicionales y galería", () => {
+  const project = normalizeProject({
+    slug: "obra-nueva",
+    title: "Obra nueva",
+    status: "active",
+    seo: { title: "Obra nueva", description: "Descripción" },
+    banner: { slides: [{ backgroundImage: "" }] },
+    pageContent: { options: { items: [{ title: "Pino", image: "" }] }, accessories: { items: [{ title: "Baranda", image: "" }] } },
+    gallery: { items: [{ title: "Trabajo", image: "" }] },
+    faqs: [],
+  }, "obra-nueva");
+  const issues = projectIssues(project, [], { forPublish: true });
+  assert.ok(issues.some((issue) => /portada/.test(issue)));
+  assert.ok(issues.some((issue) => /material/.test(issue)));
+  assert.ok(issues.some((issue) => /adicional/.test(issue)));
+  assert.ok(issues.some((issue) => /galería/.test(issue)));
+});
+
+test("recolecta todas las imágenes de una obra para protegerlas de la limpieza", () => {
+  assert.deepEqual(projectImageUrls({ banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["antes", "avatar", "galeria", "portada"]);
+});

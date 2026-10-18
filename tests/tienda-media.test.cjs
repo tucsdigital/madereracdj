@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-media.js")
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const mod = { exports: {} };
 new Function("require", "module", "exports", compiled)(require, mod, mod.exports);
-const { sniffImage, mediaKey, allowedImageHosts, keyFromUrl, imageUrlsOf } = mod.exports;
+const { sniffImage, mediaKey, allowedImageHosts, keyFromUrl, imageUrlsOf, projectImageUrlsOf } = mod.exports;
 
 const pad = (bytes) => Buffer.concat([Buffer.from(bytes), Buffer.alloc(32)]);
 
@@ -59,4 +59,8 @@ test("imageUrlsOf junta las imágenes de banners y categorías", () => {
     ["a", "b", "c", "d"]
   );
   assert.deepEqual(imageUrlsOf(null), []);
+});
+
+test("projectImageUrlsOf reúne imágenes de borradores para protegerlas de la limpieza", () => {
+  assert.deepEqual(projectImageUrlsOf({ banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["avatar", "galeria", "portada"]);
 });

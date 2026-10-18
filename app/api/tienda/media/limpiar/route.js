@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import { deleteFileFromR2 } from "@/lib/r2-storage";
-import { KEY_PREFIX, imageUrlsOf } from "@/lib/tienda-media";
+import { KEY_PREFIX, imageUrlsOf, projectImageUrlsOf } from "@/lib/tienda-media";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,12 @@ export async function POST(request) {
 
     const data = (await db.collection("settings").doc("tienda").get()).data() || {};
     const used = new Set([...imageUrlsOf(data.published), ...imageUrlsOf(data.draft)]);
+    const projects = await db.collection("obrasTienda").get();
+    projects.docs.forEach((doc) => {
+      const project = doc.data() || {};
+      projectImageUrlsOf(project.published).forEach((url) => used.add(url));
+      projectImageUrlsOf(project.draft).forEach((url) => used.add(url));
+    });
 
     const snap = await db.collection("tiendaMedia").get();
     const unused = snap.docs

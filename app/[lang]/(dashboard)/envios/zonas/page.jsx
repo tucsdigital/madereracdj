@@ -112,7 +112,7 @@ export default function ZonasEnvioPage() {
   const pinMessage = useMemo(() => {
     if (!pin || !config) return null;
     return coverageMessage(
-      computeShipping({ locations: mapLocations, tiers: numericTiers(config.tiers), rules: config.rules, lat: pin.lat, lng: pin.lng, weightKg: toNum(probe.weight) || 1, subtotal: toNum(probe.subtotal) || 0 })
+      computeShipping({ locations: mapLocations, tiers: numericTiers(config.tiers), rules: config.rules, lat: pin.lat, lng: pin.lng, weightKg: toNum(probe.weight), subtotal: toNum(probe.subtotal) || 0 })
     );
   }, [pin, config, mapLocations, probe.weight, probe.subtotal]);
 

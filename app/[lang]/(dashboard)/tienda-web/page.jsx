@@ -19,6 +19,7 @@ import {
 import { Btn } from "@/components/tienda-web/ui";
 import { BannerList, CategoriaGrid, SeccionList } from "@/components/tienda-web/Lists";
 import { BannerEditor, CategoriaEditor, SeccionEditor } from "@/components/tienda-web/Editors";
+import ObrasManager from "@/components/tienda-web/ObrasManager";
 import ContactoForm from "@/components/tienda-web/ContactoForm";
 import TransferenciaForm from "@/components/tienda-web/TransferenciaForm";
 import PreciosForm from "@/components/tienda-web/PreciosForm";
@@ -29,6 +30,7 @@ import { collection, getDocs, query as fsQuery, where } from "firebase/firestore
 const TABS = [
   { id: "secciones", label: "Secciones", help: "Las filas de productos que se ven en el inicio, en este orden." },
   { id: "banners", label: "Banners", help: "Las imágenes grandes del carrusel principal. Arrastralas para cambiar el orden." },
+  { id: "obras", label: "Obras", help: "Creá y publicá las páginas de obras, sus materiales, adicionales, galería y preguntas frecuentes." },
   { id: "categorias", label: "Categorías", help: "Las tarjetas de “Comprá por material”. Arrastralas para cambiar el orden." },
   { id: "contacto", label: "Contacto", help: "El WhatsApp y los mensajes que usa toda la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
@@ -290,22 +292,24 @@ export default function TiendaWebPage() {
         </div>
       )}
 
-      <nav className="flex gap-6 border-b border-border" aria-label="Secciones de la tienda web">
-        {TABS.map((t) => {
-          const problems = countIssues(issues, t.id);
-          return (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
-              className={cn("-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm transition", tab === t.id ? "border-primary font-semibold text-foreground" : "border-transparent text-default-500 hover:text-foreground")}>
-              {t.label}
-              {problems > 0 && <span className="h-2 w-2 rounded-full bg-destructive" aria-label={`${problems} para corregir`} />}
-            </button>
-          );
-        })}
-      </nav>
+      <div className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="flex w-max min-w-full gap-4 border-b border-border sm:gap-6" aria-label="Secciones de la tienda web">
+          {TABS.map((t) => {
+            const problems = countIssues(issues, t.id);
+            return (
+              <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}
+                className={cn("-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-0.5 pb-3 text-sm transition", tab === t.id ? "border-primary font-semibold text-foreground" : "border-transparent text-default-500 hover:text-foreground")}>
+                {t.label}
+                {problems > 0 && <span className="h-2 w-2 rounded-full bg-destructive" aria-label={`${problems} para corregir`} />}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       <p className="-mt-2 text-sm text-default-500">{tabInfo.help}</p>
 
-      {(tab === "banners" || tab === "categorias") && storageProblem && (
+      {(tab === "banners" || tab === "categorias" || tab === "obras") && storageProblem && (
         <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
           La subida de imágenes todavía no está activada. Podés seguir editando textos y orden; para agregar o cambiar imágenes hay que completar la configuración del servidor.
           <details className="mt-1 text-xs text-amber-800">
@@ -362,6 +366,7 @@ export default function TiendaWebPage() {
         <TransferenciaForm transferencia={config.transferencia} issues={issues}
           onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
       )}
+      {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} tiendaUrl={tiendaUrl} />}
 
       <BannerEditor {...editorProps("banners")} banner={editing?.scope === "banners" ? editItem : null} media={mediaApi} />
       <CategoriaEditor {...editorProps("categorias")} categoria={editing?.scope === "categorias" ? editItem : null} media={mediaApi} />

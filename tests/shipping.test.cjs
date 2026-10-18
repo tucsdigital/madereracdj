@@ -41,8 +41,15 @@ test("recargo porcentual, envío mínimo y envío gratis", () => {
   assert.equal(free.listPrice, 12000);
 });
 
-test("peso desconocido, distancia sin tramo y fuera de radio piden cotización", () => {
-  assert.equal(priceForDistance({ distanceKm: 5, tiers, weightKg: null }).reason, "peso_desconocido");
+test("el peso faltante usa la tarifa base si es opcional y cotiza si se exige", () => {
+  const optional = priceForDistance({ distanceKm: 5, tiers, weightKg: null });
+  assert.equal(optional.status, "ok");
+  assert.equal(optional.price, 10000);
+  assert.equal(optional.weightUnknown, true);
+  assert.equal(priceForDistance({ distanceKm: 5, tiers, weightKg: null, rules: { requireWeightForShipping: true } }).reason, "peso_desconocido");
+});
+
+test("distancia sin tramo y fuera de radio piden cotización", () => {
   assert.equal(priceForDistance({ distanceKm: 50, tiers, weightKg: 10 }).reason, "sin_tarifa");
   const far = computeShipping({ locations: [{ ...local, radio: 5000 }], tiers, lat: point.lat, lng: point.lng, weightKg: 10 });
   assert.equal(far.reason, "fuera_de_zona");

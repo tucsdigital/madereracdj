@@ -2,6 +2,7 @@
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Btn, Field, Segmented, UnitInput } from "@/components/panel-ui/ui";
+import { Switch } from "@/components/ui/switch";
 import { computeShipping, priceForDistance } from "@/lib/shipping";
 import { describeQuote, inlineIssues, kmLabel, numericLocations, numericTiers, sortTiers, tarifasResumen } from "@/lib/envios-ui";
 
@@ -133,6 +134,13 @@ export function ReglasPanel({ rules, issues, onChange }) {
 
       <Setting last title="Peso del pedido" description="Hasta qué peso se hace el envío. Si el pedido pesa más, se cotiza aparte.">
         <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-default-50 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Exigir peso para calcular el envío</p>
+              <p className="mt-0.5 text-xs leading-5 text-default-500">Desactivado: si falta el peso de algún producto, se usa la tarifa por distancia sin adicional por peso.</p>
+            </div>
+            <Switch checked={rules.requireWeightForShipping === true} onCheckedChange={(value) => onChange({ requireWeightForShipping: value })} aria-label="Exigir peso para calcular el envío" />
+          </div>
           <Segmented value={mode} onChange={switchMode} options={[{ value: "unico", label: "Un máximo" }, { value: "franjas", label: "Por franjas" }]} />
           {mode === "unico" ? (
             <Field error={field("maxWeightKg")} label="Peso máximo">
@@ -176,7 +184,7 @@ export function ReglasPanel({ rules, issues, onChange }) {
 /* ───────────────────────────── Probar ───────────────────────────── */
 
 export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChange, onClearPin }) {
-  const weight = toNum(probe.weight) || 1;
+  const weight = toNum(probe.weight);
   const subtotal = toNum(probe.subtotal) || 0;
   const manualDistance = toNum(probe.distance);
   const numTiers = numericTiers(tiers);
@@ -219,7 +227,7 @@ export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChan
             <UnitInput suffix="km" placeholder="12" value={probe.distance} onChange={(e) => onProbeChange({ distance: e.target.value })} />
           </Field>
           <Field label="Peso">
-            <UnitInput suffix="kg" placeholder="1" value={probe.weight} onChange={(e) => onProbeChange({ weight: e.target.value })} />
+            <UnitInput suffix="kg" placeholder="Sin peso" value={probe.weight} onChange={(e) => onProbeChange({ weight: e.target.value })} />
           </Field>
           <Field label="Compra">
             <UnitInput prefix="$" placeholder="0" value={probe.subtotal} onChange={(e) => onProbeChange({ subtotal: e.target.value })} />

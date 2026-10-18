@@ -12,13 +12,19 @@ export async function GET(request, { params }) {
     if (!snap.exists) return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
     const order = snap.data();
     const venta = order.ventaId ? (await db.collection("ventas").doc(order.ventaId).get()).data() : null;
-    const reservations = order.ventaId ? await db.collection("reservasStock").where("ventaId", "==", order.ventaId).get() : null;
-    const reservaActiva = Boolean(reservations?.docs.length) && reservations.docs.every((doc) => {
+    const reservations = order.ventaId
+      ? await db.collection("reservasStock").where("ventaId", "==", order.ventaId).get()
+      : order.paymentMethod === "mercadopago"
+        ? await db.collection("reservasStock").where("orderId", "==", params.id).get()
+        : null;
+    const reservationExpiry = order.stockReservationExpiresAt || venta?.reservaExpiresAt || null;
+    const notRequired = order.stockReservationStatus === "not_required" && Date.parse(reservationExpiry || "") > Date.now();
+    const reservaActiva = notRequired || (Boolean(reservations?.docs.length) && reservations.docs.every((doc) => {
       const reservation = doc.data();
       return reservation.estado === "activa" && Date.parse(reservation.expiresAt) > Date.now();
-    });
+    }));
     const transferencia = order.paymentMethod === "transferencia" ? await getPublishedTransferencia(db) : null;
-    return NextResponse.json({ ...order, numeroPedido: venta?.numeroPedido || null, reservaActiva, reservaExpiresAt: venta?.reservaExpiresAt || null, anulada: venta?.anulada === true, transferencia });
+    return NextResponse.json({ ...order, numeroPedido: venta?.numeroPedido || order.ventaNumeroPedido || null, reservaActiva, reservaExpiresAt: reservationExpiry, anulada: venta?.anulada === true, transferencia });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }

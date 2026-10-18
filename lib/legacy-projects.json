@@ -1,0 +1,1831 @@
+[
+  {
+    "slug": "muelles",
+    "title": "Muelles",
+    "category": "Muelles",
+    "status": "active",
+    "seo": {
+      "title": "Muelles - Maderas Caballero",
+      "description": "Construimos muelles resistentes y duraderos en madera con accesorios adicionales como barandas. Incluimos mantenimiento especializado.",
+      "keywords": [
+        "muelles",
+        "muelles madera",
+        "construcción muelles",
+        "barandas muelles",
+        "mantenimiento muelles"
+      ],
+      "ogImage": "/images/muelles/6.jpg",
+      "canonical": "/obras/muelles"
+    },
+    "banner": {
+      "id": "banner-muelles",
+      "autoplayInterval": 6000,
+      "showControls": true,
+      "showIndicators": true,
+      "slides": [
+        {
+          "id": "slide-1",
+          "title": "Muelles",
+          "subtitle": "Construcción y Mantenimiento",
+          "description": "Construimos muelles resistentes y duraderos con accesorios adicionales como barandas. Incluimos servicio de mantenimiento especializado.",
+          "backgroundImage": "/images/muelles/6.jpg",
+          "ctaText": "Ver Nuestros Trabajos",
+          "ctaUrl": "#gallery",
+          "secondaryCtaText": "Solicitar Presupuesto",
+          "secondaryCtaUrl": "#contact",
+          "overlayOpacity": 0.6
+        }
+      ]
+    },
+    "info": {
+      "id": "info-muelles",
+      "title": "Muelles",
+      "description": "Especialistas en construcción de muelles resistentes y duraderos con accesorios adicionales y mantenimiento especializado.",
+      "features": [
+        {
+          "id": "feature-1",
+          "icon": "water",
+          "title": "Construcción en maderas resistentes al agua",
+          "description": "Utilizamos maderas especialmente tratadas para ambientes acuáticos"
+        },
+        {
+          "id": "feature-2",
+          "icon": "shield",
+          "title": "Barandas de seguridad incluidas",
+          "description": "Barandas de seguridad para mayor protección"
+        },
+        {
+          "id": "feature-3",
+          "icon": "tools",
+          "title": "Accesorios adicionales personalizados",
+          "description": "Escaleras, plataformas y otros accesorios según necesidades"
+        },
+        {
+          "id": "feature-4",
+          "icon": "maintenance",
+          "title": "Servicio de mantenimiento especializado",
+          "description": "Mantenimiento profesional para máxima durabilidad"
+        }
+      ],
+      "images": [
+        "/images/muelles/1.jpg",
+        "/images/muelles/2.jpg",
+        "/images/muelles/3.jpg",
+        "/images/muelles/4.jpg",
+        "/images/muelles/5.jpg"
+      ]
+    },
+    "services": [
+      {
+        "id": "service-1",
+        "title": "Construcción de Muelles",
+        "description": "Construcción completa de muelles en madera resistente al agua con estructura reforzada.",
+        "image": "/images/muelles/10.jpg",
+        "features": [
+          "Pino Tratado",
+          "Quebracho",
+          "Eucalipto",
+          "Grandis"
+        ],
+        "carousel": [
+          {
+            "id": "madera-1",
+            "title": "Pino Tratado",
+            "image": "/images/muelles/1.jpg",
+            "description": "Madera tratada para resistencia al agua"
+          },
+          {
+            "id": "madera-2",
+            "title": "Quebracho",
+            "image": "/images/muelles/2.jpg",
+            "description": "Máxima durabilidad y resistencia natural"
+          },
+          {
+            "id": "madera-3",
+            "title": "Eucalipto",
+            "image": "/images/muelles/3.jpg",
+            "description": "Tratamiento especializado para ambientes acuáticos"
+          },
+          {
+            "id": "madera-4",
+            "title": "Grandis",
+            "image": "/images/muelles/4.jpg",
+            "description": "Excelente resistencia y estética"
+          }
+        ]
+      },
+      {
+        "id": "service-3",
+        "title": "Accesorios Adicionales",
+        "description": "Accesorios complementarios como escaleras, plataformas de pesca y áreas de descanso.",
+        "image": "/images/muelles/6.jpg",
+        "features": [
+          "Desnivel al Agua",
+          "Fogonero",
+          "Asientos",
+          "Rampa",
+          "Pergola y Asientos",
+          "Techo a 4 Aguas",
+          "Techo de Madera"
+        ],
+        "carousel": [
+          {
+            "id": "accesorio-1",
+            "title": "Desnivel al Agua",
+            "image": "/images/muelles/desnivel.jpg",
+            "description": "Accesorio de desnivel para facilitar el acceso al agua"
+          },
+          {
+            "id": "accesorio-2",
+            "title": "Fogonero",
+            "image": "/images/muelles/fogonero.jpg",
+            "description": "Fogonero integrado para disfrutar al aire libre"
+          },
+          {
+            "id": "accesorio-3",
+            "title": "Asientos",
+            "image": "/images/muelles/asientos.jpg",
+            "description": "Área de asientos para descanso y disfrute"
+          },
+          {
+            "id": "accesorio-4",
+            "title": "Rampa",
+            "image": "/images/muelles/rampa.jpg",
+            "description": "Rampa de acceso para mayor comodidad"
+          },
+          {
+            "id": "accesorio-5",
+            "title": "Pergola y Asientos",
+            "image": "/images/muelles/pergolayasiento.jpg",
+            "description": "Pergola con área de asientos integrada"
+          },
+          {
+            "id": "accesorio-6",
+            "title": "Techo a 4 Aguas",
+            "image": "/images/muelles/techo4aguas.jpg",
+            "description": "Techo a 4 aguas para protección total"
+          },
+          {
+            "id": "accesorio-7",
+            "title": "Techo de Madera",
+            "image": "/images/muelles/techomadera.jpg",
+            "description": "Techo de madera con diseño elegante"
+          }
+        ]
+      },
+      {
+        "id": "service-4",
+        "title": "Mantenimiento Especializado",
+        "description": "Servicio de mantenimiento para garantizar la durabilidad y seguridad de tu muelle.",
+        "image": "/images/muelles/9.jpg",
+        "features": [
+          "Inspección trimestral",
+          "Tratamiento protector",
+          "Reparaciones menores",
+          "Limpieza especializada"
+        ]
+      }
+    ],
+    "gallery": {
+      "id": "gallery-muelles",
+      "title": "Galería de Muelles",
+      "description": "Algunos de nuestros trabajos en construcción de muelles",
+      "categories": [
+        "pino-tratado",
+        "quebracho",
+        "eucalipto",
+        "grandis",
+        "accesorios",
+        "desnivel-agua",
+        "fogonero",
+        "asientos",
+        "rampa",
+        "pergola-asientos",
+        "techo-4-aguas",
+        "techo-madera"
+      ],
+      "items": [
+        {
+          "id": "gallery-1",
+          "title": "Muelle en Pino Tratado",
+          "description": "Muelle construido en pino tratado para resistencia al agua",
+          "image": "/images/muelles/1.jpg",
+          "category": "pino-tratado"
+        },
+        {
+          "id": "gallery-2",
+          "title": "Muelle en Quebracho",
+          "description": "Muelle en quebracho con máxima durabilidad y resistencia natural",
+          "image": "/images/muelles/2.jpg",
+          "category": "quebracho"
+        },
+        {
+          "id": "gallery-3",
+          "title": "Muelle en Eucalipto",
+          "description": "Muelle en eucalipto con tratamiento especializado para ambientes acuáticos",
+          "image": "/images/muelles/3.jpg",
+          "category": "eucalipto"
+        },
+        {
+          "id": "gallery-4",
+          "title": "Muelle en Grandis",
+          "description": "Muelle en grandis con excelente resistencia y estética",
+          "image": "/images/muelles/4.jpg",
+          "category": "grandis"
+        },
+        {
+          "id": "gallery-5",
+          "title": "Muelle con Accesorios",
+          "description": "Muelle completo con accesorios adicionales",
+          "image": "/images/muelles/5.jpg",
+          "category": "accesorios"
+        },
+        {
+          "id": "gallery-6",
+          "title": "Muelle con Desnivel al Agua",
+          "description": "Muelle con accesorio de desnivel al agua",
+          "image": "/images/muelles/6.jpg",
+          "category": "desnivel-agua"
+        },
+        {
+          "id": "gallery-7",
+          "title": "Muelle con Fogonero",
+          "description": "Muelle con fogonero integrado",
+          "image": "/images/muelles/7.jpg",
+          "category": "fogonero"
+        },
+        {
+          "id": "gallery-8",
+          "title": "Muelle con Asientos",
+          "description": "Muelle con área de asientos",
+          "image": "/images/muelles/8.jpg",
+          "category": "asientos"
+        },
+        {
+          "id": "gallery-9",
+          "title": "Muelle con Rampa",
+          "description": "Muelle con rampa de acceso",
+          "image": "/images/muelles/9.jpg",
+          "category": "rampa"
+        },
+        {
+          "id": "gallery-10",
+          "title": "Muelle con Pergola y Asientos",
+          "description": "Muelle con pergola y área de asientos integrada",
+          "image": "/images/muelles/10.jpg",
+          "category": "pergola-asientos"
+        }
+      ]
+    },
+    "testimonials": [
+      {
+        "id": "testimonial-1",
+        "name": "María González",
+        "role": "Cliente",
+        "content": "Excelente trabajo en nuestro muelle. La calidad de la madera y el acabado superaron nuestras expectativas. Muy profesionales y puntuales.",
+        "rating": 5
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "¿Qué tipos de maderas ofrecen para muelles?",
+        "answer": "Trabajamos con Pino Tratado, Quebracho, Eucalipto y Grandis, cada una con características específicas de resistencia al agua."
+      },
+      {
+        "id": "faq-2",
+        "question": "¿Qué accesorios adicionales pueden incluir?",
+        "answer": "Ofrecemos desnivel al agua, fogonero, asientos, rampa, pergola y asientos, techo a 4 aguas y techo de madera."
+      },
+      {
+        "id": "faq-3",
+        "question": "¿Cuál es la mejor madera para muelles?",
+        "answer": "El Quebracho ofrece máxima durabilidad, el Pino Tratado es económico, el Eucalipto tiene buen rendimiento y el Grandis excelente relación calidad-precio."
+      },
+      {
+        "id": "faq-4",
+        "question": "¿Incluyen mantenimiento?",
+        "answer": "Ofrecemos servicio de mantenimiento especializado con inspección trimestral, tratamiento protector y reparaciones."
+      },
+      {
+        "id": "faq-5",
+        "question": "¿Cuánto tiempo toma la construcción?",
+        "answer": "Depende del tamaño y complejidad, generalmente entre 2-4 semanas para muelles estándar."
+      }
+    ],
+    "contact": {
+      "id": "contact-muelles",
+      "title": "Solicita tu Presupuesto de Muelle",
+      "description": "Contáctanos para obtener un presupuesto personalizado para tu proyecto de muelle",
+      "phone": "+54 11 2178-1148",
+      "email": "info@maderascaballero.com",
+      "whatsapp": "+54 11 2178-1148",
+      "address": "Av. Dr. Honorio Pueyrredón 4625, Villa Rosa, Buenos Aires",
+      "workingHours": [
+        {
+          "day": "Lunes - Viernes",
+          "hours": "8:00 - 18:00"
+        },
+        {
+          "day": "Sábados",
+          "hours": "8:00 - 13:00"
+        },
+        {
+          "day": "Domingos",
+          "hours": "Cerrado"
+        }
+      ],
+      "socialLinks": [
+        {
+          "platform": "Facebook",
+          "url": "#",
+          "icon": "facebook"
+        },
+        {
+          "platform": "Instagram",
+          "url": "#",
+          "icon": "instagram"
+        },
+        {
+          "platform": "TikTok",
+          "url": "https://www.tiktok.com/@maderascaballero2",
+          "icon": "tiktok"
+        }
+      ]
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z",
+    "pageContent": {
+      "hero": {
+        "eyebrow": "Muelles",
+        "headline": "Muelles",
+        "subheadline": "Un lugar para disfrutar el agua.",
+        "description": "Construimos tu muelle a medida, con opciones de barandas y mantenimiento especializado.",
+        "services": ["A medida", "Instalación", "Mantenimiento"],
+        "primaryLabel": "Escribinos",
+        "primaryHref": "#contacto",
+        "secondaryLabel": "Ver trabajos",
+        "secondaryHref": "#gallery"
+      },
+      "options": {
+        "eyebrow": "Tipos de obras",
+        "title": "Elegí tu opción",
+        "description": "Alternativas pensadas para que cada obra responda a tu espacio, uso y estilo.",
+        "consultationLabel": "Consultar",
+        "consultationHref": "#contacto",
+        "items": [
+          {
+            "id": "madera-1",
+            "title": "Pino Tratado",
+            "image": "/images/muelles/1.jpg",
+            "description": "Madera tratada para resistencia al agua",
+            "group": "Construcción de Muelles",
+            "images": [
+              "/images/muelles/1.jpg"
+            ],
+            "alt": "Pino Tratado"
+          },
+          {
+            "id": "madera-2",
+            "title": "Quebracho",
+            "image": "/images/muelles/2.jpg",
+            "description": "Máxima durabilidad y resistencia natural",
+            "group": "Construcción de Muelles",
+            "images": [
+              "/images/muelles/2.jpg"
+            ],
+            "alt": "Quebracho"
+          },
+          {
+            "id": "madera-3",
+            "title": "Eucalipto",
+            "image": "/images/muelles/3.jpg",
+            "description": "Tratamiento especializado para ambientes acuáticos",
+            "group": "Construcción de Muelles",
+            "images": [
+              "/images/muelles/3.jpg"
+            ],
+            "alt": "Eucalipto"
+          },
+          {
+            "id": "madera-4",
+            "title": "Grandis",
+            "image": "/images/muelles/4.jpg",
+            "description": "Excelente resistencia y estética",
+            "group": "Construcción de Muelles",
+            "images": [
+              "/images/muelles/4.jpg"
+            ],
+            "alt": "Grandis"
+          }
+        ]
+      },
+      "accessories": {
+        "eyebrow": "Accesorios a medida",
+        "title": "El detalle hace la diferencia.",
+        "description": "Complementos para disfrutar más tu muelles.",
+        "contentEyebrow": "Protección y diseño",
+        "items": [
+          {
+            "id": "accesorio-1",
+            "title": "Desnivel al Agua",
+            "image": "/images/muelles/desnivel.jpg",
+            "description": "Accesorio de desnivel para facilitar el acceso al agua",
+            "images": [
+              "/images/muelles/desnivel.jpg"
+            ],
+            "alt": "Desnivel al Agua"
+          },
+          {
+            "id": "accesorio-2",
+            "title": "Fogonero",
+            "image": "/images/muelles/fogonero.jpg",
+            "description": "Fogonero integrado para disfrutar al aire libre",
+            "images": [
+              "/images/muelles/fogonero.jpg"
+            ],
+            "alt": "Fogonero"
+          },
+          {
+            "id": "accesorio-3",
+            "title": "Asientos",
+            "image": "/images/muelles/asientos.jpg",
+            "description": "Área de asientos para descanso y disfrute",
+            "images": [
+              "/images/muelles/asientos.jpg"
+            ],
+            "alt": "Asientos"
+          },
+          {
+            "id": "accesorio-4",
+            "title": "Rampa",
+            "image": "/images/muelles/rampa.jpg",
+            "description": "Rampa de acceso para mayor comodidad",
+            "images": [
+              "/images/muelles/rampa.jpg"
+            ],
+            "alt": "Rampa"
+          },
+          {
+            "id": "accesorio-5",
+            "title": "Pergola y Asientos",
+            "image": "/images/muelles/pergolayasiento.jpg",
+            "description": "Pergola con área de asientos integrada",
+            "images": [
+              "/images/muelles/pergolayasiento.jpg"
+            ],
+            "alt": "Pergola y Asientos"
+          },
+          {
+            "id": "accesorio-6",
+            "title": "Techo a 4 Aguas",
+            "image": "/images/muelles/techo4aguas.jpg",
+            "description": "Techo a 4 aguas para protección total",
+            "images": [
+              "/images/muelles/techo4aguas.jpg"
+            ],
+            "alt": "Techo a 4 Aguas"
+          },
+          {
+            "id": "accesorio-7",
+            "title": "Techo de Madera",
+            "image": "/images/muelles/techomadera.jpg",
+            "description": "Techo de madera con diseño elegante",
+            "images": [
+              "/images/muelles/techomadera.jpg"
+            ],
+            "alt": "Techo de Madera"
+          }
+        ]
+      },
+      "solutions": {
+        "eyebrow": "Soluciones que brindamos",
+        "title": "¿Necesitás ayuda?",
+        "description": "Contanos tu idea y recibí asesoramiento sin compromiso para definirla, cotizarla y construirla.",
+        "image": "/images/footer.png",
+        "whatsappLabel": "Escribinos por WhatsApp",
+        "phone": "011 2178-1148"
+      },
+      "gallery": {
+        "eyebrow": "Obra real"
+      },
+      "instagram": {
+        "eyebrow": "Instagram",
+        "title": "Nuestras obras en redes",
+        "description": "Seguí nuestra cuenta para ver nuevos proyectos, proceso de construcción y consejos."
+      },
+      "faq": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Respuestas claras antes de empezar",
+        "description": "Todo lo que necesitás saber sobre esta obra, sus materiales y plazos.",
+        "ctaLabel": "Hacé tu consulta"
+      },
+      "contact": {
+        "eyebrow": "Contacto",
+        "title": "Hablemos de tu próximo proyecto",
+        "description": "Estamos listos para hacer realidad tu próxima obra en madera.",
+        "formTitle": "Envianos un mensaje"
+      }
+    }
+  },
+  {
+    "slug": "pergolas",
+    "title": "Pérgolas",
+    "category": "Pérgolas",
+    "status": "active",
+    "seo": {
+      "title": "Pérgolas en Madera con y sin Chapa - Nativa",
+      "description": "Construimos pérgolas en diferentes variedades de madera, con opciones de chapa protectora. Incluimos precios competitivos y mantenimiento especializado.",
+      "keywords": [
+        "pergolas",
+        "pergolas madera",
+        "pergolas con chapa",
+        "construcción pergolas",
+        "mantenimiento pergolas"
+      ],
+      "ogImage": "/images/pergolas-obra.jpg",
+      "canonical": "/obras/pergolas"
+    },
+    "banner": {
+      "id": "banner-pergolas",
+      "autoplayInterval": 6000,
+      "showControls": true,
+      "showIndicators": true,
+      "slides": [
+        {
+          "id": "slide-1",
+          "title": "Pérgolas en Madera",
+          "subtitle": "Variedades y Diseños",
+          "description": "Construimos pérgolas en diferentes variedades de madera, con opciones de chapa protectora. Precios competitivos y mantenimiento especializado.",
+          "backgroundImage": "/images/pergolas/1.jpg",
+          "ctaText": "Ver Diseños",
+          "ctaUrl": "#gallery",
+          "secondaryCtaText": "Solicitar Presupuesto",
+          "secondaryCtaUrl": "#contact",
+          "overlayOpacity": 0.6
+        }
+      ]
+    },
+    "info": {
+      "id": "info-pergolas",
+      "title": "Pérgolas en Madera",
+      "description": "Especialistas en construcción de pérgolas en diferentes variedades de madera con opciones de chapa protectora y mantenimiento especializado.",
+      "features": [
+        {
+          "id": "feature-1",
+          "icon": "wood",
+          "title": "Variedades de madera disponibles",
+          "description": "Quebracho, lapacho, eucalipto y pino tratado"
+        },
+        {
+          "id": "feature-2",
+          "icon": "roof",
+          "title": "Opciones con y sin chapa",
+          "description": "Flexibilidad en diseño según necesidades"
+        },
+        {
+          "id": "feature-3",
+          "icon": "design",
+          "title": "Diseños personalizados",
+          "description": "Cada pérgola adaptada a tu espacio"
+        },
+        {
+          "id": "feature-4",
+          "icon": "maintenance",
+          "title": "Mantenimiento especializado",
+          "description": "Servicio profesional de mantenimiento"
+        }
+      ],
+      "images": [
+        "/images/pergolas/1.jpg",
+        "/images/pergolas/2.jpg",
+        "/images/pergolas/3.jpg",
+        "/images/pergolas/4.jpg",
+        "/images/pergolas/5.jpg"
+      ]
+    },
+    "services": [
+      {
+        "id": "service-1",
+        "title": "Pérgola con Estructura de Madera",
+        "description": "Pérgolas con estructura completamente en madera, destacando la belleza natural y resistencia del material.",
+        "image": "/images/pergolas/pergola.jpg",
+        "features": [
+          "Estructura de madera tratada",
+          "Diseño personalizado",
+          "Instalación profesional",
+          "Mantenimiento especializado"
+        ]
+      },
+      {
+        "id": "service-2",
+        "title": "Pérgola con Estructura de Hierro",
+        "description": "Pérgolas con estructura de hierro que combinan resistencia y durabilidad con diseño moderno.",
+        "image": "/images/pergolas/estructurahierro.jpg",
+        "features": [
+          "Estructura de hierro",
+          "Mayor resistencia",
+          "Diseño contemporáneo",
+          "Tratamiento anticorrosivo"
+        ]
+      },
+      {
+        "id": "service-3",
+        "title": "Pérgola con Emparrillado Translúcido",
+        "description": "Pérgolas con emparrillado translúcido que permiten el paso de luz natural mientras protegen del sol.",
+        "image": "/images/pergolas/traslucido.jpg",
+        "features": [
+          "Emparrillado translúcido",
+          "Iluminación natural",
+          "Protección solar",
+          "Diseño moderno"
+        ]
+      },
+      {
+        "id": "service-4",
+        "title": "Pérgola con Postes Redondos",
+        "description": "Pérgolas con postes redondos que ofrecen un diseño elegante y estético para cualquier espacio exterior.",
+        "image": "/images/pergolas/postesredondos.jpg",
+        "features": [
+          "Postes redondos",
+          "Diseño elegante",
+          "Estructura sólida",
+          "Acabado profesional"
+        ]
+      },
+      {
+        "id": "service-5",
+        "title": "Pérgola para Balcones",
+        "description": "Pérgolas especialmente diseñadas para balcones, optimizando espacios reducidos con funcionalidad y estilo.",
+        "image": "/images/pergolas/balcones.jpg",
+        "features": [
+          "Diseño para balcones",
+          "Optimización de espacio",
+          "Instalación adaptada",
+          "Máxima funcionalidad"
+        ]
+      },
+      {
+        "id": "service-6",
+        "title": "Pérgola con Chapa Translúcida",
+        "description": "Pérgolas con chapa translúcida que combinan protección contra la intemperie con iluminación natural.",
+        "image": "/images/pergolas/chapatraslucida.jpg",
+        "features": [
+          "Chapa translúcida",
+          "Protección total",
+          "Luz natural",
+          "Resistencia a la intemperie"
+        ]
+      },
+      {
+        "id": "service-7",
+        "title": "Mantenimiento Especializado",
+        "description": "Servicio de mantenimiento para pérgolas con y sin chapa.",
+        "image": "/images/pergolas/mantenimientoper.jpg",
+        "features": [
+          "Limpieza especializada",
+          "Tratamiento protector",
+          "Reparaciones menores",
+          "Inspección trimestral"
+        ]
+      }
+    ],
+    "gallery": {
+      "id": "gallery-pergolas",
+      "title": "Galería de Pérgolas",
+      "description": "Algunos de nuestros trabajos en construcción de pérgolas",
+      "categories": [
+        "estructura-madera",
+        "estructura-hierro",
+        "emparrillado-translucido",
+        "postes-redondos",
+        "balcones",
+        "chapa-translucida"
+      ],
+      "items": [
+        {
+          "id": "gallery-1",
+          "title": "Pérgola con Estructura de Madera",
+          "description": "Pérgola con estructura completamente en madera tratada",
+          "image": "/images/pergolas/1.jpg",
+          "category": "estructura-madera"
+        },
+        {
+          "id": "gallery-2",
+          "title": "Pérgola con Estructura de Hierro",
+          "description": "Pérgola con estructura de hierro y diseño moderno",
+          "image": "/images/pergolas/2.jpg",
+          "category": "estructura-hierro"
+        },
+        {
+          "id": "gallery-3",
+          "title": "Pérgola con Emparrillado Translúcido",
+          "description": "Pérgola con emparrillado translúcido para luz natural",
+          "image": "/images/pergolas/3.jpg",
+          "category": "emparrillado-translucido"
+        },
+        {
+          "id": "gallery-4",
+          "title": "Pérgola con Postes Redondos",
+          "description": "Pérgola con postes redondos y diseño elegante",
+          "image": "/images/pergolas/4.jpg",
+          "category": "postes-redondos"
+        },
+        {
+          "id": "gallery-5",
+          "title": "Pérgola para Balcones",
+          "description": "Pérgola diseñada especialmente para balcones",
+          "image": "/images/pergolas/5.jpg",
+          "category": "balcones"
+        },
+        {
+          "id": "gallery-6",
+          "title": "Pérgola con Chapa Translúcida",
+          "description": "Pérgola con chapa translúcida para protección e iluminación",
+          "image": "/images/pergolas/6.jpg",
+          "category": "chapa-translucida"
+        },
+        {
+          "id": "gallery-7",
+          "title": "Pérgola Estructura Madera - Detalle",
+          "description": "Detalle de construcción en estructura de madera",
+          "image": "/images/pergolas/7.jpg",
+          "category": "estructura-madera"
+        },
+        {
+          "id": "gallery-8",
+          "title": "Pérgola Estructura Hierro - Instalación",
+          "description": "Instalación de pérgola con estructura de hierro",
+          "image": "/images/pergolas/8.jpg",
+          "category": "estructura-hierro"
+        }
+      ]
+    },
+    "testimonials": [
+      {
+        "id": "testimonial-1",
+        "name": "Carlos Rodríguez",
+        "role": "Cliente",
+        "content": "La pérgola quedó perfecta. Resiste muy bien la intemperie y el diseño es exactamente lo que queríamos. Totalmente recomendados.",
+        "rating": 5
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "¿Qué tipos de pérgolas ofrecen?",
+        "answer": "Ofrecemos pérgolas con estructura de madera, estructura de hierro, emparrillado translúcido, postes redondos, para balcones y con chapa translúcida."
+      },
+      {
+        "id": "faq-2",
+        "question": "¿Cuál es la diferencia entre estructura de madera y hierro?",
+        "answer": "La estructura de madera destaca la belleza natural, mientras que la de hierro ofrece mayor resistencia y diseño moderno."
+      },
+      {
+        "id": "faq-3",
+        "question": "¿Las pérgolas para balcones son diferentes?",
+        "answer": "Sí, están especialmente diseñadas para optimizar espacios reducidos con máxima funcionalidad."
+      },
+      {
+        "id": "faq-4",
+        "question": "¿Qué ventajas tiene el emparrillado translúcido?",
+        "answer": "Permite el paso de luz natural mientras protege del sol, ideal para espacios exteriores."
+      },
+      {
+        "id": "faq-5",
+        "question": "¿Incluyen mantenimiento?",
+        "answer": "Ofrecemos servicio de mantenimiento especializado adaptado a cada tipo de pérgola."
+      }
+    ],
+    "contact": {
+      "id": "contact-pergolas",
+      "title": "Solicita tu Presupuesto de Pérgola",
+      "description": "Contáctanos para obtener un presupuesto personalizado para tu proyecto de pérgola",
+      "phone": "+54 11 2178-1148",
+      "email": "info@maderascaballero.com",
+      "whatsapp": "+54 11 2178-1148",
+      "address": "Av. Dr. Honorio Pueyrredón 4625, Villa Rosa, Buenos Aires",
+      "workingHours": [
+        {
+          "day": "Lunes - Viernes",
+          "hours": "8:00 - 18:00"
+        },
+        {
+          "day": "Sábados",
+          "hours": "8:00 - 13:00"
+        },
+        {
+          "day": "Domingos",
+          "hours": "Cerrado"
+        }
+      ],
+      "socialLinks": [
+        {
+          "platform": "Facebook",
+          "url": "#",
+          "icon": "facebook"
+        },
+        {
+          "platform": "Instagram",
+          "url": "#",
+          "icon": "instagram"
+        },
+        {
+          "platform": "TikTok",
+          "url": "https://www.tiktok.com/@maderascaballero2",
+          "icon": "tiktok"
+        }
+      ]
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z",
+    "pageContent": {
+      "hero": {
+        "eyebrow": "Pérgolas",
+        "headline": "Pérgolas",
+        "subheadline": "Sombra para vivir el exterior.",
+        "description": "Diseñamos pérgolas a medida para sumar sombra, abrigo y carácter a tu espacio.",
+        "services": ["A medida", "Instalación", "Mantenimiento"],
+        "primaryLabel": "Escribinos",
+        "primaryHref": "#contacto",
+        "secondaryLabel": "Ver trabajos",
+        "secondaryHref": "#gallery"
+      },
+      "options": {
+        "eyebrow": "Tipos de obras",
+        "title": "Elegí tu opción",
+        "description": "Alternativas pensadas para que cada obra responda a tu espacio, uso y estilo.",
+        "consultationLabel": "Consultar",
+        "consultationHref": "#contacto",
+        "items": [
+          {
+            "id": "service-1",
+            "title": "Pérgola con Estructura de Madera",
+            "description": "Pérgolas con estructura completamente en madera, destacando la belleza natural y resistencia del material.",
+            "image": "/images/pergolas/pergola.jpg",
+            "images": [
+              "/images/pergolas/pergola.jpg"
+            ],
+            "group": "Pérgola con Estructura de Madera",
+            "alt": "Pérgola con Estructura de Madera"
+          },
+          {
+            "id": "service-2",
+            "title": "Pérgola con Estructura de Hierro",
+            "description": "Pérgolas con estructura de hierro que combinan resistencia y durabilidad con diseño moderno.",
+            "image": "/images/pergolas/estructurahierro.jpg",
+            "images": [
+              "/images/pergolas/estructurahierro.jpg"
+            ],
+            "group": "Pérgola con Estructura de Hierro",
+            "alt": "Pérgola con Estructura de Hierro"
+          },
+          {
+            "id": "service-3",
+            "title": "Pérgola con Emparrillado Translúcido",
+            "description": "Pérgolas con emparrillado translúcido que permiten el paso de luz natural mientras protegen del sol.",
+            "image": "/images/pergolas/traslucido.jpg",
+            "images": [
+              "/images/pergolas/traslucido.jpg"
+            ],
+            "group": "Pérgola con Emparrillado Translúcido",
+            "alt": "Pérgola con Emparrillado Translúcido"
+          },
+          {
+            "id": "service-4",
+            "title": "Pérgola con Postes Redondos",
+            "description": "Pérgolas con postes redondos que ofrecen un diseño elegante y estético para cualquier espacio exterior.",
+            "image": "/images/pergolas/postesredondos.jpg",
+            "images": [
+              "/images/pergolas/postesredondos.jpg"
+            ],
+            "group": "Pérgola con Postes Redondos",
+            "alt": "Pérgola con Postes Redondos"
+          },
+          {
+            "id": "service-5",
+            "title": "Pérgola para Balcones",
+            "description": "Pérgolas especialmente diseñadas para balcones, optimizando espacios reducidos con funcionalidad y estilo.",
+            "image": "/images/pergolas/balcones.jpg",
+            "images": [
+              "/images/pergolas/balcones.jpg"
+            ],
+            "group": "Pérgola para Balcones",
+            "alt": "Pérgola para Balcones"
+          },
+          {
+            "id": "service-6",
+            "title": "Pérgola con Chapa Translúcida",
+            "description": "Pérgolas con chapa translúcida que combinan protección contra la intemperie con iluminación natural.",
+            "image": "/images/pergolas/chapatraslucida.jpg",
+            "images": [
+              "/images/pergolas/chapatraslucida.jpg"
+            ],
+            "group": "Pérgola con Chapa Translúcida",
+            "alt": "Pérgola con Chapa Translúcida"
+          }
+        ]
+      },
+      "accessories": {
+        "eyebrow": "Accesorios a medida",
+        "title": "El detalle hace la diferencia.",
+        "description": "Complementos para disfrutar más tu pérgolas.",
+        "contentEyebrow": "Protección y diseño",
+        "items": []
+      },
+      "solutions": {
+        "eyebrow": "Soluciones que brindamos",
+        "title": "¿Necesitás ayuda?",
+        "description": "Contanos tu idea y recibí asesoramiento sin compromiso para definirla, cotizarla y construirla.",
+        "image": "/images/footer.png",
+        "whatsappLabel": "Escribinos por WhatsApp",
+        "phone": "011 2178-1148"
+      },
+      "gallery": {
+        "eyebrow": "Obra real"
+      },
+      "instagram": {
+        "eyebrow": "Instagram",
+        "title": "Nuestras obras en redes",
+        "description": "Seguí nuestra cuenta para ver nuevos proyectos, proceso de construcción y consejos."
+      },
+      "faq": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Respuestas claras antes de empezar",
+        "description": "Todo lo que necesitás saber sobre esta obra, sus materiales y plazos.",
+        "ctaLabel": "Hacé tu consulta"
+      },
+      "contact": {
+        "eyebrow": "Contacto",
+        "title": "Hablemos de tu próximo proyecto",
+        "description": "Estamos listos para hacer realidad tu próxima obra en madera.",
+        "formTitle": "Envianos un mensaje"
+      }
+    }
+  },
+  {
+    "slug": "deck",
+    "title": "Deck",
+    "category": "Deck",
+    "status": "active",
+    "seo": {
+      "title": "Deck en Madera - Variedades y Mantenimiento - Nativa",
+      "description": "Construimos decks en diferentes variedades de madera con precios competitivos. Incluimos servicio de mantenimiento especializado para máxima durabilidad.",
+      "keywords": [
+        "deck madera",
+        "construcción deck",
+        "deck exterior",
+        "mantenimiento deck",
+        "maderas deck"
+      ],
+      "ogImage": "/images/decks/4.jpg",
+      "canonical": "/obras/deck"
+    },
+    "banner": {
+      "id": "banner-deck",
+      "autoplayInterval": 6000,
+      "showControls": true,
+      "showIndicators": true,
+      "slides": [
+        {
+          "id": "slide-1",
+          "title": "Deck en Madera",
+          "subtitle": "Variedades y Calidad",
+          "description": "Construimos decks en diferentes variedades de madera con precios competitivos. Incluimos servicio de mantenimiento especializado.",
+          "backgroundImage": "/images/decks/4.jpg",
+          "ctaText": "Ver Variedades",
+          "ctaUrl": "#gallery",
+          "secondaryCtaText": "Solicitar Presupuesto",
+          "secondaryCtaUrl": "#contact",
+          "overlayOpacity": 0.6
+        }
+      ]
+    },
+    "info": {
+      "id": "info-deck",
+      "title": "Deck en Madera",
+      "description": "Especialistas en construcción de decks en diferentes variedades de madera con precios competitivos y mantenimiento especializado.",
+      "features": [
+        {
+          "id": "feature-1",
+          "icon": "wood",
+          "title": "Variedades de madera disponibles",
+          "description": "Quebracho, lapacho, eucalipto y más"
+        },
+        {
+          "id": "feature-2",
+          "icon": "price",
+          "title": "Precios competitivos",
+          "description": "Excelente relación calidad-precio"
+        },
+        {
+          "id": "feature-3",
+          "icon": "install",
+          "title": "Instalación profesional",
+          "description": "Instalación por profesionales especializados"
+        },
+        {
+          "id": "feature-4",
+          "icon": "maintenance",
+          "title": "Mantenimiento especializado",
+          "description": "Servicio profesional de mantenimiento"
+        }
+      ],
+      "images": [
+        "/images/decks/2.jpg",
+        "/images/decks/4.jpg",
+        "/images/decks/euca2.jpg",
+        "/images/decks/quebracho.jpg",
+        "/images/decks/6.jpg"
+      ]
+    },
+    "services": [
+      {
+        "id": "service-1",
+        "title": "Deck en Quebracho",
+        "description": "Deck en quebracho, la madera más resistente y duradera para exteriores.",
+        "image": "/images/decks/quebracho.jpg",
+        "features": [
+          "Máxima durabilidad",
+          "Resistencia natural",
+          "Belleza única",
+          "Instalación profesional"
+        ],
+        "price": {
+          "from": 200000,
+          "currency": "ARS",
+          "unit": "m²"
+        }
+      },
+      {
+        "id": "service-2",
+        "title": "Deck en Lapacho",
+        "description": "Deck en lapacho, excelente relación calidad-precio con gran resistencia.",
+        "image": "/images/decks/7.jpg",
+        "features": [
+          "Excelente calidad",
+          "Precio competitivo",
+          "Resistencia probada",
+          "Mantenimiento fácil"
+        ],
+        "price": {
+          "from": 150000,
+          "currency": "ARS",
+          "unit": "m²"
+        }
+      },
+      {
+        "id": "service-3",
+        "title": "Deck en Eucalipto",
+        "description": "Deck en eucalipto tratado, opción económica con buenas prestaciones.",
+        "image": "/images/decks/euca.jpg",
+        "features": [
+          "Precio accesible",
+          "Tratamiento especial",
+          "Buen rendimiento",
+          "Instalación rápida"
+        ],
+        "price": {
+          "from": 100000,
+          "currency": "ARS",
+          "unit": "m²"
+        }
+      },
+      {
+        "id": "service-4",
+        "title": "Mantenimiento Especializado",
+        "description": "Servicio de mantenimiento para mantener tu deck en perfectas condiciones.",
+        "image": "/images/decks/mantenimiento.jpg",
+        "features": [
+          "Limpieza especializada",
+          "Tratamiento protector",
+          "Reparaciones menores",
+          "Inspección mensual"
+        ],
+        "price": {
+          "from": 25000,
+          "currency": "ARS",
+          "unit": "mes"
+        }
+      }
+    ],
+    "gallery": {
+      "id": "gallery-deck",
+      "title": "Galería de Decks",
+      "description": "Algunos de nuestros trabajos en construcción de decks",
+      "categories": [
+        "decks",
+        "quebracho",
+        "lapacho",
+        "eucalipto"
+      ],
+      "items": [
+        {
+          "id": "gallery-1",
+          "title": "Deck 2",
+          "description": "Proyecto de deck",
+          "image": "/images/decks/2.jpg",
+          "category": "decks"
+        },
+        {
+          "id": "gallery-2",
+          "title": "Deck 4",
+          "description": "Proyecto de deck",
+          "image": "/images/decks/4.jpg",
+          "category": "decks"
+        },
+        {
+          "id": "gallery-3",
+          "title": "Deck 6",
+          "description": "Proyecto de deck",
+          "image": "/images/decks/6.jpg",
+          "category": "decks"
+        },
+        {
+          "id": "gallery-4",
+          "title": "Deck en Quebracho",
+          "description": "Deck realizado en madera de quebracho",
+          "image": "/images/decks/quebracho.jpg",
+          "category": "quebracho"
+        },
+        {
+          "id": "gallery-5",
+          "title": "Deck en Lapacho",
+          "description": "Deck realizado en madera de lapacho",
+          "image": "/images/decks/7.jpg",
+          "category": "lapacho"
+        },
+        {
+          "id": "gallery-6",
+          "title": "Deck en Eucalipto",
+          "description": "Deck en eucalipto tratado",
+          "image": "/images/decks/euca.jpg",
+          "category": "eucalipto"
+        },
+        {
+          "id": "gallery-7",
+          "title": "Deck en Eucalipto II",
+          "description": "Deck en eucalipto tratado",
+          "image": "/images/decks/euca2.jpg",
+          "category": "eucalipto"
+        }
+      ]
+    },
+    "testimonials": [
+      {
+        "id": "testimonial-1",
+        "name": "Roberto Martínez",
+        "role": "Cliente",
+        "content": "El deck quedó perfecto. Resiste muy bien la intemperie y el diseño es exactamente lo que queríamos. Totalmente recomendados.",
+        "rating": 5
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "¿Qué variedad de madera es mejor para un deck?",
+        "answer": "El quebracho es la más resistente y duradera, el lapacho ofrece excelente relación calidad-precio, y el eucalipto es la opción más económica."
+      },
+      {
+        "id": "faq-2",
+        "question": "¿Cuánto tiempo dura un deck?",
+        "answer": "Con el mantenimiento adecuado, un deck en quebracho puede durar más de 20 años, en lapacho 15 años y en eucalipto 10 años."
+      },
+      {
+        "id": "faq-3",
+        "question": "¿Incluyen el mantenimiento en el precio?",
+        "answer": "El mantenimiento es un servicio adicional que recomendamos para maximizar la durabilidad de tu deck."
+      }
+    ],
+    "contact": {
+      "id": "contact-deck",
+      "title": "Solicita tu Presupuesto de Deck",
+      "description": "Contáctanos para obtener un presupuesto personalizado para tu proyecto de deck",
+      "phone": "+54 11 2178-1148",
+      "email": "info@maderascaballero.com",
+      "whatsapp": "+54 11 2178-1148",
+      "address": "Av. Dr. Honorio Pueyrredón 4625, Villa Rosa, Buenos Aires",
+      "workingHours": [
+        {
+          "day": "Lunes - Viernes",
+          "hours": "8:00 - 18:00"
+        },
+        {
+          "day": "Sábados",
+          "hours": "8:00 - 13:00"
+        },
+        {
+          "day": "Domingos",
+          "hours": "Cerrado"
+        }
+      ],
+      "socialLinks": [
+        {
+          "platform": "Facebook",
+          "url": "#",
+          "icon": "facebook"
+        },
+        {
+          "platform": "Instagram",
+          "url": "#",
+          "icon": "instagram"
+        },
+        {
+          "platform": "TikTok",
+          "url": "https://www.tiktok.com/@maderascaballero2",
+          "icon": "tiktok"
+        }
+      ]
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z",
+    "pageContent": {
+      "hero": {
+        "eyebrow": "Deck",
+        "headline": "Decks",
+        "subheadline": "Más espacio para disfrutar.",
+        "description": "Construimos decks resistentes y cálidos para conectar tu interior con el exterior.",
+        "services": ["A medida", "Instalación", "Mantenimiento"],
+        "primaryLabel": "Escribinos",
+        "primaryHref": "#contacto",
+        "secondaryLabel": "Ver trabajos",
+        "secondaryHref": "#gallery"
+      },
+      "options": {
+        "eyebrow": "Tipos de obras",
+        "title": "Elegí tu opción",
+        "description": "Alternativas pensadas para que cada obra responda a tu espacio, uso y estilo.",
+        "consultationLabel": "Consultar",
+        "consultationHref": "#contacto",
+        "items": [
+          {
+            "id": "service-1",
+            "title": "Deck en Quebracho",
+            "description": "Deck en quebracho, la madera más resistente y duradera para exteriores.",
+            "image": "/images/decks/quebracho.jpg",
+            "images": [
+              "/images/decks/quebracho.jpg"
+            ],
+            "group": "Deck en Quebracho",
+            "alt": "Deck en Quebracho"
+          },
+          {
+            "id": "service-2",
+            "title": "Deck en Lapacho",
+            "description": "Deck en lapacho, excelente relación calidad-precio con gran resistencia.",
+            "image": "/images/decks/7.jpg",
+            "images": [
+              "/images/decks/7.jpg"
+            ],
+            "group": "Deck en Lapacho",
+            "alt": "Deck en Lapacho"
+          },
+          {
+            "id": "service-3",
+            "title": "Deck en Eucalipto",
+            "description": "Deck en eucalipto tratado, opción económica con buenas prestaciones.",
+            "image": "/images/decks/euca.jpg",
+            "images": [
+              "/images/decks/euca.jpg"
+            ],
+            "group": "Deck en Eucalipto",
+            "alt": "Deck en Eucalipto"
+          }
+        ]
+      },
+      "accessories": {
+        "eyebrow": "Accesorios a medida",
+        "title": "El detalle hace la diferencia.",
+        "description": "Complementos para disfrutar más tu deck.",
+        "contentEyebrow": "Protección y diseño",
+        "items": []
+      },
+      "solutions": {
+        "eyebrow": "Soluciones que brindamos",
+        "title": "¿Necesitás ayuda?",
+        "description": "Contanos tu idea y recibí asesoramiento sin compromiso para definirla, cotizarla y construirla.",
+        "image": "/images/footer.png",
+        "whatsappLabel": "Escribinos por WhatsApp",
+        "phone": "011 2178-1148"
+      },
+      "gallery": {
+        "eyebrow": "Obra real"
+      },
+      "instagram": {
+        "eyebrow": "Instagram",
+        "title": "Nuestras obras en redes",
+        "description": "Seguí nuestra cuenta para ver nuevos proyectos, proceso de construcción y consejos."
+      },
+      "faq": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Respuestas claras antes de empezar",
+        "description": "Todo lo que necesitás saber sobre esta obra, sus materiales y plazos.",
+        "ctaLabel": "Hacé tu consulta"
+      },
+      "contact": {
+        "eyebrow": "Contacto",
+        "title": "Hablemos de tu próximo proyecto",
+        "description": "Estamos listos para hacer realidad tu próxima obra en madera.",
+        "formTitle": "Envianos un mensaje"
+      }
+    }
+  },
+  {
+    "slug": "tablestacado",
+    "title": "Tablestacado",
+    "category": "Tablestacado",
+    "status": "active",
+    "seo": {
+      "title": "Tablestacado para Río y Laguna - Nativa",
+      "description": "Especialistas en tablestacado para río y laguna. Ofrecemos opciones de 1, 2 y 3 tablas según necesidades específicas: río (paradas) y laguna (acostadas).",
+      "keywords": [
+        "tablestacado",
+        "tablestacado rio",
+        "tablestacado laguna",
+        "construccion tablestacado",
+        "maderas tablestacado",
+        "1 tabla",
+        "2 tablas",
+        "3 tablas",
+        "rio paradas",
+        "laguna acostadas"
+      ],
+      "ogImage": "/images/tablestacado-obra.jpg",
+      "canonical": "/obras/tablestacado"
+    },
+    "banner": {
+      "id": "banner-tablestacado",
+      "autoplayInterval": 6000,
+      "showControls": true,
+      "showIndicators": true,
+      "slides": [
+        {
+          "id": "slide-1",
+          "title": "Tablestacado para Río y Laguna",
+          "subtitle": "Río y Laguna",
+          "description": "Especialistas en tablestacado para río y laguna. Opciones de 1, 2 y 3 tablas según necesidades y tipo de agua.",
+          "backgroundImage": "/images/tablestacado/IMG-20250929-WA0081.jpg",
+          "ctaText": "Ver Variedades",
+          "ctaUrl": "#gallery",
+          "secondaryCtaText": "Solicitar Presupuesto",
+          "secondaryCtaUrl": "#contact",
+          "overlayOpacity": 0.6
+        }
+      ]
+    },
+    "info": {
+      "id": "info-tablestacado",
+      "title": "Tablestacado para Río y Laguna",
+      "description": "Especialistas en tablestacado para río y laguna con opciones de 1, 2 y 3 tablas según necesidades específicas.",
+      "features": [
+        {
+          "id": "feature-1",
+          "icon": "lake",
+          "title": "Sistema para río y laguna",
+          "description": "Solución adaptada a corrientes (río) y aguas tranquilas (laguna)"
+        },
+        {
+          "id": "feature-2",
+          "icon": "layers",
+          "title": "Opciones 1, 2 y 3 tablas",
+          "description": "Variedades según necesidades específicas"
+        },
+        {
+          "id": "feature-3",
+          "icon": "waterproof",
+          "title": "Maderas resistentes al agua",
+          "description": "Máxima resistencia y durabilidad"
+        },
+        {
+          "id": "feature-4",
+          "icon": "install",
+          "title": "Instalación especializada",
+          "description": "Profesionales especializados en tablestacado"
+        },
+        {
+          "id": "feature-5",
+          "icon": "river",
+          "title": "Río y Laguna",
+          "description": "Configuración y montaje según el tipo de costa y el comportamiento del agua"
+        }
+      ]
+    },
+    "services": [
+      {
+        "id": "service-1",
+        "title": "Tablestacado Laguna",
+        "description": "Sistema especializado para lagunas con diferentes opciones de tablas según necesidades.",
+        "image": "/images/tablestacado/4.jpg",
+        "features": [
+          "Adaptado a lagunas",
+          "Estructura resistente",
+          "Instalación especializada",
+          "Garantía extendida"
+        ],
+        "price": {
+          "from": 180000,
+          "currency": "ARS",
+          "unit": "ml"
+        },
+        "carousel": [
+          {
+            "id": "tabla-1",
+            "title": "1 Tabla",
+            "image": "/images/tablestacado/1.jpg",
+            "description": "Sistema básico con 1 tabla",
+            "price": {
+              "from": 150000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          },
+          {
+            "id": "tabla-2",
+            "title": "2 Tablas",
+            "image": "/images/tablestacado/2.jpg",
+            "description": "Sistema estándar con 2 tablas",
+            "price": {
+              "from": 180000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          },
+          {
+            "id": "tabla-3",
+            "title": "3 Tablas",
+            "image": "/images/tablestacado/3.jpg",
+            "description": "Sistema premium con 3 tablas",
+            "price": {
+              "from": 220000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          }
+        ]
+      },
+      {
+        "id": "service-2",
+        "title": "Tablestacado Río",
+        "description": "Tablestacado diseñado para río con instalación reforzada y configuración según corriente y costa (río paradas).",
+        "image": "/images/tablestacado/IMG-20250929-WA0098.jpg",
+        "features": [
+          "Adaptado a corrientes",
+          "Estructura reforzada",
+          "Instalación especializada",
+          "Mayor durabilidad"
+        ],
+        "price": {
+          "from": 200000,
+          "currency": "ARS",
+          "unit": "ml"
+        },
+        "carousel": [
+          {
+            "id": "tabla-rio-1",
+            "title": "1 Tabla (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0029.jpg",
+            "description": "Sistema básico para río con 1 tabla",
+            "price": {
+              "from": 175000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          },
+          {
+            "id": "tabla-rio-2",
+            "title": "2 Tablas (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0052.jpg",
+            "description": "Sistema estándar para río con 2 tablas",
+            "price": {
+              "from": 200000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          },
+          {
+            "id": "tabla-rio-3",
+            "title": "3 Tablas (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0054.jpg",
+            "description": "Sistema premium para río con 3 tablas (máxima contención)",
+            "price": {
+              "from": 245000,
+              "currency": "ARS",
+              "unit": "ml"
+            }
+          }
+        ]
+      },
+      {
+        "id": "service-3",
+        "title": "Mantenimiento Especializado",
+        "description": "Mantenimiento especializado para tablestacados en diferentes tipos de agua.",
+        "image": "/images/tablestacado/6.jpg",
+        "features": [
+          "Inspección mensual",
+          "Reparaciones especializadas",
+          "Tratamiento protector",
+          "Limpieza especializada"
+        ],
+        "price": {
+          "from": 40000,
+          "currency": "ARS",
+          "unit": "mes"
+        }
+      }
+    ],
+    "gallery": {
+      "id": "gallery-tablestacado",
+      "title": "Galería de Tablestacados",
+      "description": "Algunos de nuestros trabajos en tablestacado",
+      "categories": [
+        "tablestacado",
+        "rio",
+        "laguna"
+      ],
+      "items": [
+        {
+          "id": "gallery-1",
+          "title": "Tablestacado 1",
+          "description": "Trabajo de tablestacado",
+          "image": "/images/tablestacado/1.jpg",
+          "category": "tablestacado"
+        },
+        {
+          "id": "gallery-2",
+          "title": "Tablestacado 2",
+          "description": "Trabajo en río",
+          "image": "/images/tablestacado/IMG-20250929-WA0086.jpg",
+          "category": "rio"
+        },
+        {
+          "id": "gallery-3",
+          "title": "Tablestacado 3",
+          "description": "Trabajo de tablestacado",
+          "image": "/images/tablestacado/3.jpg",
+          "category": "tablestacado"
+        },
+        {
+          "id": "gallery-4",
+          "title": "Tablestacado 4",
+          "description": "Trabajo en laguna",
+          "image": "/images/tablestacado/4.jpg",
+          "category": "laguna"
+        },
+        {
+          "id": "gallery-5",
+          "title": "Tablestacado 5",
+          "description": "Trabajo de tablestacado",
+          "image": "/images/tablestacado/5.jpg",
+          "category": "tablestacado"
+        },
+        {
+          "id": "gallery-6",
+          "title": "Tablestacado 6",
+          "description": "Trabajo de tablestacado",
+          "image": "/images/tablestacado/6.jpg",
+          "category": "tablestacado"
+        },
+        {
+          "id": "gallery-7",
+          "title": "Tablestacado 7",
+          "description": "Trabajo en río",
+          "image": "/images/tablestacado/IMG-20250929-WA0098.jpg",
+          "category": "rio"
+        },
+        {
+          "id": "gallery-8",
+          "title": "Tablestacado 8",
+          "description": "Trabajo en río",
+          "image": "/images/tablestacado/IMG-20250929-WA0081.jpg",
+          "category": "rio"
+        }
+      ]
+    },
+    "testimonials": [
+      {
+        "id": "testimonial-1",
+        "name": "Ana Martínez",
+        "role": "Cliente",
+        "content": "Excelente trabajo en el tablestacado de nuestra costa. La calidad de la madera y el acabado superaron nuestras expectativas. Muy profesionales.",
+        "rating": 5
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "¿Qué significa 1, 2 y 3 tablas?",
+        "answer": "Se refiere al número de tablas superpuestas: 1 tabla es básico, 2 tablas es estándar y 3 tablas es premium con mayor resistencia."
+      },
+      {
+        "id": "faq-2",
+        "question": "¿Qué diferencia hay entre tablestacado de río y de laguna?",
+        "answer": "El de río se diseña para soportar corrientes y cambios de nivel (río paradas) y suele requerir refuerzos extra. El de laguna se adapta a aguas tranquilas (laguna acostadas) con una solución más estable."
+      },
+      {
+        "id": "faq-3",
+        "question": "¿Qué madera utilizan para tablestacado?",
+        "answer": "Utilizamos maderas especialmente tratadas para ambientes acuáticos como quebracho y lapacho, que ofrecen máxima resistencia al agua."
+      },
+      {
+        "id": "faq-4",
+        "question": "¿Qué opción conviene para mi costa?",
+        "answer": "Depende del tipo de agua, el movimiento de la costa y el objetivo (contención, terminación, protección). Te asesoramos para elegir entre 1, 2 o 3 tablas y la configuración ideal para río o laguna."
+      }
+    ],
+    "contact": {
+      "id": "contact-tablestacado",
+      "title": "Solicita tu Presupuesto de Tablestacado",
+      "description": "Contáctanos para obtener un presupuesto personalizado para tu proyecto de tablestacado",
+      "phone": "+54 11 2178-1148",
+      "email": "info@maderascaballero.com",
+      "whatsapp": "+54 11 2178-1148",
+      "address": "Av. Dr. Honorio Pueyrredón 4625, Villa Rosa, Buenos Aires",
+      "workingHours": [
+        {
+          "day": "Lunes - Viernes",
+          "hours": "8:00 - 18:00"
+        },
+        {
+          "day": "Sábados",
+          "hours": "8:00 - 13:00"
+        },
+        {
+          "day": "Domingos",
+          "hours": "Cerrado"
+        }
+      ],
+      "socialLinks": [
+        {
+          "platform": "Facebook",
+          "url": "#",
+          "icon": "facebook"
+        },
+        {
+          "platform": "Instagram",
+          "url": "#",
+          "icon": "instagram"
+        },
+        {
+          "platform": "TikTok",
+          "url": "https://www.tiktok.com/@maderascaballero2",
+          "icon": "tiktok"
+        }
+      ]
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z",
+    "pageContent": {
+      "hero": {
+        "eyebrow": "Tablestacado",
+        "headline": "Tablestacado",
+        "subheadline": "Protección y estructura para tu costa.",
+        "description": "Resolvemos contenciones para ríos y lagunas con sistemas resistentes y adaptados al terreno.",
+        "services": ["A medida", "Instalación", "Mantenimiento"],
+        "primaryLabel": "Escribinos",
+        "primaryHref": "#contacto",
+        "secondaryLabel": "Ver trabajos",
+        "secondaryHref": "#gallery"
+      },
+      "options": {
+        "eyebrow": "Tipos de obras",
+        "title": "Elegí tu opción",
+        "description": "Alternativas pensadas para que cada obra responda a tu espacio, uso y estilo.",
+        "consultationLabel": "Consultar",
+        "consultationHref": "#contacto",
+        "items": [
+          {
+            "id": "tabla-1",
+            "title": "1 Tabla",
+            "image": "/images/tablestacado/1.jpg",
+            "description": "Sistema básico con 1 tabla",
+            "price": {
+              "from": 150000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Laguna",
+            "images": [
+              "/images/tablestacado/1.jpg"
+            ],
+            "alt": "1 Tabla"
+          },
+          {
+            "id": "tabla-2",
+            "title": "2 Tablas",
+            "image": "/images/tablestacado/2.jpg",
+            "description": "Sistema estándar con 2 tablas",
+            "price": {
+              "from": 180000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Laguna",
+            "images": [
+              "/images/tablestacado/2.jpg"
+            ],
+            "alt": "2 Tablas"
+          },
+          {
+            "id": "tabla-3",
+            "title": "3 Tablas",
+            "image": "/images/tablestacado/3.jpg",
+            "description": "Sistema premium con 3 tablas",
+            "price": {
+              "from": 220000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Laguna",
+            "images": [
+              "/images/tablestacado/3.jpg"
+            ],
+            "alt": "3 Tablas"
+          },
+          {
+            "id": "tabla-rio-1",
+            "title": "1 Tabla (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0029.jpg",
+            "description": "Sistema básico para río con 1 tabla",
+            "price": {
+              "from": 175000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Río",
+            "images": [
+              "/images/tablestacado/IMG-20250929-WA0029.jpg"
+            ],
+            "alt": "1 Tabla (Río)"
+          },
+          {
+            "id": "tabla-rio-2",
+            "title": "2 Tablas (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0052.jpg",
+            "description": "Sistema estándar para río con 2 tablas",
+            "price": {
+              "from": 200000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Río",
+            "images": [
+              "/images/tablestacado/IMG-20250929-WA0052.jpg"
+            ],
+            "alt": "2 Tablas (Río)"
+          },
+          {
+            "id": "tabla-rio-3",
+            "title": "3 Tablas (Río)",
+            "image": "/images/tablestacado/IMG-20250929-WA0054.jpg",
+            "description": "Sistema premium para río con 3 tablas (máxima contención)",
+            "price": {
+              "from": 245000,
+              "currency": "ARS",
+              "unit": "ml"
+            },
+            "group": "Tablestacado Río",
+            "images": [
+              "/images/tablestacado/IMG-20250929-WA0054.jpg"
+            ],
+            "alt": "3 Tablas (Río)"
+          }
+        ]
+      },
+      "accessories": {
+        "eyebrow": "Accesorios a medida",
+        "title": "El detalle hace la diferencia.",
+        "description": "Complementos para disfrutar más tu tablestacado.",
+        "contentEyebrow": "Protección y diseño",
+        "items": []
+      },
+      "solutions": {
+        "eyebrow": "Soluciones que brindamos",
+        "title": "¿Necesitás ayuda?",
+        "description": "Contanos tu idea y recibí asesoramiento sin compromiso para definirla, cotizarla y construirla.",
+        "image": "/images/footer.png",
+        "whatsappLabel": "Escribinos por WhatsApp",
+        "phone": "011 2178-1148"
+      },
+      "gallery": {
+        "eyebrow": "Obra real"
+      },
+      "instagram": {
+        "eyebrow": "Instagram",
+        "title": "Nuestras obras en redes",
+        "description": "Seguí nuestra cuenta para ver nuevos proyectos, proceso de construcción y consejos."
+      },
+      "faq": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Respuestas claras antes de empezar",
+        "description": "Todo lo que necesitás saber sobre esta obra, sus materiales y plazos.",
+        "ctaLabel": "Hacé tu consulta"
+      },
+      "contact": {
+        "eyebrow": "Contacto",
+        "title": "Hablemos de tu próximo proyecto",
+        "description": "Estamos listos para hacer realidad tu próxima obra en madera.",
+        "formTitle": "Envianos un mensaje"
+      }
+    }
+  }
+]

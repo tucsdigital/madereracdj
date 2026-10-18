@@ -14,7 +14,7 @@ import {
   runTransaction,
 } from "firebase/firestore";
 import crypto from "crypto";
-import { createVentaEngine } from "@/lib/erp/ventas-engine";
+import { createVentaEngine, reserveEcommerceOrderStock } from "@/lib/erp/ventas-engine";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -386,6 +386,10 @@ export async function GET(request) {
       );
     }
 
+    if (Number(err.status) >= 400 && Number(err.status) < 500) {
+      return withCors(NextResponse.json({ success: false, error: err.message || "No se pudo confirmar el pedido.", code: err.code || "ORDER_CONFLICT" }, { status: Number(err.status) }));
+    }
+
     return withCors(
       NextResponse.json(
         {
@@ -504,6 +508,9 @@ export async function POST(request) {
     if (previous.exists() && previous.data().ventaId) {
       return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data() }));
     }
+    if (previous.exists() && previous.data().paymentMethod === "mercadopago") {
+      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data(), venta: null }));
+    }
     const quote = previous.exists() ? previous.data() : await quoteOrder(orderData);
     if (!Number.isFinite(Number(orderData.pricing?.total ?? orderData.total)) || Math.abs(Number(orderData.pricing?.total ?? orderData.total) - quote.total) > 0.01) {
       return withCors(NextResponse.json({ error: "El importe cambió. Revisá el resumen actualizado antes de confirmar.", quote }, { status: 409 }));
@@ -589,6 +596,10 @@ export async function POST(request) {
     const shippingPrice = Number.isFinite(shippingPriceNumber) ? shippingPriceNumber : 0;
     const shippingTierKm = Number.isFinite(shippingTierKmNumber) ? shippingTierKmNumber : 0;
     const paymentMethod = normalizePaymentMethod(orderData.paymentMethod || orderData.medioPago || "");
+    const isMercadoPago = paymentMethod === "mercadopago";
+    const stockReservationExpiresAt = isMercadoPago
+      ? new Date(Date.now() + 30 * 60 * 1000).toISOString()
+      : null;
     const pendingReason = orderData.pendingReason
       ? String(orderData.pendingReason).trim().toLowerCase()
       : null;
@@ -631,6 +642,9 @@ export async function POST(request) {
       shippingPrice,
       shippingTierKm,
       paymentMethod: paymentMethod || null,
+      paymentStatus: isMercadoPago ? "pending" : null,
+      stockReservationStatus: isMercadoPago ? "pending" : null,
+      stockReservationExpiresAt,
       pendingReason,
       pricing,
       customerInfo: {
@@ -704,6 +718,20 @@ export async function POST(request) {
     const nowIso = new Date().toISOString();
     let ventaResult = null;
 
+    if (isMercadoPago) {
+      try {
+        await reserveEcommerceOrderStock({ orderId: orderData.orderId, expiresAt: stockReservationExpiresAt });
+      } catch (reservationError) {
+        await setDoc(orderRef, {
+          status: "failed",
+          paymentStatus: "not_started",
+          stockReservationStatus: "failed",
+          stockReservationError: reservationError?.message || "stock_reservation_failed",
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        throw reservationError;
+      }
+    } else {
     try {
       const ventaExternalRef = doc(db, "ventasExternal", orderData.orderId);
       const existingLink = await getDoc(ventaExternalRef);
@@ -807,6 +835,7 @@ export async function POST(request) {
     } catch (errVenta) {
       await setDoc(orderRef, { ventaSyncError: errVenta?.message || "venta_sync_failed", updatedAt: nowIso }, { merge: true });
       throw errVenta;
+    }
     }
 
     console.log(`Orden ${orderData.orderId} creada exitosamente`);
