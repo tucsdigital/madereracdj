@@ -2,7 +2,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Btn, Chip, inputClass } from "@/components/panel-ui/ui";
-import { ENTREGAS, ESTADOS, LIMITES, PAGOS } from "@/lib/ecommerce-panel";
+import { DESCUENTOS, describeDescuentos, ENTREGAS, ESTADOS, LIMITES, PAGOS } from "@/lib/ecommerce-panel";
 import { formatDate, money } from "./format";
 
 const label = (list, value) => list.find((o) => o.value === value)?.label || (value ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : "");
@@ -22,6 +22,7 @@ export function StateChips({ row }) {
     <span className="inline-flex flex-wrap items-center gap-1">
       {row.anulada ? <Chip tone="bad">Anulada</Chip> : <Chip tone={row.estadoPago === "pagado" ? "ok" : "warn"}>{label(ESTADOS, row.estadoPago)}</Chip>}
       {row.aReponer && !row.anulada ? <Chip>A reponer</Chip> : null}
+      {row.desc?.revisar ? <Chip tone="warn">Revisar importes</Chip> : null}
     </span>
   );
 }
@@ -52,9 +53,11 @@ export default function VentasTable({ data, loading, filters, onFilters, sort, o
     filters.pago && { key: "pago", text: label(PAGOS, filters.pago) },
     filters.entrega && { key: "entrega", text: label(ENTREGAS, filters.entrega) },
     filters.reponer && { key: "reponer", text: "A reponer" },
+    filters.anuladas && { key: "anuladas", text: "Mostrar anuladas" },
+    filters.descuento && { key: "descuento", text: label(DESCUENTOS, filters.descuento) },
   ].filter(Boolean);
   const select = (key, options, all) => (
-    <select aria-label={all} className={cn(inputClass, "w-auto min-w-[140px]")} value={filters[key]} onChange={(e) => onFilters({ [key]: e.target.value })}>
+    <select aria-label={all} className={cn(inputClass, "w-auto min-w-[140px]")} value={filters[key] || ""} onChange={(e) => onFilters({ [key]: e.target.value })}>
       <option value="">{all}</option>
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -70,6 +73,11 @@ export default function VentasTable({ data, loading, filters, onFilters, sort, o
         {select("estado", ESTADOS, "Todos los estados")}
         {select("pago", PAGOS, "Todos los pagos")}
         {select("entrega", ENTREGAS, "Toda entrega")}
+        {select("descuento", DESCUENTOS, "Todos los descuentos")}
+        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm">
+          <input type="checkbox" className="h-4 w-4 accent-primary" checked={Boolean(filters.anuladas)} onChange={(e) => onFilters({ anuladas: e.target.checked })} />
+          Mostrar anuladas
+        </label>
         <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm">
           <input type="checkbox" className="h-4 w-4 accent-primary" checked={filters.reponer} onChange={(e) => onFilters({ reponer: e.target.checked })} />
           A reponer
@@ -79,7 +87,7 @@ export default function VentasTable({ data, loading, filters, onFilters, sort, o
       {active.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {active.map((chip) => (
-            <button key={chip.key} type="button" onClick={() => onFilters({ [chip.key]: chip.key === "reponer" ? false : "" })} className="inline-flex items-center gap-1 rounded-full bg-default-100 py-1 pl-2.5 pr-1.5 text-xs text-default-700 transition hover:bg-default-200" aria-label={`Quitar filtro ${chip.text}`}>
+            <button key={chip.key} type="button" onClick={() => onFilters({ [chip.key]: ["reponer", "anuladas"].includes(chip.key) ? false : "" })} className="inline-flex items-center gap-1 rounded-full bg-default-100 py-1 pl-2.5 pr-1.5 text-xs text-default-700 transition hover:bg-default-200" aria-label={`Quitar filtro ${chip.text}`}>
               {chip.text}<X className="h-3 w-3" />
             </button>
           ))}
@@ -112,7 +120,7 @@ export default function VentasTable({ data, loading, filters, onFilters, sort, o
                   <td className="whitespace-nowrap px-4 py-3 text-default-600">{label(PAGOS, row.pago) || "—"}</td>
                   <td className="px-4 py-3"><StateChips row={row} /></td>
                   <td className="whitespace-nowrap px-4 py-3 text-default-600">{label(ENTREGAS, row.entrega)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums">{money(row.total)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums"><p className="whitespace-nowrap font-semibold">{money(row.total)}</p>{describeDescuentos(row.desc).map((part) => <p key={part.key} className="mt-1 text-xs text-default-500">−{money(part.monto)} · {part.label}{part.pct != null ? ` ${part.pct.toLocaleString("es-AR")} %` : ""}</p>)}{Math.abs(row.desc?.diferencia || 0) > 1 && <p className="mt-1 text-xs text-default-500">Diferencia: {money(row.desc.diferencia)}</p>}</td>
                 </tr>
               );
             })}

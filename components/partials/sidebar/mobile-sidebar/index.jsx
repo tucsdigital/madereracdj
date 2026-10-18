@@ -1,9 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { cn, isLocationMatch } from "@/lib/utils";
+import { cn, isLocationMatch, getDynamicPath } from "@/lib/utils";
 import { useSidebar, useThemeStore } from "@/store";
 import SidebarLogo from "../common/logo";
-import { menusConfig } from "@/config/menus";
+import { useNavigationMenus } from "@/hooks/use-navigation-menus";
 import MenuLabel from "../common/menu-label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,7 +15,7 @@ const MobileSidebar = ({ collapsed, className }) => {
   const { sidebarBg, mobileMenu, setMobileMenu } = useSidebar();
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [activeMultiMenu, setMultiMenu] = useState(null);
-  const menus = menusConfig?.sidebarNav?.classic || [];
+  const menus = useNavigationMenus();
 
   const toggleSubmenu = (i) => {
     if (activeSubmenu === i) {
@@ -32,7 +32,7 @@ const MobileSidebar = ({ collapsed, className }) => {
       setMultiMenu(subIndex);
     }
   };
-  const locationName = usePathname();
+  const locationName = getDynamicPath(usePathname());
 
   React.useEffect(() => {
     let subMenuIndex = null;
@@ -56,10 +56,8 @@ const MobileSidebar = ({ collapsed, className }) => {
     });
     setActiveSubmenu(subMenuIndex);
     setMultiMenu(multiMenuIndex);
-    if (mobileMenu) {
-      setMobileMenu(false);
-    }
-  }, [locationName]);
+  }, [locationName, menus]);
+  React.useEffect(() => { setMobileMenu(false); }, [locationName, setMobileMenu]);
   return (
     <>
       <div

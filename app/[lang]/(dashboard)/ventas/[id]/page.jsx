@@ -1,5 +1,7 @@
 "use client";
 import { fechaLocalActual } from "@/lib/fechas-locales";
+import { normalizeVenta } from "@/lib/ecommerce-panel";
+import VentaImportes from "@/components/ecommerce/VentaImportes";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -2751,6 +2753,7 @@ const VentaDetalle = () => {
             />
             {/* Totales (recalculados desde items para consistencia) */}
             {(() => {
+              if (venta.origen === "ecommerce_externo") return <div className="mt-6 ml-auto max-w-lg rounded-lg bg-card p-4"><VentaImportes venta={normalizeVenta(venta.id, venta)} /></div>;
               const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
               const { subtotal, descuentoTotal, total } = computeTotals(items);
               const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;

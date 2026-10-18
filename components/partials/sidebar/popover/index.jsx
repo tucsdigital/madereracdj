@@ -3,7 +3,7 @@ import React, { useState } from "react";
 
 import { cn, isLocationMatch, getDynamicPath } from "@/lib/utils";
 import SidebarLogo from "../common/logo";
-import { menusConfig } from "@/config/menus";
+import { useNavigationMenus } from "@/hooks/use-navigation-menus";
 import MenuLabel from "../common/menu-label";
 import SingleMenuItem from "./single-menu-item";
 import SubMenuHandler from "./sub-menu-handler";
@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
 const PopoverSidebar = ({ trans }) => {
   const { collapsed, sidebarBg } = useSidebar();
   const { layout, isRtl } = useThemeStore();
-  const menus = menusConfig?.sidebarNav?.classic || [];
+  const menus = useNavigationMenus();
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [activeMultiMenu, setMultiMenu] = useState(null);
 
@@ -61,7 +61,7 @@ const PopoverSidebar = ({ trans }) => {
     });
     setActiveSubmenu(subMenuIndex);
     setMultiMenu(multiMenuIndex);
-  }, [locationName]);
+  }, [locationName, menus]);
 
   // menu title
 

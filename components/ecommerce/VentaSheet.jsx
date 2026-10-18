@@ -6,6 +6,7 @@ import { Btn } from "@/components/panel-ui/ui";
 import { ENTREGAS, PAGOS } from "@/lib/ecommerce-panel";
 import { StateChips } from "./VentasTable";
 import { formatDate, money } from "./format";
+import VentaImportes from "./VentaImportes";
 
 const label = (list, value) => list.find((o) => o.value === value)?.label || (value ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : "") || "—";
 
@@ -48,7 +49,8 @@ export default function VentaSheet({ venta, onClose }) {
                     <li key={`${p.id}-${i}`} className="flex items-start justify-between gap-4 py-2.5 text-sm first:pt-0">
                       <div className="min-w-0">
                         <p className="font-medium">{p.nombre}</p>
-                        <p className="text-xs text-default-500">{p.cantidad} × {money(p.precio)}{p.sinStock > 0 ? ` · ${p.sinStock} bajo pedido` : ""}</p>
+                         <p className="text-xs text-default-500">{p.cantidad} × {money(p.precio)}{p.sinStock > 0 ? ` · ${p.sinStock} bajo pedido` : ""}</p>
+                         {p.descuentoMonto > 0 && <p className="text-xs text-default-500">Descuento de línea: −{money(p.descuentoMonto)}</p>}
                       </div>
                       <span className="shrink-0 tabular-nums">{money(p.total)}</span>
                     </li>
@@ -56,12 +58,7 @@ export default function VentaSheet({ venta, onClose }) {
                 </ul>
               </Block>
               <Block title="Importes">
-                <dl className="space-y-1.5">
-                  <Row k="Subtotal" v={money(v.subtotal || v.productos.reduce((s, p) => s + p.total, 0))} />
-                  {v.descuentos > 0 ? <Row k="Descuentos" v={`−${money(v.descuentos)}`} /> : null}
-                  <Row k="Envío" v={v.entrega === "cotizar" ? "A coordinar" : v.envio > 0 ? money(v.envio) : "Sin costo"} />
-                  <div className="border-t border-border pt-2"><Row k="Total" v={money(v.total)} strong /></div>
-                </dl>
+                <VentaImportes venta={v} />
               </Block>
               <Block title="Pago y entrega">
                 <dl className="space-y-1.5">

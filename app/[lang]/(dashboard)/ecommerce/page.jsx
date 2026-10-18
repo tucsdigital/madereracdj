@@ -14,7 +14,7 @@ const TABS = [
   { id: "ventas", label: "Ventas", help: "Los pedidos de la tienda online. Tocá uno para ver su detalle." },
   { id: "resumen", label: "Resumen", help: "Cómo viene la tienda online en el período elegido." },
 ];
-const NO_FILTERS = { q: "", estado: "", pago: "", entrega: "", reponer: false };
+const NO_FILTERS = { q: "", estado: "", pago: "", entrega: "", descuento: "", reponer: false, anuladas: false };
 const time = (iso) => (iso ? new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "");
 
 export default function EcommercePage() {
@@ -65,7 +65,8 @@ export default function EcommercePage() {
   const listParams = useCallback((extra = {}) => {
     const p = new URLSearchParams(baseParams);
     if (search) p.set("q", search);
-    for (const key of ["estado", "pago", "entrega"]) if (filters[key]) p.set(key, filters[key]);
+    for (const key of ["estado", "pago", "entrega", "descuento"]) if (filters[key]) p.set(key, filters[key]);
+    if (filters.anuladas) p.set("anuladas", "1");
     if (filters.reponer) p.set("reponer", "1");
     p.set("orden", sort.key);
     p.set("dir", sort.dir);

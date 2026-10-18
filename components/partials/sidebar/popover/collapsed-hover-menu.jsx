@@ -5,6 +5,7 @@ import MultiMenuHandler from "../common/multi-menu-handler";
 import MultiNestedMenu from "../common/multi-nested-menu";
 import { cn, isLocationMatch, getDynamicPath } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { isMenuActive } from "@/lib/menu-location";
 
 const CollapsedHoverMenu = ({ item, index, menuTitle }) => {
   const [activeMultiMenu, setMultiMenu] = useState(null);
@@ -33,7 +34,7 @@ const CollapsedHoverMenu = ({ item, index, menuTitle }) => {
                 "relative block ml-10 first:pt-4  before:absolute first:before:top-4 before: top-0 before:-left-6  before:w-[2px]  before:h-0 before:transition-all before:duration-200",
                 {
                   "before:bg-primary first:before:h-[calc(100%-16px)]  before:h-full":
-                    isLocationMatch(subItem.href, locationName),
+                    isMenuActive(subItem, locationName),
                 }
               )}
               key={`sub_menu_${j}`}

@@ -10,6 +10,7 @@ import MultiNestedMenu from "./multi-nested-menu";
 import SubMenuItem from "./sub-menu-item";
 import { usePathname } from "next/navigation";
 import { isLocationMatch, cn, getDynamicPath } from "@/lib/utils";
+import { isMenuActive } from "@/lib/menu-location";
 
 const NestedSubMenu = ({
   activeSubmenu,
@@ -25,14 +26,14 @@ const NestedSubMenu = ({
   return (
     <Collapsible open={activeSubmenu === index}>
       <CollapsibleContent className="CollapsibleContent">
-        <ul className="sub-menu  space-y-4 relative before:absolute before:left-4 before:top-0  before:h-[calc(100%-5px)]  before:w-[3px] before:bg-primary/10 before:rounded">
+        <ul className="sub-menu relative before:absolute before:left-4 before:top-0 before:h-full before:w-px before:bg-primary/10">
           {item.child?.map((subItem, j) => (
             <li
               className={cn(
-                "block pl-9   first:pt-4 last:pb-4  relative before:absolute first:before:top-4 before:top-0 before:left-4  before:w-[3px]",
+                "block pl-8 relative before:absolute before:top-0 before:left-4 before:w-px",
                 {
                   "before:bg-primary first:before:h-[calc(100%-16px)]  before:h-full":
-                    isLocationMatch(subItem.href, locationName),
+                    isMenuActive(subItem, locationName),
                   " ": activeSubmenu === index,
                 }
               )}

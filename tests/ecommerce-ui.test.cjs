@@ -26,6 +26,7 @@ const Kpis = load("@/components/ecommerce/Kpis").default;
 const VentasTable = load("@/components/ecommerce/VentasTable").default;
 const Resumen = load("@/components/ecommerce/Resumen").default;
 const P = load("@/lib/ecommerce-panel");
+const VentaImportes = load("@/components/ecommerce/VentaImportes").default;
 const html = (el) => renderToStaticMarkup(el);
 
 const row = (id, extra = {}) => P.normalizeVenta(id, {
@@ -67,4 +68,20 @@ test("el resumen muestra más vendidos, estados, pagos y entrega", () => {
   for (const text of ["Ventas por día", "Más vendidos", "Machimbre de pino", "Forma de pago", "Mercado Pago", "Entrega", "Retiro", "Por cobrar", "Clientes nuevos", "Máximo $12.500"]) assert.ok(out.includes(text), `falta "${text}"`);
   assert.ok(html(React.createElement(Resumen, { resumen: P.computeResumen({ rows: [] }), loading: false })).includes("Sin ventas pagadas en el período."));
   assert.ok(html(React.createElement(Resumen, { resumen: null, loading: true })).includes("Cargando estadísticas…"));
+});
+
+test("preview y detalle comparten descuentos históricos y alertas sin inventar promociones", () => {
+  const v = row("descuento", { subtotal: 12500, total: 11250, descuentoEfectivo: 1250, formaPago: "transferencia" });
+  const preview = table([v]);
+  assert.ok(preview.includes("Transferencia 10 %"));
+  assert.ok(preview.includes("−$1.250"));
+  const detail = html(React.createElement(VentaImportes, { venta: v }));
+  assert.ok(detail.includes("Descuento transferencia (10 %)"));
+  assert.ok(detail.includes("$11.250"));
+  assert.ok(!detail.includes("Importes a revisar"));
+  const old = row("vieja", { subtotal: 12500, total: 11250 });
+  const oldDetail = html(React.createElement(VentaImportes, { venta: old }));
+  assert.ok(oldDetail.includes("Diferencia sin conciliar"));
+  assert.ok(oldDetail.includes("Sin descuento registrado"));
+  assert.ok(table([old]).includes("Revisar importes"));
 });

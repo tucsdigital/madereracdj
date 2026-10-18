@@ -59,7 +59,8 @@ test("filtros: búsqueda sin tildes, estado, pago, entrega, a reponer y fechas",
     venta("4", { aReponer: true, tipoEnvio: "domicilio" }),
   ];
   const ids = (f) => P.filterVentas(rows, f).map((r) => r.id);
-  assert.deepEqual(ids({}), ["1", "2", "3", "4"]);
+  assert.deepEqual(ids({}), ["1", "2", "4"]);
+  assert.deepEqual(ids({ anuladas: true }), ["1", "2", "3", "4"]);
   assert.deepEqual(ids({ q: "gomez" }), ["2"]);
   assert.deepEqual(ids({ q: "deck pino" }), ["2"]);
   assert.deepEqual(ids({ q: "VENTA-4" }), ["4"]);
@@ -119,4 +120,50 @@ test("CSV listo para Excel y a prueba de fórmulas", () => {
   assert.ok(line.includes("\"'=HYPERLINK(\"\"x\"\")\""), line);
   assert.ok(line.includes("\"2 x Tabla; 2\"\"\""), line);
   assert.ok(line.includes(";Transferencia;Pagado;Retiro;"));
+});
+
+test("descuentos históricos: producto neto y pago no se duplican", () => {
+  const v = venta("02094", { subtotal: 100, total: 81, descuentoTotal: 10, descuentos: 10, descuentoEfectivo: 9, formaPago: "efectivo", productos: [{ precio: 90, cantidad: 1 }] });
+  assert.deepEqual([v.desc.producto, v.desc.pago, v.desc.total, v.desc.pctPago, v.desc.diferencia, v.desc.revisar], [10, 9, 19, 10, 0, false]);
+  assert.equal(v.desc.pagoTipo, "Efectivo");
+  const transferencia = venta("03014", { subtotal: 219800, total: 197820, descuentoEfectivo: 21980, productos: [{ precio: 219800, cantidad: 1 }] });
+  assert.equal(transferencia.desc.pctPago, 10);
+  assert.equal(transferencia.desc.revisar, false);
+  assert.equal(venta("sin").desc.pago, 0, "transferencia no implica descuento automático");
+});
+
+test("diferencias históricas no se inventan como descuentos y permanecen visibles en anuladas", () => {
+  const v = venta("02947", { subtotal: 1671710, total: 1504539, anulada: true, productos: [{ precio: 1671710, cantidad: 1 }] });
+  assert.equal(v.desc.total, 0);
+  assert.equal(v.desc.diferencia, -167171);
+  assert.equal(v.desc.revisar, true);
+  assert.equal(P.describeDescuentos(v.desc).length, 0);
+  assert.ok(P.ventasCsv([v]).includes('-167171'));
+});
+
+test("descuentos por línea, envío, IVA y recargos concilian sin descontar el envío", () => {
+  const v = venta("linea", { subtotal: 1000, descuentoTotal: 100, descuentoEfectivo: 90, costoEnvio: 200, ivaMonto: 170.1, transferenciaMonto: 81, total: 1261.1, productos: [{ precio: 500, cantidad: 2, descuento: 10 }] });
+  assert.equal(v.productos[0].total, 900);
+  assert.equal(v.desc.pctPago, 10);
+  assert.equal(v.desc.diferencia, 0);
+  assert.equal(v.desc.revisar, false);
+  const monto = venta("monto", { subtotal: 1000, total: 900, productos: [{ precio: 500, cantidad: 2, descuentoMonto: 100 }] });
+  assert.equal(monto.desc.producto, 100);
+  assert.equal(monto.desc.revisar, false);
+  assert.equal(venta("redondeo", { total: 1000.5 }).desc.revisar, false);
+  assert.equal(venta("incoherente", { descuentoTotal: 100, descuentos: 200 }).desc.revisar, true);
+});
+
+test("filtros, CSV y estadísticas conservan descuentos confirmados de pagadas", () => {
+  const paid = venta("p", { total: 900, descuentoEfectivo: 100 });
+  const pending = venta("a", { total: 900, descuentoEfectivo: 100, estadoPago: "pendiente" });
+  const canceled = venta("c", { total: 900, descuentoEfectivo: 100, anulada: true });
+  const rows = [paid, pending, canceled, venta("s")];
+  assert.equal(P.filterVentas(rows, { descuento: "pago" }).length, 2);
+  assert.equal(P.filterVentas(rows, { descuento: "sin" }).length, 1);
+  assert.equal(P.computeResumen({ rows }).descuentos.total, 100);
+  const filters = P.parseFilters(new URLSearchParams("anuladas=1&descuento=pago"));
+  assert.equal(filters.anuladas, true);
+  assert.equal(filters.descuento, "pago");
+  assert.ok(P.ventasCsv([paid]).includes("Desc. forma de pago"));
 });

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { cn, isLocationMatch, getDynamicPath } from "@/lib/utils";
 import { useSidebar, useThemeStore } from "@/store";
 import SidebarLogo from "../common/logo";
-import { menusConfig } from "@/config/menus";
+import { useNavigationMenus } from "@/hooks/use-navigation-menus";
 import MenuLabel from "../common/menu-label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,7 +16,7 @@ const ClassicSidebar = ({ trans }) => {
   const { sidebarBg } = useSidebar();
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [activeMultiMenu, setMultiMenu] = useState(null);
-  const menus = menusConfig?.sidebarNav?.classic || [];
+  const menus = useNavigationMenus();
   const { collapsed, setCollapsed } = useSidebar();
   const { isRtl } = useThemeStore();
   const [hovered, setHovered] = useState(false);
@@ -62,7 +62,7 @@ const ClassicSidebar = ({ trans }) => {
     });
     setActiveSubmenu(subMenuIndex);
     setMultiMenu(multiMenuIndex);
-  }, [locationName]);
+  }, [locationName, menus]);
 
   return (
     <div

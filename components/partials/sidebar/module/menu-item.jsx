@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { useThemeStore } from "@/store";
+import { isMenuActive } from "@/lib/menu-location";
 
 function NavLink({ childItem, locationName, trans }) {
   const { href, icon, title, badge } = childItem;
@@ -11,14 +12,12 @@ function NavLink({ childItem, locationName, trans }) {
   return (
     <Link
       href={localize(href)}
+      aria-current={isMenuActive(childItem, locationName) ? "page" : undefined}
       className={cn(
         "flex  font-medium  text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
         {
-          "bg-primary text-primary-foreground": isLocationMatch(
-            href,
-            locationName
-          ),
-          " text-default-600": !isLocationMatch(href, locationName),
+          "bg-primary text-primary-foreground": isMenuActive(childItem, locationName),
+          " text-default-600": !isMenuActive(childItem, locationName),
         }
       )}
     >

@@ -100,6 +100,11 @@ export default function Resumen({ resumen, loading }) {
         )}
       </Panel>
       <div className="grid gap-4">
+        <Panel title="Descuentos registrados" hint="Pedidos pagados · sin anuladas">
+          <dl className="space-y-2 text-sm">
+            {[["Producto", money(r.descuentos?.producto || 0)], ["Forma de pago", money(r.descuentos?.pago || 0)], ["Total", money(r.descuentos?.total || 0)], ["Pedidos a revisar (no anulados)", r.descuentos?.revisar || 0]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="text-default-500">{label}</dt><dd className="tabular-nums">{value}</dd></div>)}
+          </dl>
+        </Panel>
         <Panel title="Forma de pago"><Split items={r.pagos} /></Panel>
         <Panel title="Entrega"><Split items={r.entregas} /></Panel>
       </div>

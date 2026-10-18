@@ -5,6 +5,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { isMenuActive } from "@/lib/menu-location";
 function LockLink({ href, children, subItem, trans }) {
   if (subItem.badge) {
     return (
@@ -23,7 +24,7 @@ function LockLink({ href, children, subItem, trans }) {
       </span>
     );
   } else {
-    return <Link href={href}>{children}</Link>;
+    return <Link href={href} aria-current={subItem.active ? "page" : undefined} className="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary">{children}</Link>;
   }
 }
 
@@ -32,20 +33,18 @@ const SubMenuItem = ({ subItem, trans }) => {
   const locationName = getDynamicPath(pathname);
   const localize = useLocalizedPath();
   return (
-    <LockLink href={localize(subItem.href)} subItem={subItem} trans={trans}>
+    <LockLink href={localize(subItem.href)} subItem={{ ...subItem, active: isMenuActive(subItem, pathname) }} trans={trans}>
       <div
         className={cn(
-          "text-sm capitalize  font-normal flex gap-3 items-center transition-all duration-150 rounded dark:hover:text-primary  ",
+          "min-h-11 text-sm font-normal flex gap-2 items-center transition-colors rounded-md hover:text-primary",
           {
-            " text-primary   ": isLocationMatch(subItem.href, locationName),
-            "  text-default-600 dark:text-default-700  ": !isLocationMatch(
-              subItem.href,
-              locationName
-            ),
+            "text-primary font-medium": isMenuActive(subItem, pathname),
+            "text-default-600 dark:text-default-700": !isMenuActive(subItem, pathname),
           }
         )}
       >
-        <span className="flex-1 truncate">
+        {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
+        <span className="flex-1">
           {translate(subItem.title, trans)}
         </span>
       </div>

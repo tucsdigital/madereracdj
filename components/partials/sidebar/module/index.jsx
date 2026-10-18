@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { cn, isLocationMatch, getDynamicPath, translate, useLocalizedPath } from "@/lib/utils";
-import { menusConfig } from "@/config/menus";
+import { useNavigationMenus } from "@/hooks/use-navigation-menus";
 import SingleIconMenu from "./single-icon-menu";
 import { useRouter, usePathname } from "next/navigation";
 import { useSidebar, useThemeStore } from "@/store";
@@ -17,7 +17,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ModuleSidebar = ({ trans }) => {
-  const menus = menusConfig?.sidebarNav?.modern || [];
+  const menus = useNavigationMenus("modern");
   const { subMenu, setSubmenu, collapsed, setCollapsed, sidebarBg } =
     useSidebar();
   const { isRtl } = useThemeStore();
@@ -91,7 +91,7 @@ const ModuleSidebar = ({ trans }) => {
   //
   const getMenuTitle = () => {
     if (activeIndex !== null) {
-      return menus[activeIndex].title;
+      return menus[activeIndex]?.title || "";
     }
     return "";
   };
@@ -139,7 +139,7 @@ const ModuleSidebar = ({ trans }) => {
     if (!isDesktop) {
       setSubmenu(true);
     }
-  }, [locationName, isDesktop]);
+  }, [locationName, isDesktop, menus]);
 
   return (
     <>

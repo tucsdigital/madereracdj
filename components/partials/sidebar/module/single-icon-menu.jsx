@@ -9,8 +9,12 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { translate } from "@/lib/utils";
+import { useLocalizedPath } from "@/lib/utils";
+import { isMenuActive } from "@/lib/menu-location";
 const SingleIconMenu = ({ index, activeIndex, item, locationName, trans }) => {
   const { icon, title, href } = item;
+  const localize = useLocalizedPath();
+  const active = isMenuActive(item, locationName);
   return (
     <>
       <TooltipProvider>
@@ -18,20 +22,25 @@ const SingleIconMenu = ({ index, activeIndex, item, locationName, trans }) => {
           <TooltipTrigger asChild>
             {href ? (
               <Link
-                href={href}
+                href={localize(href)}
+                aria-label={translate(title, trans)}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "h-12 w-12 mx-auto rounded-md  transition-all duration-300 flex flex-col items-center justify-center cursor-pointer relative",
                   {
-                    "bg-primary/10  text-primary": locationName === href,
+                    "bg-primary/10  text-primary": active,
                     "text-default-500 dark:text-default-400 hover:bg-primary/10  hover:text-primary ":
-                      locationName !== href,
+                      !active,
                   }
                 )}
               >
-                <item.icon className="w-8 h-8" />
+                <item.icon className="w-6 h-6" />
               </Link>
             ) : (
               <button
+                type="button"
+                aria-label={translate(title, trans)}
+                aria-expanded={activeIndex === index}
                 className={cn(
                   "h-12 w-12 mx-auto rounded-md transition-all duration-300 flex flex-col items-center justify-center cursor-pointer relative  ",
                   {

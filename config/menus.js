@@ -1,277 +1,33 @@
-import {
-  DashBoard,
-  Users,
-  Building,
-  Settings,
-} from "@/components/svg";
-import { Users2, Boxes, Store, ShoppingBag, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign, FileText, Ticket } from "lucide-react";
+import { menuIcons as I } from "./menu-icons";
 
-export const menusConfig = {
-  mainNav: [
-    {
-      title: "Dashboard",
-      icon: DashBoard,
-      href: "/dashboard",
-    },
-    {
-      title: "Ventas",
-      icon: Receipt,
-      href: "/ventas",
-    },
-    {
-      title: "Envíos",
-      icon: Truck,
-      href: "/envios",
-    },
-    {
-      title: "Ecommerce",
-      icon: ShoppingBag,
-      href: "/ecommerce",
-    },
-    // {
-    //   title: "Tienda web",
-    //   icon: Store,
-    //   href: "/tienda-web",
-    // },
-    {
-      title: "Productos",
-      icon: Building,
-      href: "/productos",
-    },
-    {
-      title: "Stock",
-      icon: Boxes,
-      href: "/stock-compras",
-    },
-    {
-      title: "Gastos",
-      icon: PiggyBank,
-      href: "/gastos",
-    },
-    {
-      title: "Dólares",
-      icon: BadgeDollarSign,
-      href: "/dolares",
-    },
-    {
-      title: "Proveedores",
-      icon: Building2,
-      href: "/proveedores",
-    },
-    {
-      title: "Obras",
-      icon: Briefcase,
-      href: "/obras",
-    },
-    {
-      title: "Documentación",
-      icon: FileText,
-      href: "/documentacion",
-    },
-    {
-      title: "Clientes",
-      icon: Users2,
-      href: "/clientes",
-    },
-    {
-      title: "Precios",
-      icon: DollarSign,
-      href: "/precios",
-    },
-    {
-      title: "Auditoría",
-      icon: ClipboardList,
-      href: "/auditoria",
-    },
-    {
-      title: "Tickets",
-      icon: Ticket,
-      href: "/tickets",
-    },
-    {
-      title: "Asistencia",
-      icon: CalendarCheck,
-      href: "/asistencia",
-    },
-  ],
-  sidebarNav: {
-    modern: [
-      {
-        title: "Dashboard",
-        icon: DashBoard,
-        href: "/dashboard",
-      },
-      {
-        title: "Ventas",
-        icon: Receipt,
-        href: "/ventas",
-      },
-      {
-        title: "Envíos",
-        icon: Truck,
-        href: "/envios",
-      },
-      {
-        title: "Ecommerce",
-        icon: ShoppingBag,
-        href: "/ecommerce",
-      },
-        // {
-        //   title: "Tienda web",
-        //   icon: Store,
-        //   href: "/tienda-web",
-        // },
-      {
-        title: "Productos",
-        icon: Building,
-        href: "/productos",
-      },
-      {
-        title: "Stock",
-        icon: Boxes,
-        href: "/stock-compras",
-      },
-      {
-        title: "Gastos",
-        icon: PiggyBank,
-        href: "/gastos",
-      },
-      {
-        title: "Dólares",
-        icon: BadgeDollarSign,
-        href: "/dolares",
-      },
-      {
-        title: "Proveedores",
-        icon: Building2,
-        href: "/proveedores",
-      },
-      {
-        title: "Obras",
-        icon: Briefcase,
-        href: "/obras",
-      },
-      {
-        title: "Documentación",
-        icon: FileText,
-        href: "/documentacion",
-      },
-      {
-        title: "Clientes",
-        icon: Users2,
-        href: "/clientes",
-      },
-      {
-        title: "Precios",
-        icon: DollarSign,
-        href: "/precios",
-      },
-      {
-        title: "Auditoría",
-        icon: ClipboardList,
-        href: "/auditoria",
-      },
-      {
-        title: "Tickets",
-        icon: Ticket,
-        href: "/tickets",
-      },
-      {
-        title: "Asistencia",
-        icon: CalendarCheck,
-        href: "/asistencia",
-      },
-    ],
-    classic: [
-      {
-        isHeader: true,
-        title: "Menú Principal",
-      },
-      {
-        title: "Dashboard",
-        icon: DashBoard,
-        href: "/dashboard",
-      },
-      {
-        title: "Ventas",
-        icon: Receipt,
-        href: "/ventas",
-      },
-      {
-        title: "Envíos",
-        icon: Truck,
-        href: "/envios",
-      },
-      {
-        title: "Ecommerce",
-        icon: ShoppingBag,
-        href: "/ecommerce",
-      },
-      // {
-      //   title: "Tienda web",
-      //   icon: Store,
-      //   href: "/tienda-web",
-      // },
-      {
-        title: "Productos",
-        icon: Building,
-        href: "/productos",
-      },
-      {
-        title: "Stock",
-        icon: Boxes,
-        href: "/stock-compras",
-      },
-      {
-        title: "Gastos",
-        icon: PiggyBank,
-        href: "/gastos",
-      },
-      {
-        title: "Dólares",
-        icon: BadgeDollarSign,
-        href: "/dolares",
-      },
-      {
-        title: "Proveedores",
-        icon: Building2,
-        href: "/proveedores",
-      },
-      {
-        title: "Obras",
-        icon: Briefcase,
-        href: "/obras",
-      },
-      {
-        title: "Documentación",
-        icon: FileText,
-        href: "/documentacion",
-      },
-      {
-        title: "Clientes",
-        icon: Users2,
-        href: "/clientes",
-      },
-      {
-        title: "Precios",
-        icon: DollarSign,
-        href: "/precios",
-      },
-      {
-        title: "Auditoría",
-        icon: ClipboardList,
-        href: "/auditoria",
-      },
-      {
-        title: "Tickets",
-        icon: Ticket,
-        href: "/tickets",
-      },
-      {
-        title: "Asistencia",
-        icon: CalendarCheck,
-        href: "/asistencia",
-      },
-    ],
-  },
-};
+// Una única definición para escritorio, compacto, móvil y módulos dinámicos.
+export const navigationItems = [
+  { id: "dashboard", title: "Dashboard", icon: I.dashboard, href: "/dashboard" },
+  { id: "ventas", title: "Ventas", icon: I.ventas, href: "/ventas" },
+  { id: "envios", title: "Envíos", icon: I.envios, child: [
+    { id: "envios-lista", title: "Lista", icon: I.lista, href: "/envios", excludePaths: ["/envios/zonas"] },
+    { id: "envios-zonas", title: "Zona de cobertura", icon: I.zonas, href: "/envios/zonas", featureFlag: "deliveryZonesEnabled" },
+  ] },
+  { id: "ecommerce", title: "Ecommerce", icon: I.ecommerce, child: [
+    { id: "ecommerce-ventas", title: "Ecommerce", icon: I.pedidos, href: "/ecommerce" },
+    { id: "tienda-web", title: "Web", icon: I.web, href: "/tienda-web" },
+  ] },
+  { id: "productos", title: "Productos", icon: I.productos, href: "/productos" },
+  { id: "stock", title: "Stock", icon: I.stock, href: "/stock-compras" },
+  { id: "gastos", title: "Gastos", icon: I.gastos, href: "/gastos" },
+  { id: "dolares", title: "Dólares", icon: I.dolares, href: "/dolares" },
+  { id: "proveedores", title: "Proveedores", icon: I.proveedores, href: "/proveedores" },
+  { id: "obras", title: "Obras", icon: I.obras, href: "/obras" },
+  { id: "documentacion", title: "Documentación", icon: I.documentacion, href: "/documentacion" },
+  { id: "clientes", title: "Clientes", icon: I.clientes, href: "/clientes" },
+  { id: "precios", title: "Precios", icon: I.precios, href: "/precios" },
+  { id: "auditoria", title: "Auditoría", icon: I.auditoria, href: "/auditoria" },
+  { id: "tickets", title: "Tickets", icon: I.tickets, href: "/tickets" },
+  { id: "asistencia", title: "Asistencia", icon: I.asistencia, href: "/asistencia" },
+];
+
+export function buildMenusConfig(items) {
+  return { mainNav: items, sidebarNav: { modern: items, classic: [{ isHeader: true, title: "Menú Principal" }, ...items] } };
+}
+
+export const menusConfig = buildMenusConfig(navigationItems);
