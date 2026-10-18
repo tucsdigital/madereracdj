@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const numeroSinPrefijo = remito.numero.replace(/^(REMITO-|remito-)/i, "");
     const filename = `${numeroSinPrefijo}${suffix}.pdf`;
 
-    return new Response(buffer, {
+    return new Response(Uint8Array.from(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

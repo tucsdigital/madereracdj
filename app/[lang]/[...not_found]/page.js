@@ -7,7 +7,7 @@ import darkImage from "@/public/images/error/dark-404.png";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 
-export default function Error({ error, reset }) {
+export default function NotFound() {
   const { theme } = useTheme();
   return (
     <div className='min-h-screen  overflow-y-auto flex justify-center items-center p-10'>

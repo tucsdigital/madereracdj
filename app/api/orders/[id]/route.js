@@ -10,6 +10,16 @@ function withCors(resp) {
   return new NextResponse(resp.body, { status: resp.status, headers });
 }
 
+function isCancelledOrder(order) {
+  const cancelledFlag = [order?.anulada, order?.anulado, order?.cancelled, order?.canceled]
+    .some((value) => value === true || String(value).toLowerCase() === "true");
+  if (cancelledFlag) return true;
+
+  const cancelledStatuses = new Set(["anulada", "anulado", "cancelada", "cancelado", "cancelled", "canceled", "void"]);
+  return [order?.estado, order?.status, order?.estadoPago, order?.estadoOperativo]
+    .some((value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z]+/).some((word) => cancelledStatuses.has(word)));
+}
+
 export function OPTIONS() {
   return withCors(new NextResponse(null, { status: 204 }));
 }
@@ -88,6 +98,14 @@ export async function GET(request, { params }) {
 
         // Mapear venta al formato de "orden" para API externa
         const venta = ventaDocData;
+        if (isCancelledOrder(venta)) {
+          return withCors(
+            NextResponse.json(
+              { success: false, error: "Orden no encontrada", code: "ORDER_NOT_FOUND", orderId: id },
+              { status: 404 },
+            ),
+          );
+        }
         const cliente = venta.cliente || {};
         const productos = Array.isArray(venta.productos) ? venta.productos : (venta.items || []);
         // Resolver envío básico
@@ -177,6 +195,14 @@ export async function GET(request, { params }) {
 
     const orderDoc = ordersSnap.docs[0];
     const orderData = orderDoc.data();
+    if (isCancelledOrder(orderData)) {
+      return withCors(
+        NextResponse.json(
+          { success: false, error: "Orden no encontrada", code: "ORDER_NOT_FOUND", orderId: id },
+          { status: 404 },
+        ),
+      );
+    }
 
     // Estructura de respuesta
     const order = {

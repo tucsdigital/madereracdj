@@ -30,6 +30,41 @@ function parseNullableNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isCancelledSale(venta) {
+  const cancelledFlag = [venta?.anulada, venta?.anulado, venta?.cancelled, venta?.canceled]
+    .some((value) => value === true || String(value).toLowerCase() === "true");
+  if (cancelledFlag) return true;
+
+  const cancelledStatuses = new Set(["anulada", "anulado", "cancelada", "cancelado", "cancelled", "canceled", "void"]);
+  return [venta?.estado, venta?.status, venta?.estadoPago, venta?.estadoOperativo]
+    .some((value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z]+/).some((word) => cancelledStatuses.has(word)));
+}
+
+function collectImageCandidates(...values) {
+  const images = [];
+  const add = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+    if (typeof value !== "string") return;
+    const cleaned = value.replace(/%7c/gi, "|").trim();
+    if (!cleaned) return;
+    if (/^(data:|blob:)/i.test(cleaned)) {
+      images.push(cleaned);
+      return;
+    }
+    const remoteUrls = cleaned.match(/https?:\/\/[^\s|,"'`<>]+/gi) || [];
+    const candidates = remoteUrls.length > 1 ? remoteUrls : cleaned.split(/\s*\|\s*|\r?\n/g);
+    for (const candidate of candidates) {
+      const normalized = candidate.trim().replace(/^["'`]+|["'`]+$/g, "");
+      if (normalized && !/^(null|undefined|false)$/i.test(normalized)) images.push(normalized);
+    }
+  };
+  values.forEach(add);
+  return [...new Set(images)];
+}
+
 function normalizeShippingType(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (!raw) return "";
@@ -154,6 +189,9 @@ export async function GET(request) {
     const ventas = [];
     for (const ventaDoc of ventasDocs) {
       const venta = ventaDoc.data();
+      // La anulación operativa es distinta del estado de pago; no mostrar
+      // pedidos anulados aunque sigan teniendo estadoPago = "pagado".
+      if (isCancelledSale(venta)) continue;
 
       let envio = null;
       try {
@@ -202,7 +240,17 @@ export async function GET(request) {
         medioPago: venta.formaPago || "efectivo",
         productos: await Promise.all(
           (venta.productos || venta.items || []).map(async (producto) => {
-            let imagen = "";
+            let imageSources = collectImageCandidates(
+              producto?.imagen,
+              producto?.image,
+              producto?.imageUrl,
+              producto?.srcUrl,
+              producto?.imagenUrl,
+              producto?.imagenes,
+              producto?.images,
+              producto?.thumbnailUrl,
+              producto?.thumbnail,
+            );
             try {
               const productoQuery = query(
                 collection(db, "productos"),
@@ -212,10 +260,22 @@ export async function GET(request) {
               const productoSnap = await getDocs(productoQuery);
               if (!productoSnap.empty) {
                 const productoData = productoSnap.docs[0].data();
-                imagen =
-                  productoData.imagenes && productoData.imagenes.length > 0
-                    ? productoData.imagenes[0]
-                    : "";
+                imageSources = [
+                  ...new Set([
+                    ...imageSources,
+                    ...collectImageCandidates(
+                      productoData.imagenes,
+                      productoData.images,
+                      productoData.imagen,
+                      productoData.image,
+                      productoData.imageUrl,
+                      productoData.srcUrl,
+                      productoData.imagenUrl,
+                      productoData.thumbnailUrl,
+                      productoData.thumbnail,
+                    ),
+                  ]),
+                ];
               }
             } catch (productoError) {
               console.log("Error al buscar imagen del producto:", productoError.message);
@@ -229,7 +289,7 @@ export async function GET(request) {
               unidad: producto.unidad || producto.unidadMedida || producto.unit || "",
               unidadMedida: producto.unidadMedida || producto.unidad || producto.unit || "",
               categoria: producto.categoria || "",
-              imagen,
+              imagen: imageSources.join(" | "),
               ...(producto.categoria === "Maderas" && {
                 alto: producto.alto || 0,
                 ancho: producto.ancho || 0,
