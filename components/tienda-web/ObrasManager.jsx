@@ -30,7 +30,7 @@ function newProject() {
     title,
     category: "Construcción",
     status: "inactive",
-    workTypeCard: { description: "", features: [], icon: "hammer", image: "" },
+    workTypeCard: { description: "", features: [], icon: "hammer", image: "", imageRatio: "4:5" },
     seo: { title: `${title} - Maderas Caballero`, description: "Conocé nuestros trabajos y soluciones en madera.", keywords: [], ogImage: "", canonical: `/obras/${slug}` },
     banner: { id: uid("banner"), autoplayInterval: 6000, showControls: true, showIndicators: true, slides: [{ id: uid("slide"), title, subtitle: "Diseño y construcción a medida", description: "Soluciones en madera pensadas para cada proyecto.", backgroundImage: "", ctaText: "Ver trabajos", ctaUrl: "#gallery", secondaryCtaText: "Solicitar presupuesto", secondaryCtaUrl: "#contacto", overlayOpacity: 0.5 }] },
     info: { id: uid("info"), title, description: "", features: [], images: [] },
@@ -68,7 +68,6 @@ const IMAGE_GUIDE = {
   panoramic: { ratio: "21:10", size: "2400 × 1143 px", className: "aspect-[21/10]" },
   advisory: { ratio: "21:10", size: "2400 × 1143 px", className: "aspect-[21/10]" },
   about: { ratio: "36:25", size: "1800 × 1250 px", className: "aspect-[36/25]" },
-  workCard: { ratio: "27:38", size: "1080 × 1520 px", className: "aspect-[27/38]" },
   wide: { ratio: "3:1", size: "2400 × 800 px", className: "aspect-[3/1]" },
   landscape: { ratio: "3:2", size: "1800 × 1200 px", className: "aspect-[3/2]" },
   square: { ratio: "1:1", size: "1200 × 1200 px", className: "aspect-square" },
@@ -76,6 +75,10 @@ const IMAGE_GUIDE = {
 };
 
 const WORK_TYPE_ICON_OPTIONS = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
+const WORK_TYPE_IMAGE_RATIOS = [
+  { value: "4:5", label: "Vertical (4:5)", guide: "portrait" },
+  { value: "3:2", label: "Apaisada (3:2)", guide: "landscape" },
+];
 
 function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
   if (!project) return project;
@@ -98,6 +101,7 @@ function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
       features,
       icon: typeof card.icon === "string" && card.icon ? card.icon : legacy?.icon || "hammer",
       image: typeof card.image === "string" ? card.image : legacy?.image ?? project.homeCardImage ?? project.banner?.slides?.[0]?.backgroundImage ?? project.seo?.ogImage ?? "",
+      imageRatio: card.imageRatio === "3:2" ? "3:2" : "4:5",
     },
   };
 }
@@ -250,7 +254,7 @@ export function HomeContentEditor({ value, onChange, uploadImage, media, tiendaU
       <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.benefits?.eyebrow} maxLength={40} onChange={(next) => updatePath(["benefits", "eyebrow"], next)} /><HomeField label="Título" value={content.benefits?.title} maxLength={80} onChange={(next) => updatePath(["benefits", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.benefits?.description} maxLength={180} multiline onChange={(next) => updatePath(["benefits", "description"], next)} /></div></div>
       <div className="mt-4"><ListEditor title="Tarjetas de beneficios" items={content.benefits?.items || []} onAdd={(index, remove) => remove ? removeEntry(["benefits", "items"], index) : addEntry(["benefits", "items"], { id: uid("beneficio"), icon: "package", title: "Nuevo beneficio", detail: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["benefits", "items"], index, { icon: event.target.value })}>{BENEFIT_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label><HomeField label="Título" value={item.title} maxLength={64} onChange={(next) => updateEntry(["benefits", "items"], index, { title: next })} /><div className="sm:col-span-2"><HomeField label="Descripción" value={item.detail} maxLength={180} multiline onChange={(next) => updateEntry(["benefits", "items"], index, { detail: next })} /></div></div>}</ListEditor></div>
     </Card>
-    <Card title="Tarjetas de obras" description="Las tarjetas se generan con las portadas de las obras publicadas y respetan el orden de la lista. Proporción visible: 27:38.">
+    <Card title="Tarjetas de obras" description="Las tarjetas se generan con la imagen configurada en “Tarjeta en Tipos de obras” para cada obra publicada y respetan el orden de la lista.">
       <div className="grid gap-3 sm:grid-cols-2"><HomeField label="Antetítulo" value={content.works?.eyebrow} maxLength={40} onChange={(next) => updatePath(["works", "eyebrow"], next)} /><HomeField label="Título" value={content.works?.title} maxLength={80} onChange={(next) => updatePath(["works", "title"], next)} /><div className="sm:col-span-2"><HomeField label="Descripción" value={content.works?.description} maxLength={180} multiline onChange={(next) => updatePath(["works", "description"], next)} /></div><HomeField label="Texto del botón" value={content.works?.linkLabel} maxLength={36} onChange={(next) => updatePath(["works", "linkLabel"], next)} /></div>
     </Card>
     <Card title="Asesoramiento" description="Imagen apaisada recomendada 21:10 · 2400 × 1143 px. Se adapta al recorte del diseño actual.">
@@ -745,15 +749,13 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           <Card title="SEO" description="Estos textos se usan en buscadores y vistas previas al compartir.">
             <div className="grid gap-3 sm:grid-cols-2"><Field label="Título SEO" value={draft.seo?.title} onChange={(value) => setPath(["seo", "title"], value)} /><Field label="Descripción SEO" value={draft.seo?.description} onChange={(value) => setPath(["seo", "description"], value)} multiline /><Field label="Palabras clave (separadas por coma)" value={(draft.seo?.keywords || []).join(", ")} onChange={(value) => setPath(["seo", "keywords"], value.split(",").map((item) => item.trim()).filter(Boolean))} /><Field label="URL canónica" value={draft.seo?.canonical} onChange={(value) => setPath(["seo", "canonical"], value)} /><div className="sm:col-span-2"><ImageField label="Imagen para compartir" value={draft.seo?.ogImage} onChange={(value) => setPath(["seo", "ogImage"], value)} uploadImage={uploadImage} /></div></div>
           </Card>
-          <Card title="Imagen de tarjeta en Inicio" description="Esta imagen se usa en la tarjeta vertical de esta obra. Proporción ideal 27:38 · 1080 × 1520 px.">
-            <ImageField label="Imagen de tarjeta de Inicio" value={draft.homeCardImage || ""} ratio="workCard" onChange={(value) => setPath(["homeCardImage"], value)} uploadImage={uploadImage} media={media} />
-          </Card>
-          <Card title="Tarjeta en Tipos de obras" description="Estos datos acompañan a esta obra en la sección Tipos de obras de /obras. La lista se genera automáticamente con las obras publicadas.">
+          <Card title="Tarjeta en Tipos de obras" description="Esta tarjeta define la imagen y los datos que se muestran tanto en Inicio como en Tipos de obras de /obras. La lista se genera con las obras publicadas.">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2"><Field label="Descripción de la tarjeta" value={draft.workTypeCard?.description} onChange={(value) => setPath(["workTypeCard", "description"], value)} multiline /></div>
               <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(draft.workTypeCard?.features || []).join("\n")} onChange={(value) => setPath(["workTypeCard", "features"], value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4))} multiline /></div>
               <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={draft.workTypeCard?.icon || "hammer"} onChange={(event) => setPath(["workTypeCard", "icon"], event.target.value)}>{WORK_TYPE_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
-              <div className="sm:col-span-2"><ImageField label="Imagen de tarjeta (4:5)" value={draft.workTypeCard?.image || ""} ratio="portrait" onChange={(image) => setPath(["workTypeCard", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+              <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Formato de imagen</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={draft.workTypeCard?.imageRatio || "4:5"} onChange={(event) => setPath(["workTypeCard", "imageRatio"], event.target.value)}>{WORK_TYPE_IMAGE_RATIOS.map((ratio) => <option key={ratio.value} value={ratio.value}>{ratio.label}</option>)}</select></label>
+              <div className="sm:col-span-2"><ImageField label={`Imagen de tarjeta (${draft.workTypeCard?.imageRatio || "4:5"})`} value={draft.workTypeCard?.image || ""} ratio={WORK_TYPE_IMAGE_RATIOS.find((ratio) => ratio.value === draft.workTypeCard?.imageRatio)?.guide || "portrait"} onChange={(image) => setPath(["workTypeCard", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
             </div>
           </Card>
           <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">

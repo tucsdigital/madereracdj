@@ -41,6 +41,7 @@ test("normaliza los datos de la tarjeta de tipos de obra y limita sus caracterí
       features: ["Una", "Dos", "Tres", "Cuatro", "Quinta"],
       icon: "anchor",
       image: " /media/muelle.webp ",
+      imageRatio: "3:2",
     },
   }, "muelles");
   assert.deepEqual(project.workTypeCard, {
@@ -48,9 +49,11 @@ test("normaliza los datos de la tarjeta de tipos de obra y limita sus caracterí
     features: ["Una", "Dos", "Tres", "Cuatro"],
     icon: "anchor",
     image: "/media/muelle.webp",
+    imageRatio: "3:2",
   });
   assert.equal(normalizeProject({ slug: "deck", title: "Deck" }, "deck").workTypeCard, undefined);
   assert.equal(normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { icon: "script" } }, "deck").workTypeCard.icon, "hammer");
+  assert.equal(normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { imageRatio: "unknown" } }, "deck").workTypeCard.imageRatio, "4:5");
 });
 
 test("valida imágenes nuevas con R2 y rechaza hosts o rutas no pertenecientes a la tienda", () => {
