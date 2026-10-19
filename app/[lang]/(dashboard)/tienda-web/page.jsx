@@ -27,6 +27,7 @@ import PreciosForm from "@/components/tienda-web/PreciosForm";
 import StockForm from "@/components/tienda-web/StockForm";
 import ProductosContenidoManager from "@/components/tienda-web/ProductosContenidoManager";
 import { db } from "@/lib/firebase";
+import { MAX_UPLOAD_BYTES } from "@/lib/tienda-media";
 import { collection, getDocs, query as fsQuery, where } from "firebase/firestore";
 
 const TABS = [
@@ -151,10 +152,33 @@ export default function TiendaWebPage() {
   }, [notice]);
 
   const uploadImage = useCallback(async (file, folder) => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("folder", folder);
-    const { item } = await authFetch("/api/tienda/media", { method: "POST", body: form });
+    if (!file) throw new Error("No se recibió ningún archivo.");
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error(`La imagen pesa ${(file.size / 1048576).toFixed(1)} MB; el máximo es ${Math.round(MAX_UPLOAD_BYTES / 1048576)} MB.`);
+    }
+
+    const extension = String(file.name || "").split(".").pop().toLowerCase();
+    const mimeByExtension = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif" };
+    const contentType = String(file.type || mimeByExtension[extension] || "").toLowerCase();
+    const upload = await authFetch("/api/tienda/media/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder, size: file.size, contentType }),
+    });
+
+    let response;
+    try {
+      response = await fetch(upload.uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: file });
+    } catch {
+      throw new Error("No se pudo conectar con R2. Revisá la configuración CORS del bucket y volvé a intentar.");
+    }
+    if (!response.ok) throw new Error(`R2 no aceptó la imagen (HTTP ${response.status}). Volvé a intentar.`);
+
+    const { item } = await authFetch("/api/tienda/media/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: upload.key, folder, originalName: file.name }),
+    });
     setMedia((prev) => ({ ...prev, items: [item, ...prev.items] }));
     return item;
   }, [authFetch]);

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.833.0",
+    "@aws-sdk/s3-request-presigner": "3.1042.0",
     "@ckeditor/ckeditor5-build-classic": "^40.1.0",
     "@ckeditor/ckeditor5-core": "^44.3.0",
     "@ckeditor/ckeditor5-engine": "^44.3.0",

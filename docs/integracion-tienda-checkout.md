@@ -80,7 +80,15 @@ R2_ENDPOINT=         # https://<cuenta>.r2.cloudflarestorage.com
 ```
 
 - Las usan también los comprobantes de pago y la asistencia (mismo módulo `lib/r2-storage.js`): hay que cargarlas antes de publicar o esas funciones dejan de subir archivos. Se eliminó `lib/r2-config.local.js`, que tenía las claves escritas en el código; **rotar esas claves en Cloudflare**, porque quedaron expuestas en el historial.
-- `POST /api/tienda/media` (con sesión): acepta JPG, PNG, WebP y AVIF por su contenido real (no SVG), hasta 8 MB y mínimo 200 px. Reduce a 2400 px como máximo y convierte a WebP (calidad 82) con `sharp`; un archivo con cabecera válida pero dañado se rechaza. Guarda en `tienda/<banners|categorias|secciones>/<fecha>-<código>.webp` con caché inmutable de un año y registra la URL en la colección `tiendaMedia` (biblioteca).
+- La biblioteca de medios acepta originales de hasta **20 MB**. `POST /api/tienda/media/upload-url` (con sesión) crea una URL firmada de 15 minutos; el navegador hace `PUT` directamente a R2, sin enviar el archivo por Vercel. `POST /api/tienda/media/finalize` vuelve a validar el usuario y el archivo real, procesa con `sharp` (máximo 50 MP; productos cuadrados de 1200 px; resto hasta 2400 px), convierte a WebP calidad 82 y registra la URL final en `tiendaMedia`. El endpoint multipart `/api/tienda/media` queda por compatibilidad con clientes anteriores.
+- Configurar CORS en el bucket R2 para el dominio de producción del sistema y los entornos desde los que se administra. En Cloudflare R2 → bucket → Settings → CORS, una regla mínima es:
+
+  ```json
+  [{"AllowedOrigins":["https://maderascaballero.vercel.app","http://localhost:3000"],"AllowedMethods":["PUT"],"AllowedHeaders":["Content-Type"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3600}]
+  ```
+
+  Agregar también el dominio propio y los dominios de preview que correspondan.
+- Las claves temporales viven bajo `tienda/_incoming/`, se borran al finalizar y nunca aparecen en la biblioteca. Configurar además una regla de ciclo de vida de R2 para borrar ese prefijo después de 1 día, cubriendo cargas abandonadas o interrupciones.
 - Si faltan variables, el panel desactiva **Subir imagen** e indica cuáles faltan.
 - **Revisar imágenes sin usar** borra de R2 sólo imágenes del prefijo `tienda/` que no usa lo guardado en la tienda, previa confirmación.
 - Cambiar `R2_PUBLIC_BASE` después de cargar contenido invalida las URLs ya guardadas (y la validación las rechazaría): definir el dominio definitivo antes.

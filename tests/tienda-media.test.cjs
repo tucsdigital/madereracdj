@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-media.js")
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const mod = { exports: {} };
 new Function("require", "module", "exports", compiled)(require, mod, mod.exports);
-const { sniffImage, mediaKey, allowedImageHosts, keyFromUrl, imageUrlsOf, projectImageUrlsOf } = mod.exports;
+const { sniffImage, mediaKey, mediaUploadKey, isMediaUploadKeyForUser, MAX_UPLOAD_BYTES, allowedImageHosts, keyFromUrl, imageUrlsOf, projectImageUrlsOf } = mod.exports;
 
 const pad = (bytes) => Buffer.concat([Buffer.from(bytes), Buffer.alloc(32)]);
 
@@ -35,6 +35,16 @@ test("las claves son únicas, ordenadas por carpeta y no se pueden manipular", (
   assert.throws(() => mediaKey({ folder: "../comprobantes", ext: "webp" }));
   assert.throws(() => mediaKey({ folder: "banners", ext: "w/../x" }));
   assert.ok(!mediaKey({ folder: "banners", ext: "webp", random: "../../x" }).includes(".."));
+});
+
+test("las cargas temporales quedan aisladas por usuario y el máximo original es 20 MB", () => {
+  const key = mediaUploadKey({ uid: "admin_1", folder: "banners", ext: "jpg", now: 1700000000000, random: "a".repeat(32) });
+  assert.equal(key, `tienda/_incoming/admin_1/banners/1700000000000-${"a".repeat(32)}.jpg`);
+  assert.equal(isMediaUploadKeyForUser(key, "admin_1", "banners"), true);
+  assert.equal(isMediaUploadKeyForUser(key, "otro", "banners"), false);
+  assert.equal(isMediaUploadKeyForUser(key, "admin_1", "obras"), false);
+  assert.equal(MAX_UPLOAD_BYTES, 20 * 1024 * 1024);
+  assert.throws(() => mediaUploadKey({ uid: "", folder: "banners", ext: "jpg", random: "a".repeat(32) }));
 });
 
 test("solo se reconoce el host público de R2 configurado", () => {

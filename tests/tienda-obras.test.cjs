@@ -8,13 +8,17 @@ const legacyProjects = require("../lib/legacy-projects.json");
 const source = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-obras.js"), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const mod = { exports: {} };
+let adminDb = null;
 const mockRequire = (name) => {
   if (name === "@/lib/legacy-projects.json") return { __esModule: true, default: legacyProjects };
-  if (name === "@/lib/firebase-admin") return { getAdminDb: () => { throw new Error("Firebase no se usa en estas pruebas"); } };
+  if (name === "@/lib/firebase-admin") return { getAdminDb: () => {
+    if (!adminDb) throw new Error("Firebase no se usa en estas pruebas");
+    return adminDb;
+  } };
   return require(name);
 };
 new Function("require", "module", "exports", compiled)(mockRequire, mod, mod.exports);
-const { normalizeProject, projectIssues, projectImageUrls, sortProjectsByManualOrder } = mod.exports;
+const { normalizeProject, projectIssues, projectImageUrls, sortProjectsByManualOrder, importLegacyProjectsIfEmpty } = mod.exports;
 
 test("normaliza y conserva el contenido de las obras heredadas", () => {
   for (const raw of legacyProjects) {
@@ -74,4 +78,28 @@ test("normaliza la portada vertical de la tarjeta y respeta el orden manual de o
   assert.deepEqual(sortProjectsByManualOrder(projects, ["pergolas", "deck"]).map(({ slug }) => slug), ["pergolas", "deck", "muelles"]);
   const project = normalizeProject({ slug: "deck", title: "Deck", seo: { ogImage: "/images/deck.webp" }, banner: { slides: [] } });
   assert.equal(project.homeCardImage, "/images/deck.webp");
+});
+
+test("la migración ya completada no abre una transacción ni relee las obras", async () => {
+  let markerReads = 0;
+  let projectReads = 0;
+  let transactions = 0;
+  const markerRef = { get: async () => { markerReads += 1; return { exists: true }; } };
+  const projectRef = { get: async () => { projectReads += 1; return { empty: false, size: 1 }; } };
+
+  adminDb = {
+    collection: (name) => name === "settings"
+      ? { doc: () => markerRef }
+      : projectRef,
+    runTransaction: async () => { transactions += 1; },
+  };
+
+  try {
+    assert.equal(await importLegacyProjectsIfEmpty(), false);
+    assert.equal(markerReads, 1);
+    assert.equal(projectReads, 0);
+    assert.equal(transactions, 0);
+  } finally {
+    adminDb = null;
+  }
 });

@@ -21,6 +21,16 @@ function loadRoute(relative, mocks) {
       }
       return cache[name];
     }
+    if (name === "@/lib/tienda-media-processor") {
+      if (!cache[name]) {
+        const src = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-media-processor.js"), "utf8");
+        const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+        const m = { exports: {} };
+        new Function("require", "module", "exports", out)(load, m, m.exports);
+        cache[name] = m.exports;
+      }
+      return cache[name];
+    }
     if (name === "@/lib/tienda-productos-contenido") {
       if (!cache[name]) {
         const src = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-productos-contenido.js"), "utf8");
@@ -43,7 +53,7 @@ function loadRoute(relative, mocks) {
 const NextResponse = { json: (body, init = {}) => ({ status: init.status || 200, body }) };
 
 function setup({ storageOk = true } = {}) {
-  const state = { uploads: [], records: [], deleted: [], docs: {}, mediaDocs: [] };
+  const state = { uploads: [], presigned: [], incoming: {}, records: [], deleted: [], docs: {}, mediaDocs: [] };
   const mocks = {
     "next/server": { NextResponse },
     "@/lib/firebase-admin": {
@@ -72,7 +82,20 @@ function setup({ storageOk = true } = {}) {
         state.uploads.push({ key, bytes, contentType, cacheControl });
         return { key, url: `https://media.ejemplo.com/${key}` };
       },
-      deleteFileFromR2: async (key) => { state.deleted.push(key); },
+      createPresignedUploadUrl: async ({ key, contentType, expiresIn }) => {
+        state.presigned.push({ key, contentType, expiresIn });
+        return `https://r2.ejemplo.com/${encodeURIComponent(key)}?signed=1`;
+      },
+      downloadMediaUploadFromR2: async ({ key, maxBytes }) => {
+        const body = state.incoming[key];
+        if (!body) throw Object.assign(new Error("No encontramos la imagen temporal."), { status: 400 });
+        if (body.length > maxBytes) throw Object.assign(new Error("La imagen pesa más de 20 MB."), { status: 413 });
+        return { body: Buffer.from(body), size: body.length, contentType: "application/octet-stream" };
+      },
+      deleteFileFromR2: async (key) => {
+        state.deleted.push(key);
+        delete state.incoming[key];
+      },
     },
   };
   return { state, mocks };
@@ -81,6 +104,10 @@ function setup({ storageOk = true } = {}) {
 const request = (formFields, auth = "Bearer token") => ({
   headers: { get: (name) => (name.toLowerCase() === "authorization" ? auth : null) },
   formData: async () => { const fd = new FormData(); Object.entries(formFields).forEach(([k, v]) => fd.append(k, v)); return fd; },
+});
+const jsonRequest = (body, auth = "Bearer token") => ({
+  headers: { get: (name) => (name.toLowerCase() === "authorization" ? auth : null) },
+  json: async () => body,
 });
 const png = (width, height) => sharp({ create: { width, height, channels: 3, background: "#8b5a2b" } }).png().toBuffer();
 const fileOf = (buffer, name = "x.png", type = "image/png") => new File([buffer], name, { type });
@@ -150,13 +177,57 @@ test("rechaza carpetas inválidas, archivos ausentes, SVG y contenido que no es 
 test("rechaza archivos demasiado pesados, diminutos o con cabecera válida pero contenido dañado", async () => {
   const { state, mocks } = setup();
   const route = loadRoute("../app/api/tienda/media/route.js", mocks);
-  const heavy = fileOf(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(9 * 1024 * 1024)]), "x.jpg", "image/jpeg");
+  const heavy = fileOf(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(21 * 1024 * 1024)]), "x.jpg", "image/jpeg");
   assert.equal((await route.POST(request({ file: heavy, folder: "banners" }))).status, 413);
   assert.equal((await route.POST(request({ file: fileOf(await png(100, 100)), folder: "banners" }))).status, 400);
   const corrupt = fileOf(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from("esto no es un jpeg real"), Buffer.alloc(64)]), "x.jpg", "image/jpeg");
   const res = await route.POST(request({ file: corrupt, folder: "categorias" }));
   assert.equal(res.status, 400);
   assert.equal(state.uploads.length, 0, "un archivo dañado nunca debe quedar guardado");
+});
+
+test("prepara una URL firmada para originales mayores al límite de Vercel y rechaza más de 20 MB", async () => {
+  const { state, mocks } = setup();
+  const route = loadRoute("../app/api/tienda/media/upload-url/route.js", mocks);
+  const res = await route.POST(jsonRequest({ folder: "banners", size: 6 * 1024 * 1024, contentType: "image/jpeg" }));
+  assert.equal(res.status, 200);
+  assert.match(res.body.uploadUrl, /^https:\/\/r2\.ejemplo\.com\//);
+  assert.match(res.body.key, /^tienda\/_incoming\/u1\/banners\/\d+-[a-f0-9]{32}\.jpg$/);
+  assert.equal(res.body.maxBytes, 20 * 1024 * 1024);
+  assert.equal(state.presigned[0].contentType, "image/jpeg");
+  assert.equal(state.presigned[0].expiresIn, 900);
+
+  const tooLarge = await route.POST(jsonRequest({ folder: "banners", size: 20 * 1024 * 1024 + 1, contentType: "image/jpeg" }));
+  assert.equal(tooLarge.status, 413);
+  assert.equal(state.presigned.length, 1);
+  assert.equal((await route.POST(jsonRequest({ folder: "banners", size: 100, contentType: "image/svg+xml" }))).status, 415);
+  assert.equal((await route.POST(jsonRequest({ folder: "banners", size: 100, contentType: "image/jpeg" }, ""))).status, 401);
+});
+
+test("finaliza una carga directa, vuelve a validar y optimiza el archivo antes de registrarlo", async () => {
+  const { state, mocks } = setup();
+  const key = `tienda/_incoming/u1/banners/1700000000000-${"a".repeat(32)}.jpg`;
+  state.incoming[key] = await png(3000, 1200);
+  const route = loadRoute("../app/api/tienda/media/finalize/route.js", mocks);
+  const res = await route.POST(jsonRequest({ key, folder: "banners", originalName: "foto original.jpg" }));
+
+  assert.equal(res.status, 200);
+  assert.match(state.uploads[0].key, /^tienda\/banners\/\d+-[a-z0-9]+\.webp$/);
+  assert.equal(res.body.item.originalName, "foto original.jpg");
+  assert.equal(res.body.item.width, 2400);
+  assert.equal(state.records[0].name, "tiendaMedia");
+  assert.deepEqual(state.deleted, [key]);
+  assert.equal(state.incoming[key], undefined);
+});
+
+test("finalizar rechaza claves ajenas sin leerlas ni eliminarlas", async () => {
+  const { state, mocks } = setup();
+  const key = `tienda/_incoming/otro-usuario/banners/1700000000000-${"b".repeat(32)}.jpg`;
+  const route = loadRoute("../app/api/tienda/media/finalize/route.js", mocks);
+  const res = await route.POST(jsonRequest({ key, folder: "banners", originalName: "foto.jpg" }));
+  assert.equal(res.status, 403);
+  assert.deepEqual(state.deleted, []);
+  assert.equal(state.uploads.length, 0);
 });
 
 test("la limpieza solo elimina imágenes de la tienda que no usa ni el borrador ni lo publicado", async () => {
