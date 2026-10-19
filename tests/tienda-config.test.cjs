@@ -74,6 +74,21 @@ test("el contenido de la portada de la tienda y el inicio de Obras se guardan po
   assert.ok(validateTiendaConfig(config).errors.length === 0);
 });
 
+test("los banners de Obras conservan su identidad y orden para poder administrarlos", () => {
+  const config = normalizeTiendaConfig({
+    obrasInicio: { hero: { slides: [
+      { id: "banner-secundario", label: "Segundo", href: "/obras/deck", image: "/deck.webp" },
+      { label: "Primero", href: "/obras/muelles", image: "/muelle.webp" },
+    ] } },
+  });
+
+  assert.deepEqual(config.obrasInicio.hero.slides.map(({ id, label }) => ({ id, label })), [
+    { id: "banner-secundario", label: "Segundo" },
+    { id: "banner-2", label: "Primero" },
+  ]);
+  assert.deepEqual(normalizeTiendaConfig({ obrasInicio: { hero: { slides: [] } } }).obrasInicio.hero.slides, []);
+});
+
 test("el popup puede vincularse a una sección y normaliza sus controles de funcionamiento", () => {
   const config = normalizeTiendaConfig({
     secciones: [{ id: "destacados", titulo: "Destacados", regla: { tipo: "destacados" } }],

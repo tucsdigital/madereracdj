@@ -133,7 +133,7 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
     <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-medium text-default-600">{visibleLabel}</span><span className="text-[10px] text-default-400">Ideal {guide.ratio} · {guide.size}</span></div>
     {images.length ? <div className={cn("grid gap-2", multiline ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
       {images.map((image, index) => <div key={`${image}-${index}`} className="group relative overflow-hidden rounded-xl border border-border/70 bg-muted/30">
-        <button type="button" aria-label={`Ampliar ${visibleLabel} ${index + 1}`} onClick={() => setExpandedImage(image)} className="group/preview relative block aspect-[4/3] w-full overflow-hidden bg-muted outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground">
+        <button type="button" aria-label={`Ampliar ${visibleLabel} ${index + 1}`} onClick={() => setExpandedImage(image)} className={cn("group/preview relative block w-full overflow-hidden bg-muted outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground", guide.className)}>
           {previewUrl(image, storeUrl) ? <Image src={previewUrl(image, storeUrl) || image} alt="" fill unoptimized sizes="160px" className="object-cover transition duration-300 group-hover/preview:scale-[1.03]" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
           <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover/preview:bg-black/25 group-hover/preview:opacity-100 group-focus-visible/preview:bg-black/25 group-focus-visible/preview:opacity-100"><ZoomIn className="h-5 w-5 drop-shadow" /></span>
         </button>
@@ -297,12 +297,19 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
     path.reduce((object, key) => object[key], next).splice(index, 1);
     onChange(next);
   };
+  const moveEntry = (path, from, to) => {
+    const next = structuredClone(content);
+    const list = path.reduce((object, key) => object[key], next);
+    const [item] = list.splice(from, 1);
+    list.splice(to, 0, item);
+    onChange(next);
+  };
   const field = (label, value, path, multiline = false) => <Field label={label} value={value} multiline={multiline} onChange={(next) => updatePath(path, next)} />;
   const icons = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
 
   return <div className="space-y-4">
 
-    <Card title="Portada de Obras" description="Las diapositivas de respaldo se usan cuando todavía no hay obras publicadas; con obras activas, el carrusel toma sus portadas y respeta el orden de Obras.">
+    <Card title="Portada de Obras" description="Administrá los banners que se muestran en esta portada. Son independientes de las obras publicadas.">
       <div className="grid gap-3 sm:grid-cols-2">
         {field("Antetítulo", content.hero?.eyebrow, ["hero", "eyebrow"])}
         {field("Primera línea del título", content.hero?.titleLine1, ["hero", "titleLine1"])}
@@ -311,17 +318,35 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
         {field("Botón principal", content.hero?.primaryLabel, ["hero", "primaryLabel"])}
         {field("Botón secundario", content.hero?.secondaryLabel, ["hero", "secondaryLabel"])}
       </div>
-      <div className="mt-4">
-        <ListEditor title="Diapositivas de respaldo" items={content.hero?.slides || []}
-          onAdd={(index, remove) => remove ? removeEntry(["hero", "slides"], index) : addEntry(["hero", "slides"], { label: "Nueva obra", href: "/obras", image: "", mobileImage: "", alt: "" })}>
-          {(slide, index) => <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Etiqueta" value={slide.label} onChange={(value) => updateEntry(["hero", "slides"], index, { label: value })} />
-            <Field label="Enlace" value={slide.href} onChange={(value) => updateEntry(["hero", "slides"], index, { href: value })} />
-            <Field label="Descripción de imagen" value={slide.alt} onChange={(value) => updateEntry(["hero", "slides"], index, { alt: value })} />
-            <div className="sm:col-span-2"><ImageField label="Imagen de escritorio" value={slide.image} ratio="panoramic" onChange={(image) => updateEntry(["hero", "slides"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
-            <div className="sm:col-span-2"><ImageField label="Imagen para celular" value={slide.mobileImage} ratio="portrait" onChange={(mobileImage) => updateEntry(["hero", "slides"], index, { mobileImage })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
-          </div>}
-        </ListEditor>
+      <div className="mt-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div><h4 className="text-xs font-semibold">Banners de portada</h4><p className="mt-1 text-[10px] text-default-500">Escritorio 21:10 · celular 4:5. Arrastrá para cambiar el orden.</p></div>
+          <Btn size="sm" variant="outline" disabled={(content.hero?.slides || []).length >= 8} onClick={() => addEntry(["hero", "slides"], { id: uid("banner"), label: "Nuevo banner", href: "/obras", image: "", mobileImage: "", alt: "" })}><Plus className="h-3.5 w-3.5" />Agregar banner</Btn>
+        </div>
+        {(content.hero?.slides || []).length ? <SortableList
+          ids={(content.hero?.slides || []).map((slide, index) => slide.id || `banner-${index + 1}`)}
+          onMove={(from, to) => moveEntry(["hero", "slides"], from, to)}
+          className="space-y-3"
+        >
+          {(content.hero?.slides || []).map((slide, index) => {
+            const id = slide.id || `banner-${index + 1}`;
+            return <SortableItem key={id} id={id} className="relative rounded-lg border border-border/70 bg-background p-3">
+              {(dragHandle) => <div className="flex min-w-0 gap-2">
+                <div className="pt-1">{dragHandle}</div>
+                <div className="min-w-0 flex-1 space-y-3 pr-9">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Etiqueta" value={slide.label} onChange={(value) => updateEntry(["hero", "slides"], index, { label: value })} />
+                    <Field label="Enlace" value={slide.href} onChange={(value) => updateEntry(["hero", "slides"], index, { href: value })} />
+                    <div className="sm:col-span-2"><Field label="Descripción de imagen" value={slide.alt} onChange={(value) => updateEntry(["hero", "slides"], index, { alt: value })} /></div>
+                    <div className="sm:col-span-2"><ImageField label="Imagen de escritorio" value={slide.image} ratio="panoramic" onChange={(image) => updateEntry(["hero", "slides"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+                    <div className="sm:col-span-2"><ImageField label="Imagen para celular" value={slide.mobileImage} ratio="portrait" onChange={(mobileImage) => updateEntry(["hero", "slides"], index, { mobileImage })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+                  </div>
+                </div>
+                <button type="button" aria-label={`Quitar banner ${index + 1}`} onClick={() => removeEntry(["hero", "slides"], index)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md text-default-400 transition hover:bg-red-50 hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+              </div>}
+            </SortableItem>;
+          })}
+        </SortableList> : <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-default-500">Todavía no hay banners configurados.</p>}
       </div>
     </Card>
 
@@ -329,7 +354,7 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
       <Field label="Frases" value={(content.highlights || []).join("\n")} multiline onChange={(value) => updatePath(["highlights"], value.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8))} />
     </Card>
 
-    <Card title="Tipos de obras" description="El contenido de cada tarjeta se puede ajustar acá. El nombre de una obra publicada se toma de su ficha; sus detalles e imagen se administran acá.">
+    <Card title="Tipos de obras" description="Las imágenes de estas tarjetas usan relación 4:5 (1080 × 1350 px). El nombre de una obra publicada se toma de su ficha; sus detalles e imagen se administran acá.">
       <div className="grid gap-3 sm:grid-cols-2">
         {field("Antetítulo", content.workTypes?.eyebrow, ["workTypes", "eyebrow"])}
         {field("Título", content.workTypes?.title, ["workTypes", "title"])}
@@ -348,7 +373,7 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
             <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["workTypes", "items"], index, { icon: event.target.value })}>{icons.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
             <div className="sm:col-span-2"><Field label="Descripción" value={item.summary} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { summary: value })} /></div>
             <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(item.features || []).join("\n")} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { features: value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4) })} /></div>
-            <div className="sm:col-span-2"><ImageField label="Imagen" value={item.image} ratio="portrait" onChange={(image) => updateEntry(["workTypes", "items"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+            <div className="sm:col-span-2"><ImageField label="Imagen de tarjeta (4:5)" value={item.image} ratio="portrait" onChange={(image) => updateEntry(["workTypes", "items"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
           </div>}
         </ListEditor>
       </div>

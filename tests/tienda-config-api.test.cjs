@@ -77,11 +77,15 @@ test("guardar publica directamente: no hay borrador y queda historial", async ()
 test("los cambios de Inicio de Obras se guardan y vuelven a cargarse desde la configuración publicada", async () => {
   const { state, route } = setup();
   const current = (await route.GET(req({}))).body.config;
+  const banners = [
+    { id: "banner-secundario", label: "Segundo", href: "/obras", image: "", mobileImage: "", alt: "" },
+    { id: "banner-principal", label: "Primero", href: "/obras", image: "", mobileImage: "", alt: "" },
+  ];
   const changed = {
     ...current,
     obrasInicio: {
       ...current.obrasInicio,
-      hero: { ...current.obrasInicio.hero, titleLine1: "Obras vigentes" },
+      hero: { ...current.obrasInicio.hero, titleLine1: "Obras vigentes", slides: banners },
       workTypes: { ...current.obrasInicio.workTypes, items: [] },
     },
   };
@@ -89,11 +93,13 @@ test("los cambios de Inicio de Obras se guardan y vuelven a cargarse desde la co
   const saved = await route.PUT(req({ config: changed, baseVersion: 0 }));
   assert.equal(saved.status, 200);
   assert.equal(saved.body.config.obrasInicio.hero.titleLine1, "Obras vigentes");
+  assert.deepEqual(saved.body.config.obrasInicio.hero.slides.map((slide) => slide.id), ["banner-secundario", "banner-principal"]);
   assert.deepEqual(saved.body.config.obrasInicio.workTypes.items, []);
   assert.equal(state.doc.published.obrasInicio.hero.titleLine1, "Obras vigentes");
 
   const reloaded = await route.GET(req({}));
   assert.equal(reloaded.body.config.obrasInicio.hero.titleLine1, "Obras vigentes");
+  assert.deepEqual(reloaded.body.config.obrasInicio.hero.slides.map((slide) => slide.id), ["banner-secundario", "banner-principal"]);
   assert.deepEqual(reloaded.body.config.obrasInicio.workTypes.items, []);
   assert.equal(reloaded.body.version, 1);
 });
