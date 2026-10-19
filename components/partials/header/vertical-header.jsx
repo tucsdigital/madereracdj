@@ -65,8 +65,8 @@ const VerticalHeader = ({ handleOpenSearch }) => {
   // let searchButtonContent = null;
 
   const MainLogo = (
-    <Link href={localize("/dashboard")} className=" text-primary ">
-      <SiteLogo className="h-7 w-7" />
+    <Link href={localize("/dashboard")} className="inline-flex h-8 shrink-0 items-center text-primary">
+      <SiteLogo width={672} height={507} className="block h-7 w-auto shrink-0 object-contain" />
     </Link>
   );
   // const SearchButton = (
