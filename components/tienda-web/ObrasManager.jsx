@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X, ZoomIn } from "lucide-react";
 import Image from "next/image";
+import { toast } from "react-hot-toast";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
 import { previewUrl, productsForConfiguredSection } from "@/lib/tienda-web-ui";
@@ -18,6 +19,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const TOAST_OPTIONS = { duration: 4200, position: "top-right" };
+const notify = (kind, message) => {
+  if (!message) return;
+  if (kind === "success") toast.success(message, TOAST_OPTIONS);
+  else if (kind === "error") toast.error(message, TOAST_OPTIONS);
+  else toast(message, TOAST_OPTIONS);
+};
 
 const uid = (prefix) => `${prefix}-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
 const slugify = (value) => String(value || "obra").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nueva-obra";
@@ -111,7 +120,7 @@ function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
   };
 }
 
-function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, multiline = false, ratio }) {
+function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, multiline = false, ratio, showImageLabels = true }) {
   const mediaContext = useContext(MediaContext);
   media = media || mediaContext.media;
   const storeUrl = tiendaUrl || mediaContext.tiendaUrl;
@@ -119,7 +128,7 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
   const labelText = visibleLabel.toLocaleLowerCase("es");
   const ratioKey = ratio || (labelText.includes("material") || labelText.includes("opción") || labelText === "imagen principal" ? "square" : labelText.includes("compartir") || labelText.includes("fondo") || labelText.includes("soluciones") ? "panoramic" : labelText.includes("adicional") || labelText.includes("complement") ? "wide" : "landscape");
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [showLibrary, setShowLibrary] = useState(false);
   const [expandedImage, setExpandedImage] = useState("");
   const closePreviewRef = useRef(null);
@@ -143,25 +152,54 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
   }, [expandedImage]);
-  const upload = async (file) => {
-    if (!file) return;
+  const upload = async (fileList) => {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length || uploading) return;
     setUploading(true);
-    setError("");
+    setUploadProgress({ current: 0, total: files.length });
+    const nextImages = [...images];
+    const failures = [];
+    let uploadedCount = 0;
+    let ratioMismatchCount = 0;
     try {
-      const item = await uploadImage(file, "obras");
-      update(multiline ? [...images, item.url] : [item.url]);
-      const sourceWidth = item.sourceWidth || item.width;
-      const sourceHeight = item.sourceHeight || item.height;
-      if (sourceWidth && sourceHeight && Math.abs(sourceWidth / sourceHeight - Number(guide.ratio.split(":")[0]) / Number(guide.ratio.split(":")[1])) > 0.2) {
-        setError(`La proporción ideal es ${guide.ratio} (${guide.size}). La imagen se recortará al centro.`);
+      for (const [index, file] of files.entries()) {
+        try {
+          const item = await uploadImage(file, "obras");
+          if (!item?.url) throw new Error("No se recibió la dirección de la imagen cargada.");
+          if (multiline) {
+            if (!nextImages.includes(item.url)) nextImages.push(item.url);
+          } else {
+            nextImages.splice(0, nextImages.length, item.url);
+          }
+          uploadedCount += 1;
+          const sourceWidth = Number(item.sourceWidth || item.width) || 0;
+          const sourceHeight = Number(item.sourceHeight || item.height) || 0;
+          const targetRatio = Number(guide.ratio.split(":")[0]) / Number(guide.ratio.split(":")[1]);
+          if (sourceWidth && sourceHeight && Math.abs(sourceWidth / sourceHeight - targetRatio) > 0.2) ratioMismatchCount += 1;
+        } catch (cause) {
+          failures.push(`${file.name || "Imagen"}: ${cause?.message || "no se pudo cargar"}`);
+        } finally {
+          setUploadProgress({ current: index + 1, total: files.length });
+        }
       }
-    } catch (cause) {
-      setError(cause?.message || "No se pudo cargar la imagen.");
+      if (uploadedCount) {
+        update(nextImages);
+        notify("success", multiline ? `${uploadedCount} ${uploadedCount === 1 ? "imagen cargada" : "imágenes cargadas"}.` : "Imagen cargada.");
+      }
+      if (failures.length) {
+        const detail = failures[0];
+        notify("error", failures.length === 1 ? detail : `Fallaron ${failures.length} de ${files.length} cargas. ${detail}`);
+      }
+      if (ratioMismatchCount) {
+        notify("info", `${ratioMismatchCount} ${ratioMismatchCount === 1 ? "imagen no tiene" : "imágenes no tienen"} la proporción recomendada ${guide.ratio} (${guide.size}); se recortará${ratioMismatchCount === 1 ? "" : "n"} al centro.`);
+      }
     } finally {
       setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   };
   const choose = (url) => {
+    if (uploading) return;
     if (multiline) update(images.includes(url) ? images : [...images, url]);
     else update([url]);
     if (!multiline) setShowLibrary(false);
@@ -174,22 +212,21 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
           {previewUrl(image, storeUrl) ? <Image src={previewUrl(image, storeUrl) || image} alt="" fill unoptimized sizes="160px" className="object-cover transition duration-300 group-hover/preview:scale-[1.03]" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
           <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover/preview:bg-black/25 group-hover/preview:opacity-100 group-focus-visible/preview:bg-black/25 group-focus-visible/preview:opacity-100"><ZoomIn className="h-5 w-5 drop-shadow" /></span>
         </button>
-        <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-3rem)] truncate rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span>
-        <button type="button" aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><X className="h-3.5 w-3.5" /></button>
+         {showImageLabels ? <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-3rem)] truncate rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span> : null}
+         <button type="button" disabled={uploading} aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-50"><X className="h-3.5 w-3.5" /></button>
       </div>)}
     </div> : <div className={cn("flex items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-xs text-muted-foreground", multiline ? "min-h-20" : cn("w-full", guide.className))}>Sin imagen seleccionada</div>}
     <div className="flex flex-wrap items-center gap-2">
       <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground px-3 text-[11px] font-medium text-background transition hover:opacity-85", uploading && "pointer-events-none opacity-60")}>
-        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}{uploading ? "Subiendo…" : "Subir imagen"}
-        <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={uploading} onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ""; }} />
-      </label>
-      <button type="button" onClick={() => setShowLibrary((open) => !open)} className="h-8 rounded-full border border-border px-3 text-[11px] font-medium text-default-600 transition hover:bg-default-50">{showLibrary ? "Cerrar biblioteca" : "Elegir de biblioteca"}</button>
-      {multiline ? <span className="text-[10px] text-default-400">Podés agregar varias imágenes.</span> : null}
+         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}{uploading ? multiline && uploadProgress.total > 1 ? `Subiendo ${uploadProgress.current}/${uploadProgress.total}…` : "Subiendo…" : multiline ? "Subir imágenes" : "Subir imagen"}
+         <input className="sr-only" type="file" multiple={multiline} accept="image/jpeg,image/png,image/webp,image/avif" disabled={uploading} onChange={(event) => { void upload(event.target.files); event.target.value = ""; }} />
+       </label>
+       <button type="button" disabled={uploading} onClick={() => setShowLibrary((open) => !open)} className="h-8 rounded-full border border-border px-3 text-[11px] font-medium text-default-600 transition hover:bg-default-50 disabled:opacity-50">{showLibrary ? "Cerrar biblioteca" : "Elegir de biblioteca"}</button>
+       {multiline ? <span className="text-[10px] text-default-400">Podés seleccionar varias imágenes o cargarlas en lote.</span> : null}
     </div>
     {showLibrary ? <div className="rounded-xl border border-border bg-muted/20 p-2.5">
       {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><Image src={previewUrl(item.url, storeUrl) || item.url} alt="" fill unoptimized sizes="120px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
     </div> : null}
-    {error ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{error}</p> : null}
     {expandedImage ? <div role="dialog" aria-modal="true" aria-label={`Vista ampliada: ${visibleLabel}`} onMouseDown={(event) => { if (event.target === event.currentTarget) setExpandedImage(""); }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm sm:p-8">
       <button ref={closePreviewRef} type="button" aria-label="Cerrar vista ampliada" onClick={() => setExpandedImage("")} className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><X className="h-5 w-5" /></button>
       <div className="relative h-[88vh] w-[94vw]"><Image src={previewUrl(expandedImage, storeUrl) || expandedImage} alt={`${visibleLabel} ampliada`} fill unoptimized sizes="94vw" className="rounded-lg object-contain shadow-2xl" /></div>
@@ -452,7 +489,6 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMode, setSavingMode] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [section, setSection] = useState("general");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -478,7 +514,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       setVersion(Number(entry?.version) || 0);
       setPublished(Boolean(entry?.published?.status === "active"));
     } catch (error) {
-      setNotice({ type: "error", text: error.message });
+      notify("error", error.message || "No se pudieron cargar las obras.");
     } finally {
       setLoading(false);
     }
@@ -504,6 +540,17 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     target[path[path.length - 1]] = value;
     return next;
   });
+  const setGalleryImages = (value) => {
+    const urls = String(value || "").split("\n").map((image) => image.trim()).filter(Boolean);
+    const existingByImage = new Map((draft?.gallery?.items || []).filter((item) => item?.image).map((item) => [item.image, item]));
+    setPath(["gallery", "items"], urls.map((image) => existingByImage.get(image) || {
+      id: uid("work"),
+      title: "",
+      description: "",
+      image,
+      category: "",
+    }));
+  };
   const setEntry = (path, index, patch) => setDraft((current) => {
     const next = structuredClone(current);
     const list = path.reduce((object, key) => object?.[key], next);
@@ -533,7 +580,6 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     setSavedDraftSnapshot(null);
     setPublished(false);
     setSection("general");
-    setNotice(null);
   };
 
   const duplicateProject = (item) => {
@@ -567,13 +613,12 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     setSavedDraftSnapshot(null);
     setPublished(false);
     setSection("general");
-    setNotice({ type: "ok", text: "Copia creada como borrador. Guardala para continuar." });
+    notify("success", "Copia creada como borrador. Guardala para continuar.");
   };
 
   const deleteProject = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    setNotice(null);
     try {
       if (Number(deleteTarget.version) > 0) {
         await authFetch(`/api/tienda/obras/admin/${encodeURIComponent(deleteTarget.id)}`, {
@@ -584,7 +629,11 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       }
       const remaining = items.filter((item) => item.id !== deleteTarget.id);
       setItems(remaining);
-      if (Number(deleteTarget.version) > 0) await persistOrder(remaining.map((item) => item.id), false);
+      let orderSaveError = "";
+      if (Number(deleteTarget.version) > 0) {
+        const orderResult = await persistOrder(remaining.map((item) => item.id), false);
+        if (!orderResult.ok) orderSaveError = orderResult.error || "no se pudo guardar el nuevo orden";
+      }
       if (selectedSlug === deleteTarget.id) {
         const next = remaining[0];
         const nextProject = next?.project || next?.draft || next?.published || null;
@@ -595,16 +644,18 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         setPublished(next?.published?.status === "active");
         setSection("general");
       }
-      setNotice({ type: "ok", text: Number(deleteTarget.version) > 0 ? "Obra eliminada. Sus imágenes se conservaron en la biblioteca." : "Borrador local descartado." });
+      notify(orderSaveError ? "error" : "success", orderSaveError
+        ? `Obra eliminada, pero ${orderSaveError}.`
+        : Number(deleteTarget.version) > 0 ? "Obra eliminada. Sus imágenes se conservaron en la biblioteca." : "Borrador local descartado.");
       setDeleteTarget(null);
     } catch (error) {
-      setNotice({ type: "error", text: error.message || "No se pudo eliminar la obra." });
+      notify("error", error.message || "No se pudo eliminar la obra.");
     } finally {
       setDeleting(false);
     }
   };
 
-  const persistOrder = async (slugs, showNotice = true) => {
+  const persistOrder = async (slugs, showToast = true) => {
     if (savingOrder) return { ok: false, error: "El orden ya se está guardando." };
     setSavingOrder(true);
     try {
@@ -614,10 +665,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         body: JSON.stringify({ slugs, baseVersion: orderVersion }),
       });
       setOrderVersion(Number(result.version) || orderVersion + 1);
-      if (showNotice) setNotice({ type: "ok", text: "Orden de obras guardado y aplicado en la tienda." });
+      if (showToast) notify("success", "Orden de obras guardado y aplicado en la tienda.");
       return { ok: true };
     } catch (error) {
-      if (showNotice) setNotice({ type: "error", text: error.message || "No se pudo guardar el orden de las obras." });
+      if (showToast) notify("error", error.message || "No se pudo guardar el orden de las obras.");
       return { ok: false, error: error.message };
     } finally {
       setSavingOrder(false);
@@ -632,10 +683,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     next.splice(to, 0, moved);
     setItems(next);
     const result = await persistOrder(next.map((item) => item.id), false);
-    if (result.ok) setNotice({ type: "ok", text: "Orden de obras guardado y aplicado en la tienda." });
+    if (result.ok) notify("success", "Orden de obras guardado y aplicado en la tienda.");
     else {
       setItems(previous);
-      setNotice({ type: "error", text: result.error || "No se pudo guardar el orden de las obras." });
+      notify("error", result.error || "No se pudo guardar el orden de las obras.");
     }
   };
 
@@ -643,7 +694,6 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     if (!draft || !hasUnsavedChanges || saving) return;
     setSaving(true);
     setSavingMode("draft");
-    setNotice(null);
     const nextSlug = version === 0 ? slugify(draft.slug || draft.title) : selectedSlug;
     const draftSnapshotAtSave = JSON.stringify(draft);
     try {
@@ -665,13 +715,13 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       if (version === 0 || selectedSlug !== nextSlug) {
         const orderResult = await persistOrder(nextItems.map((item) => item.id), false);
         if (!orderResult.ok) {
-          setNotice({ type: "error", text: `Borrador guardado, pero no se pudo persistir el orden: ${orderResult.error}` });
+          notify("error", `Borrador guardado, pero no se pudo persistir el orden: ${orderResult.error}`);
           return;
         }
       }
-      setNotice({ type: "ok", text: "Borrador guardado. Todavía no se muestra en la tienda." });
+      notify("success", "Borrador guardado. Todavía no se muestra en la tienda.");
     } catch (error) {
-      setNotice({ type: "error", text: error.data?.issues?.join(" · ") || error.message });
+      notify("error", error.data?.issues?.join(" · ") || error.message || "No se pudo guardar el borrador.");
     } finally {
       setSaving(false);
       setSavingMode(null);
@@ -680,12 +730,11 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
 
   const publish = async () => {
     if (!draft || version === 0 || hasUnsavedChanges || saving) {
-      setNotice({ type: "error", text: hasUnsavedChanges ? "Guardá los cambios antes de publicar." : "Guardá el borrador antes de publicarlo." });
+      notify("error", hasUnsavedChanges ? "Guardá los cambios antes de publicar." : "Guardá el borrador antes de publicarlo.");
       return;
     }
     setSaving(true);
     setSavingMode("publish");
-    setNotice(null);
     try {
       const result = await authFetch(`/api/tienda/obras/admin/${encodeURIComponent(selectedSlug)}`, {
         method: "POST",
@@ -697,9 +746,9 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       setSavedDraftSnapshot(JSON.stringify(result.project));
       setPublished(result.published);
       setItems((current) => current.map((item) => item.id === selectedSlug ? { ...item, project: result.project, draft: result.project, published: result.project, version: result.version, publishedVersion: version } : item));
-      setNotice({ type: "ok", text: result.published ? "Obra publicada. La tienda la mostrará en breve." : "Cambios publicados; la obra permanece desactivada." });
+      notify("success", result.published ? "Obra publicada. La tienda la mostrará en breve." : "Cambios publicados; la obra permanece desactivada.");
     } catch (error) {
-      setNotice({ type: "error", text: error.data?.issues?.join(" · ") || error.message });
+      notify("error", error.data?.issues?.join(" · ") || error.message || "No se pudo publicar la obra.");
     } finally {
       setSaving(false);
       setSavingMode(null);
@@ -726,8 +775,6 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       </div>
     </div>
 
-    {notice && view === "obras" ? <div role="status" className={cn("flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm", notice.type === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}><span>{notice.text}</span><button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button></div> : null}
-
     <div className={cn("grid items-start gap-4 xl:grid-cols-[250px_minmax(0,1fr)]", view !== "obras" && "hidden")}>
       <aside className="rounded-xl border border-border bg-card p-2">
         <p className="flex items-center justify-between px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-default-400"><span>{items.length} obras</span><span>{savingOrder ? "Guardando orden…" : "Arrastrá para ordenar"}</span></p>
@@ -738,7 +785,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
             return <SortableItem key={item.id} id={item.id} disabled={savingOrder} className={cn("group rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
               {(handle) => <div className="flex items-center gap-1">
                 {handle}
-                <button type="button" disabled={saving} onClick={() => { const sourceProject = item.project || item.draft || item.published; setSelectedSlug(item.id); setDraft(projectDraftWithLegacyWorkType(sourceProject, obrasInicioContent)); setSavedDraftSnapshot(sourceProject ? JSON.stringify(sourceProject) : null); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" disabled={saving} onClick={() => { const sourceProject = item.project || item.draft || item.published; setSelectedSlug(item.id); setDraft(projectDraftWithLegacyWorkType(sourceProject, obrasInicioContent)); setSavedDraftSnapshot(sourceProject ? JSON.stringify(sourceProject) : null); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-60">
                   <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <Image src={previewUrl(cover, tiendaUrl) || cover} alt="" fill unoptimized sizes="40px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
                 </button>
@@ -814,7 +861,19 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         {section === "galeria" ? <div className="space-y-4">
           <Card title="Encabezado de la galería"><div className="grid gap-3 sm:grid-cols-2"><Field label="Antetítulo" value={draft.pageContent?.gallery?.eyebrow} onChange={(value) => setPath(["pageContent", "gallery", "eyebrow"], value)} /><Field label="Instagram: antetítulo" value={draft.pageContent?.instagram?.eyebrow} onChange={(value) => setPath(["pageContent", "instagram", "eyebrow"], value)} /><Field label="Instagram: título" value={draft.pageContent?.instagram?.title} onChange={(value) => setPath(["pageContent", "instagram", "title"], value)} /><Field label="Instagram: descripción" value={draft.pageContent?.instagram?.description} onChange={(value) => setPath(["pageContent", "instagram", "description"], value)} multiline /></div></Card>
           <Card title="Galería de trabajos"><div className="grid gap-3 sm:grid-cols-2"><Field label="Título" value={draft.gallery?.title} onChange={(value) => setPath(["gallery", "title"], value)} /><Field label="Categorías (separadas por coma)" value={(draft.gallery?.categories || []).join(", ")} onChange={(value) => setPath(["gallery", "categories"], value.split(",").map((item) => item.trim()).filter(Boolean))} /><div className="sm:col-span-2"><Field label="Descripción" value={draft.gallery?.description} onChange={(value) => setPath(["gallery", "description"], value)} multiline /></div></div></Card>
-          <ListEditor title="Fotos de trabajos" items={draft.gallery?.items || []} onAdd={(index, remove) => remove ? removeEntry(["gallery", "items"], index) : addEntry(["gallery", "items"], { id: uid("work"), title: "", description: "", image: "", category: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Título" value={item.title} onChange={(value) => setEntry(["gallery", "items"], index, { title: value })} /><Field label="Categoría" value={item.category} onChange={(value) => setEntry(["gallery", "items"], index, { category: value })} /><div className="sm:col-span-2"><Field label="Descripción" value={item.description} onChange={(value) => setEntry(["gallery", "items"], index, { description: value })} multiline /></div><div className="sm:col-span-2"><ImageField label="Foto" value={item.image} onChange={(value) => setEntry(["gallery", "items"], index, { image: value })} uploadImage={uploadImage} /></div><div className="sm:col-span-2"><ImageField label="Foto anterior (opcional)" value={item.beforeImage} onChange={(value) => setEntry(["gallery", "items"], index, { beforeImage: value })} uploadImage={uploadImage} /></div></div>}</ListEditor>
+          <Card title="Fotos de trabajos" description="Podés cargar varias fotos juntas. Guía recomendada: apaisada 3:2 · 1800 × 1200 px.">
+            <ImageField
+              label="Fotos de trabajos"
+              value={(draft.gallery?.items || []).map((item) => item.image).filter(Boolean).join("\n")}
+              onChange={setGalleryImages}
+              uploadImage={uploadImage}
+              media={media}
+              tiendaUrl={tiendaUrl}
+              multiline
+              ratio="landscape"
+              showImageLabels={false}
+            />
+          </Card>
         </div> : null}
 
         {section === "faq" ? <div className="space-y-4"><Card title="Encabezado de preguntas frecuentes"><div className="grid gap-3 sm:grid-cols-2"><Field label="Antetítulo" value={draft.pageContent?.faq?.eyebrow} onChange={(value) => setPath(["pageContent", "faq", "eyebrow"], value)} /><Field label="Título" value={draft.pageContent?.faq?.title} onChange={(value) => setPath(["pageContent", "faq", "title"], value)} /><div className="sm:col-span-2"><Field label="Descripción" value={draft.pageContent?.faq?.description} onChange={(value) => setPath(["pageContent", "faq", "description"], value)} multiline /></div><Field label="Texto del enlace" value={draft.pageContent?.faq?.ctaLabel} onChange={(value) => setPath(["pageContent", "faq", "ctaLabel"], value)} /></div></Card><ListEditor title="Preguntas frecuentes" items={draft.faqs || []} onAdd={(index, remove) => remove ? removeEntry(["faqs"], index) : addEntry(["faqs"], { id: uid("faq"), question: "", answer: "" })}>{(item, index) => <div className="grid gap-3"><Field label="Pregunta" value={item.question} onChange={(value) => setEntry(["faqs"], index, { question: value })} /><Field label="Respuesta" value={item.answer} onChange={(value) => setEntry(["faqs"], index, { answer: value })} multiline /></div>}</ListEditor></div> : null}
