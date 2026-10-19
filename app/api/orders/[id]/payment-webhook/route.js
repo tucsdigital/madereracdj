@@ -33,7 +33,7 @@ function saleDataFromOrder(order, payment) {
     subtotal,
     descuentos,
     descuentoTotal: discounts,
-    descuentoEfectivo: Number(pricing.transferDiscount) || 0,
+    descuentoEfectivo: Number(pricing.cashDiscount) || Number(pricing.transferDiscount) || 0,
     totalSinEfectivo: Math.max(0, subtotal - discounts + shipping),
     totalConEfectivo: null,
     reservaExpiresAt: order.stockReservationExpiresAt || new Date().toISOString(),

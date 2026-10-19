@@ -259,6 +259,7 @@ test("cotización reparte entre stock y pedido sin stock, exige transferencia y 
     await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 8 }], paymentMethod: "transferencia" }), /hasta 7/);
     const inStock = await quote({ ...base, items: [{ id: "pino", quantity: 2 }], paymentMethod: "mercadopago" });
     assert.deepEqual([inStock.items[0].cantidadSinStock, inStock.backorder.length], [0, 0]);
+    await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 5 }], paymentMethod: "efectivo" }), /transferencia/);
   } finally { globalThis.__stockCfg = null; }
 });
 test("cotización ignora precios manipulados y toma descuentos del sistema", async () => {
@@ -322,4 +323,19 @@ test("el descuento por transferencia sale del panel de la tienda web y gana sobr
   data.set("settings/tienda", { published: { transferencia: { descuentoPct: 0 } } });
   assert.equal((await quote(input)).pricing.transferDiscount, 0);
   assert.equal((await quote({ ...input, paymentMethod: "mercadopago" })).pricing.transferDiscount, 0);
+});
+
+test("el descuento en efectivo sale de la configuración publicada y se aplica sin descontar el envío", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
+  data.set("settings/tienda", { published: { efectivo: { descuentoPct: 5 } } });
+  const result = await quote({
+    items: [{ id: "pino", quantity: 2 }], paymentMethod: "efectivo",
+    deliveryInfo: { metodoEntrega: "envio", lat: -34, lng: -58 },
+  });
+  assert.equal(result.pricing.cashDiscount, 100);
+  assert.equal(result.pricing.transferDiscount, 0);
+  assert.equal(result.pricing.shipping, 500);
+  assert.equal(result.total, 2400);
+  assert.equal(result.cashDiscountRate, 0.05);
 });

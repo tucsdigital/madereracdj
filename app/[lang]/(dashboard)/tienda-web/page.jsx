@@ -40,7 +40,7 @@ const TABS = [
   { id: "contacto", label: "Contacto", help: "Administrá los datos, horarios, redes y formulario de contacto globales de la tienda." },
   { id: "precios", label: "Precios", help: "Ajustá en porcentaje lo que cuestan los productos en la tienda online. Los precios originales del sistema no cambian." },
   { id: "stock", label: "Stock", help: "Decidí si se puede vender sin stock, cuándo ocultar un producto y cuándo avisar que quedan pocas unidades." },
-  { id: "transferencia", label: "Datos", help: "El descuento por transferencia y los datos bancarios que ve el cliente al terminar su compra." },
+  { id: "transferencia", label: "Pagos", help: "Configurá los descuentos por efectivo y transferencia, además de los datos bancarios." },
   { id: "notificaciones", label: "Avisos de pedidos", help: "Elegí el plazo de pago y qué avisos recibe tu equipo." },
 ];
 
@@ -440,8 +440,9 @@ export default function TiendaWebPage() {
         />
       )}
       {tab === "transferencia" && (
-        <TransferenciaForm transferencia={config.transferencia} issues={issues}
-          onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))} />
+        <TransferenciaForm transferencia={config.transferencia} efectivo={config.efectivo} issues={issues}
+          onChange={(patch) => setConfig((prev) => ({ ...prev, transferencia: { ...prev.transferencia, ...patch } }))}
+          onEfectivoChange={(patch) => setConfig((prev) => ({ ...prev, efectivo: { ...prev.efectivo, ...patch } }))} />
       )}
       {tab === "obras" && <ObrasManager authFetch={authFetch} uploadImage={uploadImage} media={mediaApi} tiendaUrl={tiendaUrl} obrasInicioContent={config.obrasInicio} onObrasInicioChange={(obrasInicio) => setConfig((prev) => ({ ...prev, obrasInicio }))} openObrasInicio={openObrasInicio} onObrasInicioOpened={onObrasInicioOpened} />}
       {tab === "notificaciones" && <NotificacionesPedidosForm

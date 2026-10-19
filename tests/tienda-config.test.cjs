@@ -27,6 +27,7 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.inicio.offerPopup.showOnDesktop, true);
   assert.equal(cfg.notificacionesPedidos.enabled, false);
   assert.equal(cfg.checkout.reservaStockMercadoPagoMinutos, 10);
+  assert.equal(cfg.efectivo.descuentoPct, 0);
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
   assert.deepEqual(validateTiendaConfig(TIENDA_DEFAULTS).errors, []);
@@ -221,6 +222,9 @@ test("transferencia: normaliza descuento, CBU, alias y plazo; la vista pública 
   assert.equal(normalizeTiendaConfig({ transferencia: { descuentoPct: "abc" } }).transferencia.descuentoPct, 10);
   const publico = publicTiendaConfig({ transferencia: { descuentoPct: 12, cbu: "0000003100000123456789", alias: "mi.alias" } });
   assert.deepEqual(publico.transferencia, { descuentoPct: 12 });
+  assert.deepEqual(publico.efectivo, { descuentoPct: 0 });
+  assert.equal(normalizeTiendaConfig({ efectivo: { descuentoPct: "6,5 %" } }).efectivo.descuentoPct, 6.5);
+  assert.equal(normalizeTiendaConfig({ efectivo: { descuentoPct: 500 } }).efectivo.descuentoPct, 90);
 });
 
 test("transferencia: valida formatos y avisa si faltan los datos para transferir", () => {

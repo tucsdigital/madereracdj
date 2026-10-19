@@ -9,10 +9,18 @@ const BANCO = [
   ["cuit", "CUIT / CUIL", "11 dígitos, sin guiones.", "30123456789"],
 ];
 
-export default function TransferenciaForm({ transferencia, issues = [], onChange }) {
+export default function TransferenciaForm({ transferencia, efectivo, issues = [], onChange, onEfectivoChange }) {
   const error = (field) => issues.find((i) => i.scope === "transferencia" && i.field === field)?.message;
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+      <div className="space-y-3 border-b border-border pb-6">
+        <h3 className="text-sm font-semibold">Pago en efectivo</h3>
+        <Field label="Descuento por pagar en efectivo (%)" hint="Se aplica sobre el neto de los productos, sin incluir el envío. Usá 0 para no ofrecer descuento." htmlFor="efectivo-descuento">
+          <input id="efectivo-descuento" inputMode="decimal" className={cn(inputClass, "max-w-[160px]")} value={efectivo?.descuentoPct ?? 0} onChange={(e) => onEfectivoChange?.({ descuentoPct: e.target.value })} placeholder="0" />
+        </Field>
+        <p className="text-xs text-default-500">El cliente paga al recibir el pedido o al retirarlo en la sucursal.</p>
+      </div>
+
       <Field label="Descuento por pagar con transferencia (%)" hint="Se aplica sobre el neto de los productos, en el carrito y al finalizar la compra. Usá 0 para no ofrecer descuento." htmlFor="transferencia-descuento">
         <input id="transferencia-descuento" inputMode="decimal" className={cn(inputClass, "max-w-[160px]")} value={transferencia.descuentoPct} onChange={(e) => onChange({ descuentoPct: e.target.value })} placeholder="10" />
       </Field>
