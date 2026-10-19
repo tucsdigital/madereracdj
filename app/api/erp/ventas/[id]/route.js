@@ -26,9 +26,17 @@ export async function PUT(request, { params }) {
     const res = await updateVentaEngine({ actor, ventaId, ventaData: venta, origen });
     const after = (await db.collection("ventas").doc(ventaId).get()).data() || null;
     const becamePaid = ["pendiente", "parcial"].includes(String(before?.estadoPago || "").toLowerCase()) && String(after?.estadoPago || "").toLowerCase() === "pagado";
-    if (becamePaid && (before?.ecommerceLifecycle || before?.origen === "ecommerce_externo") && before?.idExterno) {
-      await sendOrderAdminNotification(before.idExterno, "confirmed", { fallbackOrder: { ...before, ...after, orderId: before.idExterno }, status: "confirmed", paymentStatus: "approved" })
-        .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
+    const becameReview = before?.requiereRevision !== true && after?.requiereRevision === true;
+    if ((before?.ecommerceLifecycle || before?.origen === "ecommerce_externo") && before?.idExterno) {
+      const fallbackOrder = { ...before, ...after, orderId: before.idExterno };
+      if (becamePaid) {
+        await sendOrderAdminNotification(before.idExterno, "confirmed", { fallbackOrder, status: "confirmed", paymentStatus: "approved" })
+          .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
+      }
+      if (becameReview) {
+        await sendOrderAdminNotification(before.idExterno, "review", { fallbackOrder, status: "review" })
+          .catch((error) => console.error("No se pudo enviar el aviso de revisión del pedido:", error?.message));
+      }
     }
     return NextResponse.json({ ok: true, ventaId: res.id, flags: res.flags, version: res.version }, { status: 200 });
   } catch (err) {

@@ -27,7 +27,7 @@ export async function POST(request, { params }) {
     if ((sale?.ecommerceLifecycle || sale?.origen === "ecommerce_externo") && sale?.idExterno) {
       const orderRef = db.collection("orders").doc(String(sale.idExterno));
       await orderRef.set({ status: "cancelled", cancelledAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...(motivo ? { cancellationReason: motivo } : {}) }, { merge: true }).catch(() => {});
-      await sendOrderAdminNotification(sale.idExterno, "cancelled", { fallbackOrder: { ...sale, orderId: sale.idExterno, ventaNumeroPedido: sale.numeroPedido }, status: "cancelled" })
+      await sendOrderAdminNotification(sale.idExterno, "cancelled", { fallbackOrder: { ...sale, orderId: sale.idExterno, ventaNumeroPedido: sale.numeroPedido }, status: "cancelled", cancellationReason: motivo })
         .catch((error) => console.error("No se pudo enviar el aviso de pedido cancelado:", error?.message));
     }
     return NextResponse.json({ ok: true, ventaId: res.id, already: Boolean(res.already) }, { status: 200 });
