@@ -32,6 +32,19 @@ test("normaliza y conserva el contenido de las obras heredadas", () => {
   }
 });
 
+test("normaliza IDs de fotos de galería sin alterar su orden manual", () => {
+  const project = normalizeProject({
+    slug: "deck",
+    title: "Deck",
+    gallery: { items: [
+      { id: "foto-segunda", image: "/images/segunda.webp" },
+      { image: "/images/primera.webp" },
+    ] },
+  }, "deck");
+  assert.deepEqual(project.gallery.items.map((item) => item.image), ["/images/segunda.webp", "/images/primera.webp"]);
+  assert.deepEqual(project.gallery.items.map((item) => item.id), ["foto-segunda", "work-deck-2"]);
+});
+
 test("normaliza los datos de la tarjeta de tipos de obra y limita sus características", () => {
   const project = normalizeProject({
     slug: "muelles",

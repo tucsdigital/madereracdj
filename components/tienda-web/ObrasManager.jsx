@@ -626,6 +626,16 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       category: "",
     }));
   };
+  const moveGalleryItem = (from, to) => setDraft((current) => {
+    const items = current?.gallery?.items;
+    if (!Array.isArray(items) || from < 0 || to < 0 || from >= items.length || to >= items.length || from === to) return current;
+    const next = structuredClone(current);
+    const reordered = [...next.gallery.items];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    next.gallery = { ...next.gallery, items: reordered };
+    return next;
+  });
   const setEntry = (path, index, patch) => setDraft((current) => {
     const next = structuredClone(current);
     const list = path.reduce((object, key) => object?.[key], next);
@@ -836,6 +846,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   const draftSnapshot = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
   const hasUnsavedChanges = isProjectDraftDirty(draftSnapshot, savedDraftSnapshot, version);
   const accessorySections = getAccessorySections(draft?.pageContent);
+  const galleryItems = Array.isArray(draft?.gallery?.items) ? draft.gallery.items : [];
 
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-default-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando obras…</div>;
 
@@ -974,7 +985,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           <Card title="Fotos de trabajos" description="Podés cargar varias fotos juntas. Guía recomendada: apaisada 3:2 · 1800 × 1200 px.">
             <ImageField
               label="Fotos de trabajos"
-              value={(draft.gallery?.items || []).map((item) => item.image).filter(Boolean).join("\n")}
+              value={galleryItems.map((item) => item.image).filter(Boolean).join("\n")}
               onChange={setGalleryImages}
               uploadImage={uploadImage}
               media={media}
@@ -983,6 +994,35 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
               ratio="landscape"
               showImageLabels={false}
             />
+            {galleryItems.length ? <div className="mt-5 space-y-2">
+              <div>
+                <h4 className="text-xs font-semibold text-default-700">Orden de la galería</h4>
+                <p className="mt-1 text-[11px] leading-4 text-default-500">Arrastrá las fotos para definir el orden en la ficha de la obra y en el visor.</p>
+              </div>
+              <SortableList
+                ids={galleryItems.map((item, index) => String(item.id || `gallery-item-${index}`))}
+                onMove={moveGalleryItem}
+                disabled={saving}
+                className="space-y-2"
+              >
+                {galleryItems.map((item, index) => {
+                  const itemId = String(item.id || `gallery-item-${index}`);
+                  const imageSrc = item.image ? previewUrl(item.image, tiendaUrl) || item.image : "";
+                  return <SortableItem key={itemId} id={itemId} disabled={saving} className="flex items-center gap-2 rounded-lg border border-border/70 bg-background p-2">
+                    {(dragHandle) => <>
+                      {dragHandle}
+                      <div className="relative aspect-[3/2] w-24 shrink-0 overflow-hidden rounded-md bg-muted sm:w-28">
+                        {imageSrc ? <Image src={imageSrc} alt="" fill unoptimized sizes="112px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-default-700">Foto {index + 1}</p>
+                        <p className="truncate text-[11px] text-default-500" title={item.title || item.image || "Foto sin título"}>{item.title || item.image?.split("/").pop() || "Foto sin título"}</p>
+                      </div>
+                    </>}
+                  </SortableItem>;
+                })}
+              </SortableList>
+            </div> : null}
           </Card>
         </div> : null}
 
