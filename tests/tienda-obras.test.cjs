@@ -94,8 +94,51 @@ test("publicar requiere imágenes para portada, materiales, adicionales y galer�
   assert.ok(issues.some((issue) => /galería/.test(issue)));
 });
 
+test("conserva la sección heredada de adicionales y normaliza varias secciones independientes", () => {
+  const legacy = normalizeProject({
+    slug: "deck",
+    title: "Deck",
+    pageContent: { accessories: { title: "Terminaciones", items: [{ id: "old-item", image: "/images/old.webp" }] } },
+  }, "deck");
+  assert.equal(legacy.pageContent.accessoriesSections.length, 1);
+  assert.equal(legacy.pageContent.accessoriesSections[0].title, "Terminaciones");
+  assert.equal(legacy.pageContent.accessoriesSections[0].id, "accessories-deck-1");
+  assert.equal(legacy.pageContent.accessories.items[0].id, "old-item");
+
+  const multiple = normalizeProject({
+    slug: "deck",
+    title: "Deck",
+    pageContent: {
+      accessoriesSections: [
+        { id: "terminaciones", title: "Terminaciones", items: [{ id: "item-a", image: "/images/a.webp" }] },
+        { title: "Iluminación", items: [{ id: "item-b", image: "/images/b.webp" }] },
+      ],
+    },
+  }, "deck");
+  assert.deepEqual(multiple.pageContent.accessoriesSections.map((section) => section.id), ["terminaciones", "accessories-deck-2"]);
+  assert.equal(multiple.pageContent.accessoriesSections[1].title, "Iluminación");
+  assert.equal(multiple.pageContent.accessories.title, "Terminaciones");
+});
+
+test("publicar valida las imágenes de los adicionales en todas las secciones", () => {
+  const project = normalizeProject({
+    slug: "deck",
+    title: "Deck",
+    status: "active",
+    seo: { title: "Deck", description: "Descripción" },
+    banner: { slides: [{ backgroundImage: "/images/portada.webp" }] },
+    pageContent: { accessoriesSections: [
+      { title: "Terminaciones", items: [{ image: "/images/accesorio.webp" }] },
+      { title: "Iluminación", items: [{ image: "" }] },
+    ] },
+    gallery: { items: [] },
+    faqs: [],
+  }, "deck");
+  assert.ok(projectIssues(project, [], { forPublish: true }).some((issue) => /Cada adicional publicado necesita una imagen/.test(issue)));
+});
+
 test("recolecta todas las imágenes de una obra para protegerlas de la limpieza", () => {
-  assert.deepEqual(projectImageUrls({ workTypeCard: { imagePortrait: "4x5", imageLandscape: "3x2" }, banner: { slides: [{ backgroundImage: "portada", mobileBackgroundImage: "portada-movil" }] }, pageContent: { accessories: { items: [{ image: "adicional", mobileImage: "adicional-movil" }] } }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["3x2", "4x5", "adicional", "adicional-movil", "antes", "avatar", "galeria", "portada", "portada-movil"]);
+  assert.deepEqual(projectImageUrls({ workTypeCard: { imagePortrait: "4x5", imageLandscape: "3x2" }, banner: { slides: [{ backgroundImage: "portada", mobileBackgroundImage: "portada-movil" }] }, pageContent: { accessoriesSections: [{ items: [{ image: "adicional", mobileImage: "adicional-movil" }] }, { items: [{ image: "adicional-2" }] }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["3x2", "4x5", "adicional", "adicional-2", "adicional-movil", "antes", "avatar", "galeria", "portada", "portada-movil"]);
 });
 
 test("normaliza la portada vertical de la tarjeta y respeta el orden manual de obras", () => {

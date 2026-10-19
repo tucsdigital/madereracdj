@@ -32,9 +32,34 @@ const uid = (prefix) => `${prefix}-${typeof crypto !== "undefined" && crypto.ran
 const slugify = (value) => String(value || "obra").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nueva-obra";
 const MediaContext = createContext({ media: null, tiendaUrl: "" });
 
+function createAccessorySection() {
+  return {
+    id: uid("accessories-section"),
+    eyebrow: "Adicionales",
+    title: "Completá tu proyecto",
+    description: "",
+    contentEyebrow: "Opciones",
+    items: [],
+  };
+}
+
+function getAccessorySections(pageContent) {
+  const sections = Array.isArray(pageContent?.accessoriesSections)
+    ? pageContent.accessoriesSections
+    : pageContent?.accessories && typeof pageContent.accessories === "object"
+      ? [pageContent.accessories]
+      : [];
+  return sections.filter((section) => section && typeof section === "object").map((section, index) => ({
+    ...section,
+    id: section.id || `accessories-section-${index + 1}`,
+    items: Array.isArray(section.items) ? section.items : [],
+  }));
+}
+
 function newProject() {
   const title = "Nueva obra";
   const slug = `nueva-obra-${Date.now().toString(36)}`;
+  const accessoriesSection = createAccessorySection();
   return {
     slug,
     title,
@@ -49,7 +74,7 @@ function newProject() {
     testimonials: [],
     faqs: [],
     contact: { id: uid("contact"), title: "Hablemos de tu proyecto", description: "", phone: "", email: "", whatsapp: "", address: "", workingHours: [], socialLinks: [] },
-    pageContent: { options: { eyebrow: "Materiales", title: "Elegí los materiales", description: "", consultationLabel: "Consultar", consultationHref: "#contacto", items: [] }, accessories: { eyebrow: "Adicionales", title: "Completá tu proyecto", description: "", contentEyebrow: "Opciones", items: [] }, services: { enabled: true, eyebrow: "Servicios", title: "Nuestros servicios", description: "Soluciones completas para llevar tu proyecto a la realidad." } },
+    pageContent: { options: { eyebrow: "Materiales", title: "Elegí los materiales", description: "", consultationLabel: "Consultar", consultationHref: "#contacto", items: [] }, accessories: accessoriesSection, accessoriesSections: [accessoriesSection], services: { enabled: true, eyebrow: "Servicios", title: "Nuestros servicios", description: "Soluciones completas para llevar tu proyecto a la realidad." } },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -540,6 +565,56 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     target[path[path.length - 1]] = value;
     return next;
   });
+  const setAccessorySections = (update) => setDraft((current) => {
+    if (!current) return current;
+    const currentSections = getAccessorySections(current.pageContent);
+    const sections = (typeof update === "function" ? update(currentSections) : update)
+      .map((section, index) => ({
+        ...section,
+        id: section.id || `accessories-section-${index + 1}`,
+        items: Array.isArray(section.items) ? section.items : [],
+      }));
+    const next = structuredClone(current);
+    next.pageContent = {
+      ...(next.pageContent || {}),
+      accessoriesSections: sections,
+      accessories: sections[0] || null,
+    };
+    return next;
+  });
+  const updateAccessorySection = (sectionIndex, patch) => setAccessorySections((sections) => sections.map((section, index) => (
+    index === sectionIndex ? { ...section, ...patch } : section
+  )));
+  const addAccessorySection = () => setAccessorySections((sections) => [...sections, createAccessorySection()]);
+  const duplicateAccessorySection = (sectionIndex) => setAccessorySections((sections) => {
+    const source = sections[sectionIndex];
+    if (!source) return sections;
+    const duplicate = structuredClone(source);
+    duplicate.id = uid("accessories-section");
+    duplicate.items = (duplicate.items || []).map((item) => ({ ...item, id: uid("accessory") }));
+    return [...sections.slice(0, sectionIndex + 1), duplicate, ...sections.slice(sectionIndex + 1)];
+  });
+  const removeAccessorySection = (sectionIndex) => setAccessorySections((sections) => sections.filter((_, index) => index !== sectionIndex));
+  const moveAccessorySection = (from, to) => setAccessorySections((sections) => {
+    if (from < 0 || to < 0 || from >= sections.length || to >= sections.length || from === to) return sections;
+    const next = [...sections];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  });
+  const updateAccessoryItem = (sectionIndex, itemIndex, patch) => setAccessorySections((sections) => sections.map((section, index) => (
+    index === sectionIndex
+      ? { ...section, items: section.items.map((item, currentIndex) => currentIndex === itemIndex ? { ...item, ...patch } : item) }
+      : section
+  )));
+  const addAccessoryItem = (sectionIndex) => setAccessorySections((sections) => sections.map((section, index) => (
+    index === sectionIndex
+      ? { ...section, items: [...section.items, { id: uid("accessory"), title: "", description: "", image: "", mobileImage: "" }] }
+      : section
+  )));
+  const removeAccessoryItem = (sectionIndex, itemIndex) => setAccessorySections((sections) => sections.map((section, index) => (
+    index === sectionIndex ? { ...section, items: section.items.filter((_, currentIndex) => currentIndex !== itemIndex) } : section
+  )));
   const setGalleryImages = (value) => {
     const urls = String(value || "").split("\n").map((image) => image.trim()).filter(Boolean);
     const existingByImage = new Map((draft?.gallery?.items || []).filter((item) => item?.image).map((item) => [item.image, item]));
@@ -760,6 +835,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   ], []);
   const draftSnapshot = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
   const hasUnsavedChanges = isProjectDraftDirty(draftSnapshot, savedDraftSnapshot, version);
+  const accessorySections = getAccessorySections(draft?.pageContent);
 
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-default-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando obras…</div>;
 
@@ -853,8 +929,42 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         </div> : null}
 
         {section === "adicionales" ? <div className="space-y-4">
-          <Card title="Sección de adicionales"><div className="grid gap-3 sm:grid-cols-2"><Field label="Antetítulo" value={draft.pageContent?.accessories?.eyebrow} onChange={(value) => setPath(["pageContent", "accessories", "eyebrow"], value)} /><Field label="Título" value={draft.pageContent?.accessories?.title} onChange={(value) => setPath(["pageContent", "accessories", "title"], value)} /><div className="sm:col-span-2"><Field label="Descripción" value={draft.pageContent?.accessories?.description} onChange={(value) => setPath(["pageContent", "accessories", "description"], value)} multiline /></div><Field label="Antetítulo del contenido" value={draft.pageContent?.accessories?.contentEyebrow} onChange={(value) => setPath(["pageContent", "accessories", "contentEyebrow"], value)} /></div></Card>
-          <ListEditor title="Adicionales" items={draft.pageContent?.accessories?.items || []} onAdd={(index, remove) => remove ? removeEntry(["pageContent", "accessories", "items"], index) : addEntry(["pageContent", "accessories", "items"], { id: uid("accessory"), title: "", description: "", image: "", mobileImage: "" })}>{(item, index) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Nombre" value={item.title} onChange={(value) => setEntry(["pageContent", "accessories", "items"], index, { title: value })} /><Field label="Descripción" value={item.description} onChange={(value) => setEntry(["pageContent", "accessories", "items"], index, { description: value })} multiline /><ImageField label="Imagen para PC (3:2)" value={item.image} ratio="landscape" onChange={(image) => setEntry(["pageContent", "accessories", "items"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /><ImageField label="Imagen para móvil (4:5)" value={item.mobileImage || ""} ratio="portrait" onChange={(mobileImage) => setEntry(["pageContent", "accessories", "items"], index, { mobileImage })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>}</ListEditor>
+          <Card title="Secciones de adicionales" description="Cada sección se publica como un carrusel independiente. Arrastrá para cambiar el orden." action={<Btn size="sm" variant="outline" disabled={saving} onClick={addAccessorySection}><Plus className="h-3.5 w-3.5" />Agregar sección</Btn>}>
+            {accessorySections.length ? <SortableList ids={accessorySections.map((accessorySection) => accessorySection.id)} onMove={moveAccessorySection} disabled={saving} className="space-y-4">
+              {accessorySections.map((accessorySection, sectionIndex) => <SortableItem key={accessorySection.id} id={accessorySection.id} disabled={saving} className="flex min-w-0 gap-2">
+                {(dragHandle) => <>
+                  <div className="pt-4">{dragHandle}</div>
+                  <div className="min-w-0 flex-1">
+                    <Card
+                      title={`Sección de adicionales ${sectionIndex + 1}`}
+                      description="Configurá el encabezado y los elementos de este carrusel."
+                      action={<div className="flex items-center gap-1.5">
+                        <Btn size="sm" variant="outline" disabled={saving} onClick={() => duplicateAccessorySection(sectionIndex)}><Copy className="h-3.5 w-3.5" />Duplicar</Btn>
+                        <button type="button" disabled={saving} aria-label={`Eliminar sección de adicionales ${sectionIndex + 1}`} title="Eliminar sección" onClick={() => removeAccessorySection(sectionIndex)} className="flex h-8 w-8 items-center justify-center rounded-lg text-default-400 transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>
+                      </div>}
+                    >
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Antetítulo" value={accessorySection.eyebrow} onChange={(value) => updateAccessorySection(sectionIndex, { eyebrow: value })} />
+                        <Field label="Título" value={accessorySection.title} onChange={(value) => updateAccessorySection(sectionIndex, { title: value })} />
+                        <div className="sm:col-span-2"><Field label="Descripción" value={accessorySection.description} onChange={(value) => updateAccessorySection(sectionIndex, { description: value })} multiline /></div>
+                        <Field label="Antetítulo del contenido" value={accessorySection.contentEyebrow} onChange={(value) => updateAccessorySection(sectionIndex, { contentEyebrow: value })} />
+                      </div>
+                      <div className="mt-4">
+                        <ListEditor title="Elementos de esta sección" items={accessorySection.items} onAdd={(itemIndex, remove) => remove ? removeAccessoryItem(sectionIndex, itemIndex) : addAccessoryItem(sectionIndex)}>
+                          {(item, itemIndex) => <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Nombre" value={item.title} onChange={(value) => updateAccessoryItem(sectionIndex, itemIndex, { title: value })} />
+                            <Field label="Descripción" value={item.description} onChange={(value) => updateAccessoryItem(sectionIndex, itemIndex, { description: value })} multiline />
+                            <ImageField label="Imagen para PC (3:2)" value={item.image} ratio="landscape" onChange={(image) => updateAccessoryItem(sectionIndex, itemIndex, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
+                            <ImageField label="Imagen para móvil (4:5)" value={item.mobileImage || ""} ratio="portrait" onChange={(mobileImage) => updateAccessoryItem(sectionIndex, itemIndex, { mobileImage })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
+                          </div>}
+                        </ListEditor>
+                      </div>
+                    </Card>
+                  </div>
+                </>}
+              </SortableItem>)}
+            </SortableList> : <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-default-500">No hay secciones de adicionales. Agregá una para empezar.</p>}
+          </Card>
         </div> : null}
 
 
