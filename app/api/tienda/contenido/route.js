@@ -3,6 +3,8 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { publicTiendaConfig, TIENDA_DEFAULTS } from "@/lib/tienda-config";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export function OPTIONS(request) {
   return preflightCorsPublico(request);
@@ -12,10 +14,11 @@ export function OPTIONS(request) {
 export async function GET(request) {
   try {
     const snap = await getAdminDb().collection("settings").doc("tienda").get();
-    const published = snap.data()?.published;
+    const stored = snap.data() || {};
+    const published = stored.published;
     return jsonPublico(
-      { ...publicTiendaConfig(published ?? TIENDA_DEFAULTS), version: Number(snap.data()?.version) || 0 },
-      { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=20" } },
+      { ...publicTiendaConfig(published ?? TIENDA_DEFAULTS), version: Number(stored.version) || 0 },
+      { headers: { "Cache-Control": "no-store, max-age=0" } },
       request
     );
   } catch {

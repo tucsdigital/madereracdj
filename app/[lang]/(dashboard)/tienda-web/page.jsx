@@ -81,7 +81,7 @@ export default function TiendaWebPage() {
   const authFetch = useCallback(async (url, options = {}) => {
     const token = await user?.getIdToken?.();
     if (!token) throw new Error("Iniciá sesión para administrar la tienda web.");
-    const res = await fetch(url, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` } });
+    const res = await fetch(url, { cache: "no-store", ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new Error(data?.error || "No se pudo completar la acción."), { data });
     return data;

@@ -74,6 +74,30 @@ test("guardar publica directamente: no hay borrador y queda historial", async ()
   assert.equal((await route.GET(req({}))).body.config.contacto.whatsapp, "5491155550000");
 });
 
+test("los cambios de Inicio de Obras se guardan y vuelven a cargarse desde la configuración publicada", async () => {
+  const { state, route } = setup();
+  const current = (await route.GET(req({}))).body.config;
+  const changed = {
+    ...current,
+    obrasInicio: {
+      ...current.obrasInicio,
+      hero: { ...current.obrasInicio.hero, titleLine1: "Obras vigentes" },
+      workTypes: { ...current.obrasInicio.workTypes, items: [] },
+    },
+  };
+
+  const saved = await route.PUT(req({ config: changed, baseVersion: 0 }));
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.config.obrasInicio.hero.titleLine1, "Obras vigentes");
+  assert.deepEqual(saved.body.config.obrasInicio.workTypes.items, []);
+  assert.equal(state.doc.published.obrasInicio.hero.titleLine1, "Obras vigentes");
+
+  const reloaded = await route.GET(req({}));
+  assert.equal(reloaded.body.config.obrasInicio.hero.titleLine1, "Obras vigentes");
+  assert.deepEqual(reloaded.body.config.obrasInicio.workTypes.items, []);
+  assert.equal(reloaded.body.version, 1);
+});
+
 test("guardar sin cambios reales no escribe ni suma versión", async () => {
   const { state, route } = setup();
   const current = (await route.GET(req({}))).body.config;

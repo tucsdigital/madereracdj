@@ -3,6 +3,8 @@ import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import { importLegacyProjectsIfEmpty, OBRAS_COLLECTION, sortProjectsByManualOrder } from "@/lib/tienda-obras";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const fail = (error) => NextResponse.json({ error: error?.status === 401 ? "Iniciá sesión para administrar las obras." : error?.message || "No se pudieron cargar las obras." }, { status: error?.status || 500 });
 

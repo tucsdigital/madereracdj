@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, Check, Copy, ImagePlus, Loader2, Plus, Save, Trash2, X, ZoomIn } from "lucide-react";
+import Image from "next/image";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
 import { previewUrl, productsForConfiguredSection } from "@/lib/tienda-web-ui";
@@ -83,10 +84,28 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [showLibrary, setShowLibrary] = useState(false);
+  const [expandedImage, setExpandedImage] = useState("");
+  const closePreviewRef = useRef(null);
   const images = multiline ? String(value || "").split("\n").map((image) => image.trim()).filter(Boolean) : value ? [value] : [];
   const guide = IMAGE_GUIDE[ratioKey] || IMAGE_GUIDE.landscape;
   const library = (media?.items || []).filter((item) => item?.url && item?.mime?.startsWith("image/"));
   const update = (next) => onChange(multiline ? next.join("\n") : next[0] || "");
+  useEffect(() => {
+    if (!expandedImage) return undefined;
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setExpandedImage("");
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    closePreviewRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    };
+  }, [expandedImage]);
   const upload = async (file) => {
     if (!file) return;
     setUploading(true);
@@ -112,12 +131,14 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
   };
   return <div className="min-w-0 space-y-2">
     <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-medium text-default-600">{visibleLabel}</span><span className="text-[10px] text-default-400">Ideal {guide.ratio} · {guide.size}</span></div>
-    {images.length ? <div className={cn("grid gap-2", multiline ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1")}>
+    {images.length ? <div className={cn("grid gap-2", multiline ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
       {images.map((image, index) => <div key={`${image}-${index}`} className="group relative overflow-hidden rounded-xl border border-border/70 bg-muted/30">
-        <div className={cn("relative w-full", guide.className)}>{previewUrl(image, storeUrl) ? <img src={previewUrl(image, storeUrl)} alt={`${label}${multiline ? ` ${index + 1}` : ""}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
-          <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span>
-          <button type="button" aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive"><X className="h-4 w-4" /></button>
-        </div>
+        <button type="button" aria-label={`Ampliar ${visibleLabel} ${index + 1}`} onClick={() => setExpandedImage(image)} className="group/preview relative block aspect-[4/3] w-full overflow-hidden bg-muted outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground">
+          {previewUrl(image, storeUrl) ? <Image src={previewUrl(image, storeUrl) || image} alt="" fill unoptimized sizes="160px" className="object-cover transition duration-300 group-hover/preview:scale-[1.03]" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}
+          <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover/preview:bg-black/25 group-hover/preview:opacity-100 group-focus-visible/preview:bg-black/25 group-focus-visible/preview:opacity-100"><ZoomIn className="h-5 w-5 drop-shadow" /></span>
+        </button>
+        <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-3rem)] truncate rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-foreground">{index === 0 ? "Principal" : `Imagen ${index + 1}`}</span>
+        <button type="button" aria-label={`Quitar ${visibleLabel} ${index + 1}`} onClick={() => update(images.filter((_, i) => i !== index))} className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><X className="h-3.5 w-3.5" /></button>
       </div>)}
     </div> : <div className={cn("flex items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-xs text-muted-foreground", multiline ? "min-h-20" : cn("w-full", guide.className))}>Sin imagen seleccionada</div>}
     <div className="flex flex-wrap items-center gap-2">
@@ -129,9 +150,13 @@ function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, mul
       {multiline ? <span className="text-[10px] text-default-400">Podés agregar varias imágenes.</span> : null}
     </div>
     {showLibrary ? <div className="rounded-xl border border-border bg-muted/20 p-2.5">
-      {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><img src={previewUrl(item.url, storeUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
+      {library.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{library.map((item) => <button key={item.id || item.key || item.url} type="button" aria-label="Elegir imagen de la biblioteca" onClick={() => choose(item.url)} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline-none ring-1 ring-border hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-foreground"><Image src={previewUrl(item.url, storeUrl) || item.url} alt="" fill unoptimized sizes="120px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />{images.includes(item.url) ? <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span> : null}</button>)}</div> : <p className="px-2 py-3 text-xs text-muted-foreground">Todavía no hay imágenes cargadas.</p>}
     </div> : null}
     {error ? <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{error}</p> : null}
+    {expandedImage ? <div role="dialog" aria-modal="true" aria-label={`Vista ampliada: ${visibleLabel}`} onMouseDown={(event) => { if (event.target === event.currentTarget) setExpandedImage(""); }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm sm:p-8">
+      <button ref={closePreviewRef} type="button" aria-label="Cerrar vista ampliada" onClick={() => setExpandedImage("")} className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><X className="h-5 w-5" /></button>
+      <div className="relative h-[88vh] w-[94vw]"><Image src={previewUrl(expandedImage, storeUrl) || expandedImage} alt={`${visibleLabel} ampliada`} fill unoptimized sizes="94vw" className="rounded-lg object-contain shadow-2xl" /></div>
+    </div> : null}
   </div>;
 }
 
@@ -639,7 +664,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
               {(handle) => <div className="flex items-center gap-1">
                 {handle}
                 <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
-                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <img src={previewUrl(cover, tiendaUrl) || ""} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
+                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <Image src={previewUrl(cover, tiendaUrl) || cover} alt="" fill unoptimized sizes="40px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
                 </button>
                 <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>
