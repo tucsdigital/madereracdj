@@ -95,7 +95,7 @@ test("publicar requiere imágenes para portada, materiales, adicionales y galer�
 });
 
 test("recolecta todas las imágenes de una obra para protegerlas de la limpieza", () => {
-  assert.deepEqual(projectImageUrls({ workTypeCard: { imagePortrait: "4x5", imageLandscape: "3x2" }, banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["3x2", "4x5", "antes", "avatar", "galeria", "portada"]);
+  assert.deepEqual(projectImageUrls({ workTypeCard: { imagePortrait: "4x5", imageLandscape: "3x2" }, banner: { slides: [{ backgroundImage: "portada", mobileBackgroundImage: "portada-movil" }] }, pageContent: { accessories: { items: [{ image: "adicional", mobileImage: "adicional-movil" }] } }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["3x2", "4x5", "adicional", "adicional-movil", "antes", "avatar", "galeria", "portada", "portada-movil"]);
 });
 
 test("normaliza la portada vertical de la tarjeta y respeta el orden manual de obras", () => {
