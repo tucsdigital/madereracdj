@@ -32,6 +32,27 @@ test("normaliza y conserva el contenido de las obras heredadas", () => {
   }
 });
 
+test("normaliza los datos de la tarjeta de tipos de obra y limita sus características", () => {
+  const project = normalizeProject({
+    slug: "muelles",
+    title: "Muelles",
+    workTypeCard: {
+      description: "  Descripción de tarjeta  ",
+      features: ["Una", "Dos", "Tres", "Cuatro", "Quinta"],
+      icon: "anchor",
+      image: " /media/muelle.webp ",
+    },
+  }, "muelles");
+  assert.deepEqual(project.workTypeCard, {
+    description: "Descripción de tarjeta",
+    features: ["Una", "Dos", "Tres", "Cuatro"],
+    icon: "anchor",
+    image: "/media/muelle.webp",
+  });
+  assert.equal(normalizeProject({ slug: "deck", title: "Deck" }, "deck").workTypeCard, undefined);
+  assert.equal(normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { icon: "script" } }, "deck").workTypeCard.icon, "hammer");
+});
+
 test("valida imágenes nuevas con R2 y rechaza hosts o rutas no pertenecientes a la tienda", () => {
   const base = normalizeProject({
     slug: "obra-nueva",

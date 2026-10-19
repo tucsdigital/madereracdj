@@ -30,6 +30,7 @@ function newProject() {
     title,
     category: "Construcción",
     status: "inactive",
+    workTypeCard: { description: "", features: [], icon: "hammer", image: "" },
     seo: { title: `${title} - Maderas Caballero`, description: "Conocé nuestros trabajos y soluciones en madera.", keywords: [], ogImage: "", canonical: `/obras/${slug}` },
     banner: { id: uid("banner"), autoplayInterval: 6000, showControls: true, showIndicators: true, slides: [{ id: uid("slide"), title, subtitle: "Diseño y construcción a medida", description: "Soluciones en madera pensadas para cada proyecto.", backgroundImage: "", ctaText: "Ver trabajos", ctaUrl: "#gallery", secondaryCtaText: "Solicitar presupuesto", secondaryCtaUrl: "#contacto", overlayOpacity: 0.5 }] },
     info: { id: uid("info"), title, description: "", features: [], images: [] },
@@ -73,6 +74,33 @@ const IMAGE_GUIDE = {
   square: { ratio: "1:1", size: "1200 × 1200 px", className: "aspect-square" },
   portrait: { ratio: "4:5", size: "1080 × 1350 px", className: "aspect-[4/5]" },
 };
+
+const WORK_TYPE_ICON_OPTIONS = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
+
+function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
+  if (!project) return project;
+  if (!project.workTypeCard && !Array.isArray(obrasInicioContent?.workTypes?.items)) return project;
+  const legacy = (obrasInicioContent?.workTypes?.items || []).find((item) => item.slug === project.slug);
+  const card = project.workTypeCard && typeof project.workTypeCard === "object" ? project.workTypeCard : {};
+  const projectFeatures = project.pageContent?.hero?.services?.length
+    ? project.pageContent.hero.services
+    : project.info?.features || [];
+  const features = Array.isArray(card.features)
+    ? card.features
+    : Array.isArray(legacy?.features)
+      ? legacy.features
+      : projectFeatures.map((feature) => typeof feature === "string" ? feature : feature?.title || feature?.description || "").filter(Boolean).slice(0, 4);
+
+  return {
+    ...project,
+    workTypeCard: {
+      description: typeof card.description === "string" ? card.description : legacy?.summary ?? project.seo?.description ?? project.info?.description ?? "",
+      features,
+      icon: typeof card.icon === "string" && card.icon ? card.icon : legacy?.icon || "hammer",
+      image: typeof card.image === "string" ? card.image : legacy?.image ?? project.homeCardImage ?? project.banner?.slides?.[0]?.backgroundImage ?? project.seo?.ogImage ?? "",
+    },
+  };
+}
 
 function ImageField({ label, value, onChange, uploadImage, media, tiendaUrl, multiline = false, ratio }) {
   const mediaContext = useContext(MediaContext);
@@ -354,7 +382,7 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
       <Field label="Frases" value={(content.highlights || []).join("\n")} multiline onChange={(value) => updatePath(["highlights"], value.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8))} />
     </Card>
 
-    <Card title="Tipos de obras" description="Las imágenes de estas tarjetas usan relación 4:5 (1080 × 1350 px). El nombre de una obra publicada se toma de su ficha; sus detalles e imagen se administran acá.">
+    <Card title="Tipos de obras" description="Las tarjetas se generan con las obras publicadas y se editan desde cada obra. Acá solo se configuran los textos y botones de la sección.">
       <div className="grid gap-3 sm:grid-cols-2">
         {field("Antetítulo", content.workTypes?.eyebrow, ["workTypes", "eyebrow"])}
         {field("Título", content.workTypes?.title, ["workTypes", "title"])}
@@ -362,20 +390,6 @@ function ObrasInicioContentEditor({ value, onChange, uploadImage, media, tiendaU
         {field("Botón de obra publicada", content.workTypes?.detailLabel, ["workTypes", "detailLabel"])}
         {field("Botón de consulta", content.workTypes?.contactLabel, ["workTypes", "contactLabel"])}
         {field("Botón en celular", content.workTypes?.mobileLabel, ["workTypes", "mobileLabel"])}
-      </div>
-      <div className="mt-4">
-        <ListEditor title="Tarjetas" items={content.workTypes?.items || []}
-          onAdd={(index, remove) => remove ? removeEntry(["workTypes", "items"], index) : addEntry(["workTypes", "items"], { slug: "nueva-obra", title: "Nueva obra", label: "", icon: "hammer", image: "", summary: "", features: [] })}>
-          {(item, index) => <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Slug de la obra" value={item.slug} onChange={(value) => updateEntry(["workTypes", "items"], index, { slug: slugify(value) })} />
-            <Field label="Título alternativo" value={item.title} onChange={(value) => updateEntry(["workTypes", "items"], index, { title: value })} />
-            <Field label="Etiqueta" value={item.label} onChange={(value) => updateEntry(["workTypes", "items"], index, { label: value })} />
-            <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={item.icon} onChange={(event) => updateEntry(["workTypes", "items"], index, { icon: event.target.value })}>{icons.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
-            <div className="sm:col-span-2"><Field label="Descripción" value={item.summary} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { summary: value })} /></div>
-            <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(item.features || []).join("\n")} multiline onChange={(value) => updateEntry(["workTypes", "items"], index, { features: value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4) })} /></div>
-            <div className="sm:col-span-2"><ImageField label="Imagen de tarjeta (4:5)" value={item.image} ratio="portrait" onChange={(image) => updateEntry(["workTypes", "items"], index, { image })} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
-          </div>}
-        </ListEditor>
       </div>
     </Card>
 
@@ -434,6 +448,8 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   const [orderVersion, setOrderVersion] = useState(0);
   const [savingOrder, setSavingOrder] = useState(false);
   const [view, setView] = useState("obras");
+  const obrasInicioContentRef = useRef(obrasInicioContent);
+  obrasInicioContentRef.current = obrasInicioContent;
 
   const load = useCallback(async (preferredSlug) => {
     setLoading(true);
@@ -445,7 +461,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       const slug = preferredSlug || next[0]?.id || "";
       const entry = next.find((item) => item.id === slug);
       setSelectedSlug(slug);
-      setDraft(entry?.project || null);
+      setDraft(projectDraftWithLegacyWorkType(entry?.project || null, obrasInicioContentRef.current));
       setVersion(Number(entry?.version) || 0);
       setPublished(Boolean(entry?.published?.status === "active"));
     } catch (error) {
@@ -456,6 +472,12 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   }, [authFetch]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!draft || draft.workTypeCard || !Array.isArray(obrasInicioContent?.workTypes?.items)) return;
+    setDraft((current) => current && !current.workTypeCard
+      ? projectDraftWithLegacyWorkType(current, obrasInicioContent)
+      : current);
+  }, [draft, obrasInicioContent]);
   useEffect(() => {
     if (!openObrasInicio) return;
     setView("inicio");
@@ -688,7 +710,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
             return <SortableItem key={item.id} id={item.id} disabled={savingOrder} className={cn("group rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
               {(handle) => <div className="flex items-center gap-1">
                 {handle}
-                <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(item.project || item.draft || item.published); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
+                <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(projectDraftWithLegacyWorkType(item.project || item.draft || item.published, obrasInicioContent)); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
                   <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <Image src={previewUrl(cover, tiendaUrl) || cover} alt="" fill unoptimized sizes="40px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
                 </button>
@@ -725,6 +747,14 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           </Card>
           <Card title="Imagen de tarjeta en Inicio" description="Esta imagen se usa en la tarjeta vertical de esta obra. Proporción ideal 27:38 · 1080 × 1520 px.">
             <ImageField label="Imagen de tarjeta de Inicio" value={draft.homeCardImage || ""} ratio="workCard" onChange={(value) => setPath(["homeCardImage"], value)} uploadImage={uploadImage} media={media} />
+          </Card>
+          <Card title="Tarjeta en Tipos de obras" description="Estos datos acompañan a esta obra en la sección Tipos de obras de /obras. La lista se genera automáticamente con las obras publicadas.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2"><Field label="Descripción de la tarjeta" value={draft.workTypeCard?.description} onChange={(value) => setPath(["workTypeCard", "description"], value)} multiline /></div>
+              <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(draft.workTypeCard?.features || []).join("\n")} onChange={(value) => setPath(["workTypeCard", "features"], value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4))} multiline /></div>
+              <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={draft.workTypeCard?.icon || "hammer"} onChange={(event) => setPath(["workTypeCard", "icon"], event.target.value)}>{WORK_TYPE_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
+              <div className="sm:col-span-2"><ImageField label="Imagen de tarjeta (4:5)" value={draft.workTypeCard?.image || ""} ratio="portrait" onChange={(image) => setPath(["workTypeCard", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+            </div>
           </Card>
           <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">
             <div className="space-y-3">{(draft.banner?.slides || []).slice(0, 1).map((slide, index) => <div key={slide.id || index} className="rounded-lg border border-border/70 p-3"><div className="grid gap-3 sm:grid-cols-2"><Field label="Título" value={slide.title} onChange={(value) => setEntry(["banner", "slides"], index, { title: value })} /><Field label="Bajada" value={slide.subtitle} onChange={(value) => setEntry(["banner", "slides"], index, { subtitle: value })} /><div className="sm:col-span-2"><Field label="Descripción" value={slide.description} onChange={(value) => setEntry(["banner", "slides"], index, { description: value })} multiline /></div><div className="sm:col-span-2"><ImageField label="Imagen de portada" value={slide.backgroundImage} onChange={(value) => setEntry(["banner", "slides"], index, { backgroundImage: value })} uploadImage={uploadImage} /></div><Field label="Texto del botón" value={slide.ctaText} onChange={(value) => setEntry(["banner", "slides"], index, { ctaText: value })} /><Field label="Destino del botón" value={slide.ctaUrl} onChange={(value) => setEntry(["banner", "slides"], index, { ctaUrl: value })} /></div></div>)}</div>
