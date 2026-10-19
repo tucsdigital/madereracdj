@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Btn } from "@/components/tienda-web/ui";
 import { cn } from "@/lib/utils";
 import { previewUrl, productsForConfiguredSection } from "@/lib/tienda-web-ui";
+import { isProjectDraftDirty } from "@/lib/tienda-obras-draft";
 import { SortableItem, SortableList } from "@/components/tienda-web/SortableList";
 import {
   AlertDialog,
@@ -30,7 +31,7 @@ function newProject() {
     title,
     category: "Construcción",
     status: "inactive",
-    workTypeCard: { description: "", features: [], icon: "hammer", image: "", imageRatio: "4:5" },
+    workTypeCard: { description: "", features: [], icon: "hammer", imagePortrait: "", imageLandscape: "" },
     seo: { title: `${title} - Maderas Caballero`, description: "Conocé nuestros trabajos y soluciones en madera.", keywords: [], ogImage: "", canonical: `/obras/${slug}` },
     banner: { id: uid("banner"), autoplayInterval: 6000, showControls: true, showIndicators: true, slides: [{ id: uid("slide"), title, subtitle: "Diseño y construcción a medida", description: "Soluciones en madera pensadas para cada proyecto.", backgroundImage: "", ctaText: "Ver trabajos", ctaUrl: "#gallery", secondaryCtaText: "Solicitar presupuesto", secondaryCtaUrl: "#contacto", overlayOpacity: 0.5 }] },
     info: { id: uid("info"), title, description: "", features: [], images: [] },
@@ -75,10 +76,6 @@ const IMAGE_GUIDE = {
 };
 
 const WORK_TYPE_ICON_OPTIONS = [["anchor", "Ancla"], ["flame", "Fuego"], ["tree", "Árbol"], ["fence", "Cerco"], ["layout", "Deck"], ["hammer", "Martillo"]];
-const WORK_TYPE_IMAGE_RATIOS = [
-  { value: "4:5", label: "Vertical (4:5)", guide: "portrait" },
-  { value: "3:2", label: "Apaisada (3:2)", guide: "landscape" },
-];
 
 function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
   if (!project) return project;
@@ -93,6 +90,8 @@ function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
     : Array.isArray(legacy?.features)
       ? legacy.features
       : projectFeatures.map((feature) => typeof feature === "string" ? feature : feature?.title || feature?.description || "").filter(Boolean).slice(0, 4);
+  const oldCardImageIsLandscape = card.imageRatio === "3:2";
+  const portraitFallback = project.homeCardImage || legacy?.image || project.banner?.slides?.[0]?.backgroundImage || project.seo?.ogImage || "";
 
   return {
     ...project,
@@ -100,8 +99,14 @@ function projectDraftWithLegacyWorkType(project, obrasInicioContent) {
       description: typeof card.description === "string" ? card.description : legacy?.summary ?? project.seo?.description ?? project.info?.description ?? "",
       features,
       icon: typeof card.icon === "string" && card.icon ? card.icon : legacy?.icon || "hammer",
-      image: typeof card.image === "string" ? card.image : legacy?.image ?? project.homeCardImage ?? project.banner?.slides?.[0]?.backgroundImage ?? project.seo?.ogImage ?? "",
-      imageRatio: card.imageRatio === "3:2" ? "3:2" : "4:5",
+      imagePortrait: typeof card.imagePortrait === "string"
+        ? card.imagePortrait
+        : oldCardImageIsLandscape
+          ? portraitFallback
+          : typeof card.image === "string" ? card.image : portraitFallback,
+      imageLandscape: typeof card.imageLandscape === "string"
+        ? card.imageLandscape
+        : oldCardImageIsLandscape ? card.image || "" : "",
     },
   };
 }
@@ -442,9 +447,11 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   const [selectedSlug, setSelectedSlug] = useState("");
   const [draft, setDraft] = useState(null);
   const [version, setVersion] = useState(0);
+  const [savedDraftSnapshot, setSavedDraftSnapshot] = useState(null);
   const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingMode, setSavingMode] = useState(null);
   const [notice, setNotice] = useState(null);
   const [section, setSection] = useState("general");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -464,8 +471,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       setOrderVersion(Number(data.orderVersion) || 0);
       const slug = preferredSlug || next[0]?.id || "";
       const entry = next.find((item) => item.id === slug);
+      const sourceProject = entry?.project || null;
       setSelectedSlug(slug);
-      setDraft(projectDraftWithLegacyWorkType(entry?.project || null, obrasInicioContentRef.current));
+      setDraft(projectDraftWithLegacyWorkType(sourceProject, obrasInicioContentRef.current));
+      setSavedDraftSnapshot(sourceProject ? JSON.stringify(sourceProject) : null);
       setVersion(Number(entry?.version) || 0);
       setPublished(Boolean(entry?.published?.status === "active"));
     } catch (error) {
@@ -515,17 +524,20 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   });
 
   const startNew = () => {
+    if (saving) return;
     const project = newProject();
     setItems((current) => [...current, { id: project.slug, project, draft: project, version: 0 }]);
     setSelectedSlug(project.slug);
     setDraft(project);
     setVersion(0);
+    setSavedDraftSnapshot(null);
     setPublished(false);
     setSection("general");
     setNotice(null);
   };
 
   const duplicateProject = (item) => {
+    if (saving) return;
     const source = item.project || item.draft || item.published;
     if (!source) return;
     const base = `${slugify(source.slug || source.title)}-copia`;
@@ -552,6 +564,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     setSelectedSlug(slug);
     setDraft(duplicate);
     setVersion(0);
+    setSavedDraftSnapshot(null);
     setPublished(false);
     setSection("general");
     setNotice({ type: "ok", text: "Copia creada como borrador. Guardala para continuar." });
@@ -574,8 +587,10 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       if (Number(deleteTarget.version) > 0) await persistOrder(remaining.map((item) => item.id), false);
       if (selectedSlug === deleteTarget.id) {
         const next = remaining[0];
+        const nextProject = next?.project || next?.draft || next?.published || null;
         setSelectedSlug(next?.id || "");
-        setDraft(next?.project || next?.draft || next?.published || null);
+        setDraft(projectDraftWithLegacyWorkType(nextProject, obrasInicioContent));
+        setSavedDraftSnapshot(nextProject ? JSON.stringify(nextProject) : null);
         setVersion(Number(next?.version) || 0);
         setPublished(next?.published?.status === "active");
         setSection("general");
@@ -610,7 +625,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   };
 
   const moveWork = async (from, to) => {
-    if (savingOrder || from < 0 || to < 0 || from === to) return;
+    if (saving || savingOrder || from < 0 || to < 0 || from === to) return;
     const previous = items;
     const next = [...items];
     const [moved] = next.splice(from, 1);
@@ -625,10 +640,12 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
   };
 
   const saveDraft = async () => {
-    if (!draft) return;
+    if (!draft || !hasUnsavedChanges || saving) return;
     setSaving(true);
+    setSavingMode("draft");
     setNotice(null);
     const nextSlug = version === 0 ? slugify(draft.slug || draft.title) : selectedSlug;
+    const draftSnapshotAtSave = JSON.stringify(draft);
     try {
       const result = await authFetch(`/api/tienda/obras/admin/${encodeURIComponent(nextSlug)}`, {
         method: "PUT",
@@ -636,7 +653,8 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         body: JSON.stringify({ project: { ...draft, slug: nextSlug }, baseVersion: version }),
       });
       setSelectedSlug(nextSlug);
-      setDraft(result.project);
+      setSavedDraftSnapshot(JSON.stringify(result.project));
+      setDraft((current) => JSON.stringify(current) === draftSnapshotAtSave ? result.project : current);
       setVersion(result.version);
       const previousIndex = items.findIndex((item) => item.id === selectedSlug || item.id === nextSlug);
       const existing = items.find((item) => item.id === nextSlug || item.id === selectedSlug) || {};
@@ -656,15 +674,17 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       setNotice({ type: "error", text: error.data?.issues?.join(" · ") || error.message });
     } finally {
       setSaving(false);
+      setSavingMode(null);
     }
   };
 
   const publish = async () => {
-    if (!draft || version === 0) {
-      setNotice({ type: "error", text: "Guardá el borrador antes de publicarlo." });
+    if (!draft || version === 0 || hasUnsavedChanges || saving) {
+      setNotice({ type: "error", text: hasUnsavedChanges ? "Guardá los cambios antes de publicar." : "Guardá el borrador antes de publicarlo." });
       return;
     }
     setSaving(true);
+    setSavingMode("publish");
     setNotice(null);
     try {
       const result = await authFetch(`/api/tienda/obras/admin/${encodeURIComponent(selectedSlug)}`, {
@@ -674,6 +694,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       });
       setVersion(result.version);
       setDraft(result.project);
+      setSavedDraftSnapshot(JSON.stringify(result.project));
       setPublished(result.published);
       setItems((current) => current.map((item) => item.id === selectedSlug ? { ...item, project: result.project, draft: result.project, published: result.project, version: result.version, publishedVersion: version } : item));
       setNotice({ type: "ok", text: result.published ? "Obra publicada. La tienda la mostrará en breve." : "Cambios publicados; la obra permanece desactivada." });
@@ -681,12 +702,15 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
       setNotice({ type: "error", text: error.data?.issues?.join(" · ") || error.message });
     } finally {
       setSaving(false);
+      setSavingMode(null);
     }
   };
 
   const sections = useMemo(() => [
     ["general", "General y SEO"], ["materiales", "Materiales"], ["adicionales", "Adicionales"], ["galeria", "Galería"], ["faq", "Preguntas frecuentes"],
   ], []);
+  const draftSnapshot = useMemo(() => draft ? JSON.stringify(draft) : null, [draft]);
+  const hasUnsavedChanges = isProjectDraftDirty(draftSnapshot, savedDraftSnapshot, version);
 
   if (loading) return <div className="flex min-h-48 items-center justify-center text-sm text-default-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando obras…</div>;
 
@@ -698,7 +722,7 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           <button type="button" role="tab" aria-selected={view === "inicio"} onClick={() => setView("inicio")} className={cn("rounded-md px-3 py-1.5 text-xs", view === "inicio" ? "bg-default-100 font-semibold" : "text-default-500")}>Inicio</button>
         </div>
         {view === "obras" && draft && published && tiendaUrl ? <a href={`${tiendaUrl.replace(/\/$/, "")}/obras/${selectedSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-default-600 hover:bg-default-100">Ver publicada <ArrowUpRight className="h-3.5 w-3.5" /></a> : null}
-        {view === "obras" ? <Btn variant="primary" onClick={startNew}><Plus className="h-4 w-4" />Nueva obra</Btn> : null}
+        {view === "obras" ? <Btn variant="primary" disabled={saving} onClick={startNew}><Plus className="h-4 w-4" />Nueva obra</Btn> : null}
       </div>
     </div>
 
@@ -707,19 +731,19 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
     <div className={cn("grid items-start gap-4 xl:grid-cols-[250px_minmax(0,1fr)]", view !== "obras" && "hidden")}>
       <aside className="rounded-xl border border-border bg-card p-2">
         <p className="flex items-center justify-between px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-default-400"><span>{items.length} obras</span><span>{savingOrder ? "Guardando orden…" : "Arrastrá para ordenar"}</span></p>
-        <SortableList ids={items.map((item) => item.id)} onMove={moveWork} disabled={savingOrder} className="space-y-1">
+        <SortableList ids={items.map((item) => item.id)} onMove={moveWork} disabled={saving || savingOrder} className="space-y-1">
           {items.map((item) => {
             const project = item.project || item.draft || item.published;
             const cover = project?.banner?.slides?.[0]?.backgroundImage || project?.seo?.ogImage;
             return <SortableItem key={item.id} id={item.id} disabled={savingOrder} className={cn("group rounded-xl p-1 transition", selectedSlug === item.id ? "bg-muted/70" : "hover:bg-muted/40")}>
               {(handle) => <div className="flex items-center gap-1">
                 {handle}
-                <button type="button" onClick={() => { setSelectedSlug(item.id); setDraft(projectDraftWithLegacyWorkType(item.project || item.draft || item.published, obrasInicioContent)); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
+                <button type="button" disabled={saving} onClick={() => { const sourceProject = item.project || item.draft || item.published; setSelectedSlug(item.id); setDraft(projectDraftWithLegacyWorkType(sourceProject, obrasInicioContent)); setSavedDraftSnapshot(sourceProject ? JSON.stringify(sourceProject) : null); setVersion(Number(item.version) || 0); setPublished(item.published?.status === "active"); setSection("general"); setNotice(null); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-60">
                   <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">{cover ? <Image src={previewUrl(cover, tiendaUrl) || cover} alt="" fill unoptimized sizes="40px" className="object-cover" onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} /> : null}</span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-medium text-foreground">{project?.title || item.id}</span><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.published?.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} /></span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.id}</span></span>
                 </button>
-                <button type="button" aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Copy className="h-3.5 w-3.5" /></button>
-                <button type="button" aria-label={`Eliminar ${project?.title || item.id}`} title="Eliminar obra" onClick={() => setDeleteTarget(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                <button type="button" disabled={saving} aria-label={`Duplicar ${project?.title || item.id}`} title="Duplicar obra" onClick={() => duplicateProject(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-40"><Copy className="h-3.5 w-3.5" /></button>
+                <button type="button" disabled={saving} aria-label={`Eliminar ${project?.title || item.id}`} title="Eliminar obra" onClick={() => setDeleteTarget(item)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive disabled:cursor-not-allowed disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>}
             </SortableItem>;
           })}
@@ -727,10 +751,19 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
         </SortableList>
       </aside>
 
-      {!draft ? <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-default-500">Elegí una obra o creá una nueva.</div> : <main className="min-w-0 space-y-4">
+      {!draft ? <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-border text-center text-sm text-default-500">Elegí una obra o creá una nueva.</div> : <main aria-busy={saving} onKeyDownCapture={(event) => { if (saving) event.preventDefault(); }} className={cn("min-w-0 space-y-4", saving && "pointer-events-none opacity-70")}>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
-          <div className="min-w-0"><p className="truncate text-sm font-semibold">{draft.title || "Nueva obra"}</p><p className="mt-0.5 truncate text-xs text-default-500">{version ? `Borrador v${version}` : "Sin guardar"}{published ? " · Publicada" : " · No publicada"}</p></div>
-          <div className="flex shrink-0 gap-2"><Btn variant="outline" disabled={saving} onClick={saveDraft}><Save className="h-4 w-4" />Guardar borrador</Btn><Btn variant="primary" disabled={saving || version === 0} onClick={publish}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{published ? "Publicar cambios" : "Publicar"}</Btn></div>
+          <div className="min-w-0"><p className="truncate text-sm font-semibold">{draft.title || "Nueva obra"}</p><p className="mt-0.5 truncate text-xs text-default-500">{version ? `Borrador v${version}` : "Sin guardar"}{published ? " · Publicada" : " · No publicada"}{hasUnsavedChanges ? " · Cambios sin guardar" : ""}</p></div>
+          <div className="flex shrink-0 gap-2">
+            <Btn variant="outline" disabled={saving || !hasUnsavedChanges} onClick={saveDraft} aria-live="polite">
+              {savingMode === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : hasUnsavedChanges ? <Save className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+              {savingMode === "draft" ? "Guardando…" : hasUnsavedChanges ? "Guardar borrador" : "Borrador guardado"}
+            </Btn>
+            <Btn variant="primary" disabled={saving || version === 0 || hasUnsavedChanges} onClick={publish}>
+              {savingMode === "publish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {savingMode === "publish" ? "Publicando…" : hasUnsavedChanges && version > 0 ? "Guardá antes de publicar" : published ? "Publicar cambios" : "Publicar"}
+            </Btn>
+          </div>
         </div>
 
         <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1" aria-label="Secciones de la obra">
@@ -749,13 +782,13 @@ export default function ObrasManager({ authFetch, uploadImage, tiendaUrl, media,
           <Card title="SEO" description="Estos textos se usan en buscadores y vistas previas al compartir.">
             <div className="grid gap-3 sm:grid-cols-2"><Field label="Título SEO" value={draft.seo?.title} onChange={(value) => setPath(["seo", "title"], value)} /><Field label="Descripción SEO" value={draft.seo?.description} onChange={(value) => setPath(["seo", "description"], value)} multiline /><Field label="Palabras clave (separadas por coma)" value={(draft.seo?.keywords || []).join(", ")} onChange={(value) => setPath(["seo", "keywords"], value.split(",").map((item) => item.trim()).filter(Boolean))} /><Field label="URL canónica" value={draft.seo?.canonical} onChange={(value) => setPath(["seo", "canonical"], value)} /><div className="sm:col-span-2"><ImageField label="Imagen para compartir" value={draft.seo?.ogImage} onChange={(value) => setPath(["seo", "ogImage"], value)} uploadImage={uploadImage} /></div></div>
           </Card>
-          <Card title="Tarjeta en Tipos de obras" description="Esta tarjeta define la imagen y los datos que se muestran tanto en Inicio como en Tipos de obras de /obras. La lista se genera con las obras publicadas.">
+          <Card title="Tarjeta en Tipos de obras" description="Cargá una imagen vertical 4:5 para Inicio y móvil, y otra apaisada 3:2 para escritorio en /obras. Ambas usan los mismos textos y datos de la obra.">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2"><Field label="Descripción de la tarjeta" value={draft.workTypeCard?.description} onChange={(value) => setPath(["workTypeCard", "description"], value)} multiline /></div>
               <div className="sm:col-span-2"><Field label="Características (una por línea)" value={(draft.workTypeCard?.features || []).join("\n")} onChange={(value) => setPath(["workTypeCard", "features"], value.split("\n").map((feature) => feature.trim()).filter(Boolean).slice(0, 4))} multiline /></div>
               <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Ícono</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={draft.workTypeCard?.icon || "hammer"} onChange={(event) => setPath(["workTypeCard", "icon"], event.target.value)}>{WORK_TYPE_ICON_OPTIONS.map(([icon, label]) => <option key={icon} value={icon}>{label}</option>)}</select></label>
-              <label className="block min-w-0 space-y-1.5"><span className="text-xs font-medium text-default-600">Formato de imagen</span><select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={draft.workTypeCard?.imageRatio || "4:5"} onChange={(event) => setPath(["workTypeCard", "imageRatio"], event.target.value)}>{WORK_TYPE_IMAGE_RATIOS.map((ratio) => <option key={ratio.value} value={ratio.value}>{ratio.label}</option>)}</select></label>
-              <div className="sm:col-span-2"><ImageField label={`Imagen de tarjeta (${draft.workTypeCard?.imageRatio || "4:5"})`} value={draft.workTypeCard?.image || ""} ratio={WORK_TYPE_IMAGE_RATIOS.find((ratio) => ratio.value === draft.workTypeCard?.imageRatio)?.guide || "portrait"} onChange={(image) => setPath(["workTypeCard", "image"], image)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} /></div>
+              <ImageField label="Imagen vertical (4:5)" value={draft.workTypeCard?.imagePortrait || ""} ratio="portrait" onChange={(imagePortrait) => setPath(["workTypeCard", "imagePortrait"], imagePortrait)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
+              <ImageField label="Imagen apaisada (3:2)" value={draft.workTypeCard?.imageLandscape || ""} ratio="landscape" onChange={(imageLandscape) => setPath(["workTypeCard", "imageLandscape"], imageLandscape)} uploadImage={uploadImage} media={media} tiendaUrl={tiendaUrl} />
             </div>
           </Card>
           <Card title="Portada principal" description="Se muestra como encabezado de la página de obra.">

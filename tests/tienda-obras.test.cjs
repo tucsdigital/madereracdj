@@ -43,17 +43,22 @@ test("normaliza los datos de la tarjeta de tipos de obra y limita sus caracterí
       image: " /media/muelle.webp ",
       imageRatio: "3:2",
     },
+    homeCardImage: "/media/muelle-vertical.webp",
   }, "muelles");
   assert.deepEqual(project.workTypeCard, {
     description: "Descripción de tarjeta",
     features: ["Una", "Dos", "Tres", "Cuatro"],
     icon: "anchor",
-    image: "/media/muelle.webp",
-    imageRatio: "3:2",
+    imagePortrait: "/media/muelle-vertical.webp",
+    imageLandscape: "/media/muelle.webp",
   });
   assert.equal(normalizeProject({ slug: "deck", title: "Deck" }, "deck").workTypeCard, undefined);
   assert.equal(normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { icon: "script" } }, "deck").workTypeCard.icon, "hammer");
-  assert.equal(normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { imageRatio: "unknown" } }, "deck").workTypeCard.imageRatio, "4:5");
+  const legacyPortrait = normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { image: "/deck-vertical.webp" } }, "deck");
+  assert.equal(legacyPortrait.workTypeCard.imagePortrait, "/deck-vertical.webp");
+  assert.equal(legacyPortrait.workTypeCard.imageLandscape, "");
+  const twoFormats = normalizeProject({ slug: "deck", title: "Deck", workTypeCard: { imagePortrait: "/deck-4x5.webp", imageLandscape: "/deck-3x2.webp" } }, "deck");
+  assert.deepEqual([twoFormats.workTypeCard.imagePortrait, twoFormats.workTypeCard.imageLandscape], ["/deck-4x5.webp", "/deck-3x2.webp"]);
 });
 
 test("valida imágenes nuevas con R2 y rechaza hosts o rutas no pertenecientes a la tienda", () => {
@@ -90,7 +95,7 @@ test("publicar requiere imágenes para portada, materiales, adicionales y galer�
 });
 
 test("recolecta todas las imágenes de una obra para protegerlas de la limpieza", () => {
-  assert.deepEqual(projectImageUrls({ banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["antes", "avatar", "galeria", "portada"]);
+  assert.deepEqual(projectImageUrls({ workTypeCard: { imagePortrait: "4x5", imageLandscape: "3x2" }, banner: { slides: [{ backgroundImage: "portada" }] }, gallery: { items: [{ image: "galeria", beforeImage: "antes" }] }, testimonials: [{ avatar: "avatar" }] }).sort(), ["3x2", "4x5", "antes", "avatar", "galeria", "portada"]);
 });
 
 test("normaliza la portada vertical de la tarjeta y respeta el orden manual de obras", () => {
