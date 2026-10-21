@@ -86,6 +86,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       email: yup.string().email("Email inválido").notRequired(),
       telefono: yup.string().notRequired(),
       direccion: yup.string().notRequired(),
+      localidad: yup.string().notRequired(),
+      mapsUrl: yup.string().notRequired(),
+      lat: yup.number().nullable().notRequired(),
+      lng: yup.number().nullable().notRequired(),
       dni: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
@@ -128,6 +132,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       email: yup.string().email("Email inválido").notRequired(),
       telefono: yup.string().notRequired(),
       direccion: yup.string().notRequired(),
+      localidad: yup.string().notRequired(),
+      mapsUrl: yup.string().notRequired(),
+      lat: yup.number().nullable().notRequired(),
+      lng: yup.number().nullable().notRequired(),
       dni: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
@@ -196,6 +204,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       then: (s) => s.required("La localidad es obligatoria"),
       otherwise: (s) => s.notRequired(),
     }),
+    direccionMapsUrl: yup.string().notRequired(),
+    direccionLat: yup.number().nullable().notRequired(),
+    direccionLng: yup.number().nullable().notRequired(),
   });
 
   const schema = tipo === "presupuesto" ? schemaPresupuesto : schemaVenta;
@@ -214,6 +225,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       cliente: { nombre: "", email: "", telefono: "", direccion: "", dni: "", cuit: "" },
       items: [],
       usarDireccionCliente: true,
+      direccionMapsUrl: "",
+      direccionLat: null,
+      direccionLng: null,
     },
   });
 
@@ -1066,6 +1080,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           email: (clienteObj.email || "").toUpperCase(),
           telefono: (clienteObj.telefono || "").toUpperCase(),
           direccion: (clienteObj.direccion || "").toUpperCase(),
+          localidad: clienteObj.localidad || "",
+          mapsUrl: clienteObj.mapsUrl || "",
+          lat: clienteObj.lat ?? null,
+          lng: clienteObj.lng ?? null,
           dni: (clienteObj.dni || "").toUpperCase(),
           cuit: (clienteObj.cuit || "").toUpperCase(),
         });
@@ -1080,6 +1098,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         email: (clienteSeleccionado.email || "").toUpperCase(),
         telefono: (clienteSeleccionado.telefono || "").toUpperCase(),
         direccion: (clienteSeleccionado.direccion || "").toUpperCase(),
+        localidad: clienteSeleccionado.localidad || "",
+        mapsUrl: clienteSeleccionado.mapsUrl || "",
+        lat: clienteSeleccionado.lat ?? null,
+        lng: clienteSeleccionado.lng ?? null,
         dni: (clienteSeleccionado.dni || "").toUpperCase(),
         cuit: (clienteSeleccionado.cuit || "").toUpperCase(),
       });
@@ -1168,19 +1190,31 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const finalClienteId = clienteId || data.clienteId || DEFAULT_CLIENTE_ID;
     const finalClienteObj = (() => {
       const fromForm = data?.cliente;
-      if (fromForm?.nombre) return fromForm;
       const fromState = clientesState.find((c) => c.id === finalClienteId);
+      if (fromForm?.nombre) {
+        return {
+          ...fromForm,
+          localidad: fromForm.localidad || fromState?.localidad || "",
+          mapsUrl: fromForm.mapsUrl || fromState?.mapsUrl || "",
+          lat: fromForm.lat ?? fromState?.lat ?? null,
+          lng: fromForm.lng ?? fromState?.lng ?? null,
+        };
+      }
       if (fromState) {
         return {
           nombre: (fromState.nombre || "").toUpperCase(),
           email: (fromState.email || "").toUpperCase(),
           telefono: (fromState.telefono || "").toUpperCase(),
           direccion: (fromState.direccion || "").toUpperCase(),
+          localidad: fromState.localidad || "",
+          mapsUrl: fromState.mapsUrl || "",
+          lat: fromState.lat ?? null,
+          lng: fromState.lng ?? null,
           dni: (fromState.dni || "").toUpperCase(),
           cuit: (fromState.cuit || "").toUpperCase(),
         };
       }
-      return DEFAULT_CLIENTE_DATA;
+      return { ...DEFAULT_CLIENTE_DATA, mapsUrl: "", lat: null, lng: null };
     })();
 
     if (productosSeleccionados.length === 0) {
@@ -3071,9 +3105,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           <input
                             type="checkbox"
                             checked={usarDireccionCliente}
-                            onChange={(e) =>
-                              setUsarDireccionCliente(e.target.checked)
-                            }
+                            onChange={(e) => {
+                              setUsarDireccionCliente(e.target.checked);
+                              setValue("usarDireccionCliente", e.target.checked, { shouldDirty: true, shouldValidate: true });
+                            }}
                             id="usarDireccionCliente"
                           />
                           <label

@@ -7,6 +7,7 @@ import {
   mapObraToRemito,
 } from "@/src/lib/pdf/mappers";
 import { generateRemitoPDFBuffer } from "@/src/lib/pdf/generate-remito-pdf";
+import { mergeVentaClientLocation } from "@/lib/pdf/venta-location.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +15,11 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, id, empleado } = body as {
+    const { type, id, empleado, purpose } = body as {
       type: "venta" | "presupuesto" | "obra";
       id: string;
       empleado?: boolean;
+      purpose?: "documento" | "envio";
     };
 
     if (!type || !id) {
@@ -45,7 +47,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = { id: snap.id, ...snap.data() };
+    let data: any = { id: snap.id, ...snap.data() };
+    if (type === "venta" && data.clienteId) {
+      const clienteSnap = await getDoc(doc(db, "clientes", String(data.clienteId)));
+      if (clienteSnap.exists()) {
+        data = mergeVentaClientLocation(data, clienteSnap.data() || {});
+      }
+    }
     const docTipo = (data as any)?.tipo;
     let presupuestoInicial: any = null;
     if (type === "obra" && docTipo === "obra" && (data as any)?.presupuestoInicialId) {
@@ -64,7 +72,7 @@ export async function POST(req: NextRequest) {
           : mapPresupuestoToRemito(data);
 
     // Generar PDF
-    const buffer = await generateRemitoPDFBuffer(remito, empleado || false);
+    const buffer = await generateRemitoPDFBuffer(remito, empleado || false, purpose || "documento");
 
     const suffix = empleado ? "-empleado" : "";
     // Eliminar prefijo "REMITO-" o "remito-" si existe

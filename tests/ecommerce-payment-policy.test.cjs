@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { paymentDecision, shouldCreateMercadoPagoSale } = require("../lib/ecommerce-payment-policy.mjs");
+const { paymentDecision, shouldCreateMercadoPagoSale, shouldSendCreatedOrderNotification, stockReservationDecision } = require("../lib/ecommerce-payment-policy.mjs");
 
 const order = { orderId: "order_1234567890123456", total: 24500, status: "pending" };
 
@@ -38,4 +38,19 @@ test("un rechazo tardío no degrada un pago previamente aprobado", () => {
     paymentId: "998877",
     paymentStatus: "rejected",
   }), "success");
+});
+
+test("los pedidos de Mercado Pago no notifican creación antes de la aprobación", () => {
+  assert.equal(shouldSendCreatedOrderNotification({ paymentMethod: "mercadopago", status: "pending" }), false);
+  assert.equal(shouldSendCreatedOrderNotification({ paymentMethod: "mercado_pago", status: "pending" }), false);
+  assert.equal(shouldSendCreatedOrderNotification({ paymentMethod: "transferencia", status: "pending" }), true);
+  assert.equal(shouldSendCreatedOrderNotification({ paymentMethod: "efectivo", status: "pending" }), true);
+});
+
+test("las reservas de stock solo se consumen al aprobar y se liberan en rechazo/cancelación", () => {
+  assert.equal(stockReservationDecision("pending"), "pending");
+  assert.equal(stockReservationDecision("in_process"), "pending");
+  assert.equal(stockReservationDecision("approved"), "consumed");
+  assert.equal(stockReservationDecision("rejected"), "released");
+  assert.equal(stockReservationDecision("cancelled"), "released");
 });

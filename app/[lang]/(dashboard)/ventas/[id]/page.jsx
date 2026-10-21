@@ -344,6 +344,23 @@ const VentaDetalle = () => {
       let printed = false;
       let timeoutId = null;
 
+      const waitForPrintAssets = async () => {
+        const printDocument = iframe.contentDocument;
+        if (!printDocument) {
+          printOnce();
+          return;
+        }
+        const imageLoads = Array.from(printDocument.images).map((image) => {
+          if (image.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", resolve, { once: true });
+          });
+        });
+        await Promise.all(imageLoads);
+        printOnce();
+      };
+
       const printOnce = () => {
         if (printed) return;
         printed = true;
@@ -372,13 +389,16 @@ const VentaDetalle = () => {
         }, 2000);
       };
 
+      iframe.onload = () => { void waitForPrintAssets(); };
       iframe.contentDocument?.open();
       iframe.contentDocument?.write(html);
       iframe.contentDocument?.close();
 
+      // El QR es inline; esperamos su decodificación antes de abrir el diálogo.
+      window.requestAnimationFrame(() => { void waitForPrintAssets(); });
       timeoutId = setTimeout(() => {
         printOnce();
-      }, 500);
+      }, 5000);
     } catch (e) {
       console.error("Error imprimiendo documento de envío", e);
       alert("Error al generar el documento de envío. Por favor, intenta nuevamente.");

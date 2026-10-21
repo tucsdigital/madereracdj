@@ -8,6 +8,7 @@ import {
 } from "@/src/lib/pdf/mappers";
 import { buildRemitoHtml } from "@/src/lib/pdf/generate-remito-pdf";
 import { generarContenidoImpresion } from "@/lib/obra-utils";
+import { mergeVentaClientLocation } from "@/lib/pdf/venta-location.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,9 +51,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data: any = { id: snap.id, ...snap.data() };
+    let data: any = { id: snap.id, ...snap.data() };
+    if (type === "venta" && data.clienteId) {
+      const clienteSnap = await getDoc(doc(db, "clientes", String(data.clienteId)));
+      if (clienteSnap.exists()) {
+        data = mergeVentaClientLocation(data, clienteSnap.data() || {});
+      }
+    }
 
-    const html =
+    const html = await (
       type === "obra"
         ? await (async () => {
             const obra = data;
@@ -146,7 +153,8 @@ export async function POST(req: NextRequest) {
                   : mapPresupuestoToRemito(data);
 
             return buildRemitoHtml(remito, empleado || false, false, purpose || "documento");
-          })();
+          })()
+    );
 
     return new Response(html, {
       status: 200,

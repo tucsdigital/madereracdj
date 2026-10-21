@@ -52,7 +52,9 @@ function fixture() {
     if (name === "firebase-admin/firestore") return { FieldValue: { serverTimestamp: () => new Date().toISOString() } };
     if (!name.startsWith("@/")) return require(name);
     if (cache[name]) return cache[name].exports;
-    const filename = path.resolve(__dirname, "..", name.slice(2) + ".js");
+    const base = path.resolve(__dirname, "..", name.slice(2));
+    const filename = [base, `${base}.js`, `${base}.mjs`, `${base}.ts`].find(fs.existsSync);
+    if (!filename) throw new Error(`No se encontró el módulo ${name}`);
     const source = fs.readFileSync(filename, "utf8");
     const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
     const compiledModule = { exports: {} }; cache[name] = compiledModule;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyCommerceRequest } from "@/lib/ecommerce-auth";
-import { paymentDecision, shouldCreateMercadoPagoSale } from "@/lib/ecommerce-payment-policy.mjs";
+import { paymentDecision, shouldCreateMercadoPagoSale, stockReservationDecision } from "@/lib/ecommerce-payment-policy.mjs";
 import { createVentaEngine, updateVentaEngine } from "@/lib/erp/ventas-engine";
 import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
 
@@ -196,8 +196,8 @@ export async function POST(request, { params }) {
       if (event.exists) return;
       const currentOrder = current.data();
       const nextStatus = paymentDecision(currentOrder, payment);
-      const paymentFailed = ["rejected", "cancelled"].includes(payment.paymentStatus);
-      const reservationQueries = paymentFailed || payment.paymentStatus === "approved"
+      const reservationDecision = stockReservationDecision(payment.paymentStatus);
+      const reservationQueries = reservationDecision !== "pending"
         ? await Promise.all([
             t.get(db.collection("reservasStock").where("orderId", "==", id)),
             (currentOrder.ventaId || saleId) ? t.get(db.collection("reservasStock").where("ventaId", "==", currentOrder.ventaId || saleId)) : Promise.resolve(null),
@@ -212,14 +212,14 @@ export async function POST(request, { params }) {
           status: inventoryReview && nextStatus === "success" ? "review" : nextStatus,
           ...(saleId ? { ventaId: saleId, ventaNumeroPedido: saleNumber } : {}),
           ...(inventoryReview ? { revisionPago: "Pago aprobado; inventario requiere conciliación." } : {}),
-          ...(payment.paymentStatus === "approved" ? { stockReservationStatus: "consumed" } : paymentFailed ? { stockReservationStatus: "released" } : {}),
+          ...(reservationDecision !== "pending" ? { stockReservationStatus: reservationDecision } : {}),
           updatedAt: now,
         });
       }
       t.create(eventRef, { ...payment, receivedAt: now });
       reservationQueries.flatMap((query) => query?.docs || []).forEach((reservation) => {
         if (reservation.data().estado === "activa") {
-          const estado = payment.paymentStatus === "approved" ? "consumida" : "liberada";
+          const estado = reservationDecision === "consumed" ? "consumida" : "liberada";
           t.update(reservation.ref, { estado, ...(estado === "consumida" && saleId ? { ventaId: saleId } : {}), actualizadoEn: now });
         }
       });
@@ -245,9 +245,5 @@ async function notifyOrderTransition(orderId, payment, order, inventoryReview = 
     }
   } else if (["refunded", "charged_back"].includes(payment.paymentStatus)) {
     await sendOrderAdminNotification(orderId, "review", { fallbackOrder: order, status: "review", paymentStatus: payment.paymentStatus });
-  } else if (payment.paymentStatus === "cancelled" && !isAlreadyPaid) {
-    await sendOrderAdminNotification(orderId, "cancelled", { fallbackOrder: order, status: "cancelled", paymentStatus: "cancelled" });
-  } else if (payment.paymentStatus === "rejected" && !isAlreadyPaid && currentStatus !== "review") {
-    await sendOrderAdminNotification(orderId, "paymentFailed", { fallbackOrder: order, status: "failed", paymentStatus: "rejected" });
   }
 }

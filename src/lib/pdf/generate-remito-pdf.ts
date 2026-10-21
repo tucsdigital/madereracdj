@@ -8,6 +8,7 @@ import { formatCurrency, formatNumber, formatFechaLocal, escapeHtml, safeText } 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { getBrowser } from "./browser-pool";
+import { createMapsQrDataUrl } from "../../../lib/pdf/maps-qr.mjs";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
@@ -16,12 +17,12 @@ import { getBrowser } from "./browser-pool";
  * @param autoPrint - Si es true, incluye scripts para imprimir automáticamente (solo para PDF, no para impresión directa)
  * @param purpose - Tipo de documento a renderizar (por defecto: "documento")
  */
-export function buildRemitoHtml(
+export async function buildRemitoHtml(
   remito: RemitoModel,
   paraEmpleado: boolean = false,
   autoPrint: boolean = false,
   purpose: "documento" | "envio" = "documento"
-): string {
+): Promise<string> {
   const {
     numero,
     fecha,
@@ -232,22 +233,20 @@ export function buildRemitoHtml(
     ? (esEnvioDoc ? (empresa.telefono || cliente.telefono || null) : null)
     : (cliente.telefono || null);
 
-  // URL de mapa para QR (prioriza mapsUrl guardada, si no usa dirección/localidad)
+  // Priorizar el enlace/las coordenadas precisas guardadas en la venta. La
+  // dirección escrita queda como fallback para ventas antiguas sin geodatos.
   const mapsQueryText = [
     String(envio?.direccion || lugarEntrega || "").trim(),
     String(envio?.localidad || cliente.localidad || "").trim(),
   ]
     .filter(Boolean)
     .join(", ");
-  // Priorizar dirección legible para que la app de mapas muestre la calle/localidad.
-  const mapsUrlForQr = mapsQueryText
+  const mapsUrlForQr = String(envio?.mapsUrl || "").trim() || (mapsQueryText
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQueryText)}`
-    : String(envio?.mapsUrl || "").trim();
-  const qrUrl = mapsUrlForQr
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrlForQr)}`
-    : "";
-  const qrHtml = esEnvioDoc && qrUrl
-    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:52px; height:52px;" /><span style="font-size:7px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
+    : "");
+  const qrDataUrl = esEnvioDoc ? await createMapsQrDataUrl(mapsUrlForQr) : "";
+  const qrHtml = esEnvioDoc && qrDataUrl
+    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrDataUrl}" alt="Ubicación en Google Maps" style="width:52px; height:52px;" /><span style="font-size:7px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
     : "";
 
   // Combinar localidad y provincia
@@ -1265,7 +1264,8 @@ ${paraEmpleado
  */
 export async function generateRemitoPDFBuffer(
   remito: RemitoModel,
-  paraEmpleado: boolean = false
+  paraEmpleado: boolean = false,
+  purpose: "documento" | "envio" = "documento"
 ): Promise<Buffer> {
   // Verificar que estamos en Node.js
   if (typeof window !== "undefined") {
@@ -1297,7 +1297,7 @@ export async function generateRemitoPDFBuffer(
   // Deshabilitar cache para evitar esperas innecesarias
   await page.setCacheEnabled(false);
 
-  const html = buildRemitoHtml(remito, paraEmpleado);
+  const html = await buildRemitoHtml(remito, paraEmpleado, false, purpose);
   // Usar 'domcontentloaded' - el más rápido, solo espera el DOM sin recursos
   // Timeout reducido a 1 segundo para mayor velocidad
   await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 1000 });

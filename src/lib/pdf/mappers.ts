@@ -17,36 +17,7 @@ import {
   computeTotals,
   computeQuantityDisplay,
 } from "../../../lib/pricing";
-
-function buildMapsUrlFallback({
-  explicitMapsUrl,
-  lat,
-  lng,
-  direccion,
-  localidad,
-}: {
-  explicitMapsUrl?: string;
-  lat?: number | string | null;
-  lng?: number | string | null;
-  direccion?: string;
-  localidad?: string;
-}): string | undefined {
-  const mapsUrl = String(explicitMapsUrl || "").trim();
-  if (mapsUrl) return mapsUrl;
-
-  const latNum = Number(lat);
-  const lngNum = Number(lng);
-  if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latNum},${lngNum}`)}`;
-  }
-
-  const addressText = [String(direccion || "").trim(), String(localidad || "").trim()]
-    .filter(Boolean)
-    .join(", ");
-
-  if (!addressText) return undefined;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
-}
+import { buildMapsUrlFallback } from "../../../lib/maps-location.mjs";
 
 /**
  * Mapea productos a items del remito
@@ -222,11 +193,12 @@ export function mapVentaToRemito(venta: any): RemitoModel {
       ? venta.localidadEnvio
       : cliente.localidad
     : undefined;
+  const usaDireccionCliente = venta.usarDireccionCliente !== false;
   const mapsUrlEnvio = tieneEnvioDomicilio
     ? buildMapsUrlFallback({
-        explicitMapsUrl: venta.direccionMapsUrl || venta.cliente?.mapsUrl,
-        lat: venta.direccionLat ?? venta.cliente?.lat,
-        lng: venta.direccionLng ?? venta.cliente?.lng,
+        explicitMapsUrl: usaDireccionCliente ? cliente.mapsUrl : venta.direccionMapsUrl,
+        lat: usaDireccionCliente ? cliente.lat : venta.direccionLat,
+        lng: usaDireccionCliente ? cliente.lng : venta.direccionLng,
         direccion: direccionEnvio,
         localidad: localidadEnvio,
       })

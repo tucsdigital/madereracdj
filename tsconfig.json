@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "strict": false,
     "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "incremental": true,
     "esModuleInterop": true,
     "module": "esnext",

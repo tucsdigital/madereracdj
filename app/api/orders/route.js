@@ -17,6 +17,7 @@ import crypto from "crypto";
 import { createVentaEngine, reserveEcommerceOrderStock } from "@/lib/erp/ventas-engine";
 import { getPublishedCheckoutSettings } from "@/lib/tienda-checkout";
 import { sendOrderAdminNotification } from "@/lib/tienda-notificaciones";
+import { shouldSendCreatedOrderNotification } from "@/lib/ecommerce-payment-policy.mjs";
 
 function normalizePaymentMethod(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -504,8 +505,10 @@ export async function POST(request) {
       return withCors(NextResponse.json({ error: "Identificador de pedido inválido" }, { status: 400 }));
     }
     const notifyCreatedOrder = async (order) => {
-      await sendOrderAdminNotification(orderData.orderId, "created", { fallbackOrder: order })
-        .catch((error) => console.error("No se pudo enviar el aviso de nuevo pedido:", error?.message));
+      if (shouldSendCreatedOrderNotification(order)) {
+        await sendOrderAdminNotification(orderData.orderId, "created", { fallbackOrder: order })
+          .catch((error) => console.error("No se pudo enviar el aviso de nuevo pedido:", error?.message));
+      }
       if (["success", "paid", "approved", "pagado"].includes(String(order?.status || "").toLowerCase())) {
         await sendOrderAdminNotification(orderData.orderId, "confirmed", { fallbackOrder: order, status: "confirmed" })
           .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
