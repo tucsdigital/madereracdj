@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { getBrowser } from "./browser-pool";
 import { createMapsQrDataUrl } from "../../../lib/pdf/maps-qr.mjs";
+import { buildMapsUrlFallback } from "../../../lib/maps-location.mjs";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
@@ -233,17 +234,13 @@ export async function buildRemitoHtml(
     ? (esEnvioDoc ? (empresa.telefono || cliente.telefono || null) : null)
     : (cliente.telefono || null);
 
-  // Priorizar el enlace/las coordenadas precisas guardadas en la venta. La
-  // dirección escrita queda como fallback para ventas antiguas sin geodatos.
-  const mapsQueryText = [
-    String(envio?.direccion || lugarEntrega || "").trim(),
-    String(envio?.localidad || cliente.localidad || "").trim(),
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const mapsUrlForQr = String(envio?.mapsUrl || "").trim() || (mapsQueryText
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQueryText)}`
-    : "");
+  // El QR debe abrir la búsqueda de la dirección legible en Maps. Enlaces
+  // guardados y coordenadas quedan como respaldo solo si falta la dirección.
+  const mapsUrlForQr = buildMapsUrlFallback({
+    explicitMapsUrl: envio?.mapsUrl,
+    direccion: envio?.direccion || lugarEntrega,
+    localidad: envio?.localidad || cliente.localidad,
+  }) || "";
   const qrDataUrl = esEnvioDoc ? await createMapsQrDataUrl(mapsUrlForQr) : "";
   const qrHtml = esEnvioDoc && qrDataUrl
     ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrDataUrl}" alt="Ubicación en Google Maps" style="width:52px; height:52px;" /><span style="font-size:7px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`

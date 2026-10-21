@@ -4,16 +4,28 @@ import { buildMapsUrlFallback } from "../lib/maps-location.mjs";
 import { createMapsQrDataUrl } from "../lib/pdf/maps-qr.mjs";
 import { mergeVentaClientLocation } from "../lib/pdf/venta-location.mjs";
 
-test("usa el enlace Maps o coordenadas válidas antes que la dirección escrita", () => {
+test("prioriza dirección y localidad sobre enlaces guardados o coordenadas", () => {
   const savedUrl = "https://maps.app.goo.gl/saved-place";
-  assert.equal(buildMapsUrlFallback({ explicitMapsUrl: savedUrl, lat: -34.6, lng: -58.4 }), savedUrl);
+  assert.equal(
+    buildMapsUrlFallback({ explicitMapsUrl: savedUrl, lat: -34.6, lng: -58.4, direccion: "Calle 1 123", localidad: "Pilar" }),
+    "https://www.google.com/maps/search/?api=1&query=Calle%201%20123%2C%20Pilar",
+  );
   assert.equal(
     buildMapsUrlFallback({ lat: -34.6, lng: -58.4, direccion: "Dirección antigua" }),
-    "https://www.google.com/maps/search/?api=1&query=-34.6%2C-58.4",
+    "https://www.google.com/maps/search/?api=1&query=Direcci%C3%B3n%20antigua",
   );
   assert.equal(
     buildMapsUrlFallback({ explicitMapsUrl: "javascript:alert(1)", direccion: "Calle 1", localidad: "Pilar" }),
     "https://www.google.com/maps/search/?api=1&query=Calle%201%2C%20Pilar",
+  );
+});
+
+test("usa el enlace Maps guardado y luego las coordenadas solo si falta la dirección", () => {
+  const savedUrl = "https://maps.app.goo.gl/saved-place";
+  assert.equal(buildMapsUrlFallback({ explicitMapsUrl: savedUrl, lat: -34.6, lng: -58.4 }), savedUrl);
+  assert.equal(
+    buildMapsUrlFallback({ lat: -34.6, lng: -58.4 }),
+    "https://www.google.com/maps/search/?api=1&query=-34.6%2C-58.4",
   );
 });
 
