@@ -6,11 +6,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, User, Phone, MapPin, Home, FileText } from "lucide-react";
+import { Loader2, User, Phone, MapPin, Home, FileText, X } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, addDoc, updateDoc, collection, getDoc } from "firebase/firestore";
 import GoogleAddressInput from "@/components/ui/google-address-input";
@@ -238,7 +239,8 @@ const FormularioClienteObras = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto p-0"
+        hiddenCloseIcon
+        className="flex h-[90vh] max-h-[760px] w-[95vw] max-w-[640px] flex-col gap-0 overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl"
         onPointerDownOutside={(event) => {
           // El dropdown de Google Places se monta fuera del Dialog; evitar que se interprete como click afuera y cierre/interrumpa la selección.
           if (event.target?.closest?.(".pac-container")) {
@@ -251,66 +253,74 @@ const FormularioClienteObras = ({
           }
         }}
       >
-        <DialogHeader className="border-b px-6 pt-6 pb-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-              <User className="w-5 h-5 text-white" />
+        <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-4 space-y-0 border-b border-border px-5 py-4 text-left sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <User className="h-5 w-5" />
             </div>
-            <div className="flex-1">
-              <DialogTitle className="text-lg font-bold text-gray-900">
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-semibold text-foreground">
                 {esEdicion ? "Editar Cliente" : "Nuevo Cliente"}
               </DialogTitle>
-              <DialogDescription className="text-sm text-gray-600 mt-1">
+              <DialogDescription className="mt-0.5 text-sm text-default-500">
                 {esEdicion
                   ? "Modifica los datos del cliente"
                   : "Completa los datos básicos del cliente"}
               </DialogDescription>
             </div>
           </div>
+          <DialogClose asChild>
+            <button type="button" aria-label="Cerrar" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-default-500 transition-colors hover:bg-default-100 hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </DialogClose>
         </DialogHeader>
 
-        <div className="space-y-6 px-6 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
+          <div className="space-y-5">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive" role="alert">
               {error}
             </div>
           )}
 
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="nombre" className="flex items-center gap-2">
-              <User className="w-4 h-4 text-gray-500" />
-              Nombre completo <span className="text-red-500">*</span>
+              <User className="h-4 w-4 text-default-500" />
+              Nombre completo <span className="text-destructive">*</span>
             </Label>
             <Input
               id="nombre"
               value={formData.nombre}
               onChange={(e) => handleInputChange("nombre", e.target.value)}
               placeholder="Ej: Juan Pérez"
-              className="w-full"
+              className="h-10 w-full rounded-lg"
               disabled={guardando}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="telefono" className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-gray-500" />
-              Teléfono <span className="text-red-500">*</span>
+              <Phone className="h-4 w-4 text-default-500" />
+              Teléfono <span className="text-destructive">*</span>
             </Label>
             <Input
               id="telefono"
               value={formData.telefono}
               onChange={(e) => handleInputChange("telefono", e.target.value)}
               placeholder="Ej: 11 1234-5678"
-              className="w-full"
+              className="h-10 w-full rounded-lg"
               disabled={guardando}
             />
           </div>
+          </div>
 
           {esModoGeneral ? (
-            <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="direccion" className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-500" />
+                  <MapPin className="h-4 w-4 text-default-500" />
                   Dirección
                 </Label>
                 <GoogleAddressInput
@@ -321,13 +331,13 @@ const FormularioClienteObras = ({
                     setError("");
                   }}
                   placeholder="Dirección completa"
-                  className="w-full"
+                  className="h-10 w-full rounded-lg"
                   disabled={guardando}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="localidad" className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-500" />
+                  <MapPin className="h-4 w-4 text-default-500" />
                   Localidad
                 </Label>
                 <Input
@@ -335,15 +345,15 @@ const FormularioClienteObras = ({
                   value={formData.localidad}
                   onChange={(e) => handleInputChange("localidad", e.target.value)}
                   placeholder="Ej: San Miguel"
-                  className="w-full"
+                  className="h-10 w-full rounded-lg"
                   disabled={guardando}
                 />
               </div>
-            </>
+            </div>
           ) : (
             <div className="space-y-2">
               <Label htmlFor="lugar" className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
+                <MapPin className="h-4 w-4 text-default-500" />
                 Lugar
               </Label>
               <GoogleAddressInput
@@ -362,19 +372,19 @@ const FormularioClienteObras = ({
                   setError("");
                 }}
                 placeholder="Dirección o localidad"
-                className="w-full"
+                className="h-10 w-full rounded-lg"
                 disabled={guardando}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-default-500">
                 Puede ser una dirección completa o solo la localidad
               </p>
             </div>
           )}
 
           {esModoGeneral && (
-            <div className="space-y-2">
+            <div className="max-w-sm space-y-2">
               <Label htmlFor="dni" className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-500" />
+                <FileText className="h-4 w-4 text-default-500" />
                 DNI
               </Label>
               <Input
@@ -383,17 +393,17 @@ const FormularioClienteObras = ({
                 onChange={(e) => handleInputChange("dni", e.target.value.replace(/\D/g, ""))}
                 placeholder="Ej: 12345678"
                 inputMode="numeric"
-                className="w-full"
+                className="h-10 w-full rounded-lg"
                 disabled={guardando}
               />
             </div>
           )}
 
           {!esModoGeneral && (
-            <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="barrio" className="flex items-center gap-2">
-                  <Home className="w-4 h-4 text-gray-500" />
+                  <Home className="h-4 w-4 text-default-500" />
                   Barrio
                 </Label>
                 <Input
@@ -401,7 +411,7 @@ const FormularioClienteObras = ({
                   value={formData.barrio}
                   onChange={(e) => handleInputChange("barrio", e.target.value)}
                   placeholder="Ej: Centro"
-                  className="w-full"
+                  className="h-10 w-full rounded-lg"
                   disabled={guardando}
                 />
               </div>
@@ -413,16 +423,16 @@ const FormularioClienteObras = ({
                   value={formData.lote}
                   onChange={(e) => handleInputChange("lote", e.target.value)}
                   placeholder="Ej: Lote 15"
-                  className="w-full"
+                  className="h-10 w-full rounded-lg"
                   disabled={guardando}
                 />
               </div>
-            </>
+            </div>
           )}
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-            <p className="font-medium mb-1">Información importante:</p>
-            <p className="text-xs">
+          <div className="rounded-lg border border-primary/15 bg-primary/5 p-3 text-sm text-foreground">
+            <p className="mb-1 font-medium">Información importante</p>
+            <p className="text-xs text-default-500">
               {esEdicion
                 ? "El CUIT, si corresponde, se administra desde la edición del cliente."
                 : esModoGeneral
@@ -431,20 +441,21 @@ const FormularioClienteObras = ({
             </p>
           </div>
         </div>
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t mt-6 px-6 pb-6">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-card px-5 py-3 sm:flex-row sm:justify-end sm:px-6">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={guardando}
-            className="w-full sm:w-auto"
+            className="h-9 w-full rounded-lg sm:w-auto"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleGuardar}
             disabled={guardando || !formData.nombre?.trim() || !formData.telefono?.trim()}
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-9 w-full rounded-lg sm:w-auto"
           >
             {guardando ? (
               <>
