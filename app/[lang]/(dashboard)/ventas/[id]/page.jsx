@@ -2048,7 +2048,7 @@ const VentaDetalle = () => {
   };
 
   return (
-    <div className="min-h-screen py-8">
+    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] px-3 py-5 font-sans text-slate-900 sm:px-6 sm:py-8">
       <style>{`
     select {
       background: #fff !important;
@@ -2167,10 +2167,10 @@ const VentaDetalle = () => {
       
     }
   `}</style>
-      <div id="venta-print" className="mx-auto px-4">
+      <div id="venta-print" className="mx-auto px-1 sm:px-3">
         {/* Header profesional igual al de presupuesto */}
         <div
-          className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
+          className="print-header mb-5 flex items-center gap-4 border-b border-slate-200 pb-4"
           style={{ marginBottom: 32 }}
         >
           <img
@@ -2197,7 +2197,7 @@ const VentaDetalle = () => {
           </div>
         </div>
         {/* Header con botones */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
+        <div className="no-print mb-5 border-b border-slate-200 bg-white px-3 py-4 sm:px-5 sm:py-5">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
             <div className="flex-1">
               <h1 className="text-2xl lg:text-3xl font-bold">
@@ -4221,41 +4221,28 @@ const VentaDetalle = () => {
                             
                             try {
                               await new Promise((res) => setTimeout(res, 400));
-                              
-                              if (Array.isArray(ventaEdit.pagos)) {
-                                setVentaEdit((prev) => ({
-                                  ...prev,
-                                  pagos: [
-                                    ...prev.pagos,
-                                    {
-                                      fecha: new Date()
-                                        .toISOString()
-                                        .split("T")[0],
-                                      monto: Number(prev.nuevoPagoMonto),
-                                      metodo: prev.nuevoPagoMetodo,
-                                      usuario: "usuario",
-                                    },
-                                  ],
-                                  nuevoPagoMonto: "",
-                                  nuevoPagoMetodo: "",
-                                }));
-                              } else {
-                                setVentaEdit((prev) => ({
-                                  ...prev,
-                                  pagos: [
-                                    {
-                                      fecha: new Date()
-                                        .toISOString()
-                                        .split("T")[0],
-                                      monto: Number(prev.nuevoPagoMonto),
-                                      metodo: prev.nuevoPagoMetodo,
-                                      usuario: "usuario",
-                                    },
-                                  ],
-                                  nuevoPagoMonto: "",
-                                  nuevoPagoMetodo: "",
-                                }));
-                              }
+                              const fechaHoraPago = new Date().toISOString();
+                              const fechaPago = fechaLocalActual();
+                              const nuevoPago = {
+                                fecha: fechaPago,
+                                fechaHora: fechaHoraPago,
+                                monto: Number(ventaEdit.nuevoPagoMonto),
+                                metodo: ventaEdit.nuevoPagoMetodo,
+                                usuario: "usuario",
+                              };
+                              setVentaEdit((prev) => ({
+                                ...prev,
+                                pagos: [
+                                  ...(Array.isArray(prev.pagos)
+                                    ? prev.pagos
+                                    : Array.isArray(pagosSimples)
+                                      ? pagosSimples
+                                      : []),
+                                  nuevoPago,
+                                ],
+                                nuevoPagoMonto: "",
+                                nuevoPagoMetodo: "",
+                              }));
                               setPagoExitoso(true);
                               setTimeout(() => setPagoExitoso(false), 1800);
                             } catch (error) {
@@ -4428,7 +4415,7 @@ const VentaDetalle = () => {
         clientes={clientes}
         onClienteSeleccionado={handleClienteSeleccionado}
       />
-    </div>
+    </main>
   );
 };
 

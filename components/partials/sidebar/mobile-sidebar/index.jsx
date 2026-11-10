@@ -62,11 +62,11 @@ const MobileSidebar = ({ collapsed, className }) => {
     <>
       <div
         className={cn(
-          "fixed top-0  bg-card h-full w-[248px] z-9999 ",
+          "fixed left-0 top-0 z-[80] h-dvh w-[248px] border-r border-border/70 bg-background shadow-xl transition-[opacity,transform] duration-200",
           className,
           {
-            " -left-[300px] invisible opacity-0  ": !mobileMenu,
-            " left-0 visible opacity-100  ": mobileMenu,
+            "-translate-x-full invisible opacity-0": !mobileMenu,
+            "visible translate-x-0 opacity-100": mobileMenu,
           }
         )}
       >
@@ -78,13 +78,14 @@ const MobileSidebar = ({ collapsed, className }) => {
         )}
         <SidebarLogo collapsed={collapsed} />
         <ScrollArea
-          className={cn("sidebar-menu  h-[calc(100%-80px)] ", {
-            "px-4": !collapsed,
+          className={cn("sidebar-menu h-[calc(100%-84px)]", {
+            "px-3": !collapsed,
+            "px-2": collapsed,
           })}
         >
           <ul
             className={cn("", {
-              " space-y-2 text-center": collapsed,
+              "space-y-1.5 py-3 text-center": collapsed,
             })}
           >
             {menus.map((item, i) => (
@@ -93,11 +94,6 @@ const MobileSidebar = ({ collapsed, className }) => {
 
                 {!item.child && !item.isHeader && (
                   <SingleMenuItem item={item} collapsed={collapsed} />
-                )}
-
-                {/* menu label */}
-                {item.isHeader && !item.child && !collapsed && (
-                  <MenuLabel item={item} />
                 )}
 
                 {/* sub menu */}

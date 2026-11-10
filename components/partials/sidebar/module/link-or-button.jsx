@@ -17,7 +17,7 @@ const LinkButton = ({
           type="button"
           onClick={() => toggleMulti(index)}
           className={cn(
-            "flex items-center justify-between w-full relative before:absolute  before: top-0 before:-left-[14px]  before:w-[2px] before:h-0 before:transition-all before:duration-200 cursor-pointer hover:text-primary text-default-600",
+            "flex items-center justify-between w-full relative before:absolute before:top-0 before:-left-[14px] before:w-[2px] before:h-0 before:transition-all before:duration-200 cursor-pointer text-default-600 hover:text-foreground",
             {
               "text-primary  rounded before:bg-primary   before:h-full":
                 multiIndex === index,
@@ -44,7 +44,7 @@ const LinkButton = ({
               item.href,
               locationName
             ),
-            " text-default-700 hover:text-primary ": !isLocationMatch(
+            "text-default-700 hover:text-foreground": !isLocationMatch(
               item.href,
               locationName
             ),

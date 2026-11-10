@@ -4,10 +4,10 @@ export const siteConfig = {
   keywords: "maderera, Maderas Caballero, gestión de ventas, stock, clientes, proyectos, administración, POS, panel administrativo, comercio de maderas",
   author: "Maderas Caballero",
   theme: "violet",
-  layout: "vertical",
+  layout: "semibox",
   // semi-box, horizontal, vertical
   hideSideBar: false,
-  sidebarType: "module",
+  sidebarType: "popover",
   // popover, classic, module
   sidebarColor: null,
   navbarType: "sticky",

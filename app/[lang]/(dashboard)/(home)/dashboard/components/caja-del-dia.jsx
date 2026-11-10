@@ -2,59 +2,54 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Icon } from "@iconify/react";
+import { ArrowLeftRight, Banknote, ChevronDown, ChevronUp, CreditCard, Wallet } from "lucide-react";
 import Link from "next/link";
+import { db } from "@/lib/firebase";
+import { normalizarFecha } from "@/lib/fechas-locales";
 import { useLocalizedPath } from "@/lib/utils";
 
 const nf = new Intl.NumberFormat("es-AR");
-
-// Cache simple en memoria del módulo para no re-leer Firestore en cada montaje.
 const CACHE_MAX_AGE_MS = 2 * 60 * 1000;
 let cacheRef = { data: null, ts: 0 };
 
-const hoyIso = () => new Date().toISOString().split("T")[0];
+const hoyIso = () => normalizarFecha(new Date());
+const fechaComoIso = (valor) => normalizarFecha(valor) || null;
 
-const fechaComoIso = (valor) => {
+const toDate = (valor) => {
   if (!valor) return null;
-  if (typeof valor === "string") return valor.slice(0, 10);
-  if (valor && typeof valor === "object" && typeof valor.seconds === "number") {
-    return new Date(valor.seconds * 1000).toISOString().split("T")[0];
-  }
-  return null;
+  if (typeof valor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valor.trim())) return null;
+  const date = typeof valor === "object" && typeof valor.toDate === "function"
+    ? valor.toDate()
+    : typeof valor === "object" && typeof valor.seconds === "number"
+      ? new Date(valor.seconds * 1000)
+      : valor instanceof Date
+        ? valor
+        : new Date(valor);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const isVentaAnulada = (v) =>
-  String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true;
-
-const formatFechaHora = (valor) => {
-  if (!valor) return null;
-  let d = null;
-  if (typeof valor === "object" && typeof valor.seconds === "number") {
-    d = new Date(valor.seconds * 1000);
-  } else if (valor instanceof Date) {
-    d = valor;
-  } else if (typeof valor === "string") {
-    d = new Date(valor);
+const formatHour = (valor) => toDate(valor)?.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) || "-";
+const getMetodoInfo = (metodo) => {
+  const label = String(metodo || "").trim();
+  const normalized = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (normalized.includes("transfer")) return { label: "Transferencia", Icon: ArrowLeftRight };
+  if (normalized.includes("efectivo") || normalized === "cash") return { label: "Efectivo", Icon: Banknote };
+  if (normalized.includes("tarjeta") || normalized.includes("credito") || normalized.includes("debito")) {
+    return { label: "Tarjeta", Icon: CreditCard };
   }
-  if (!d || Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (normalized.includes("mercadopago") || normalized.includes("mercado pago")) {
+    return { label: "Mercado Pago", Icon: ArrowLeftRight };
+  }
+  return { label: label || "—", Icon: null };
 };
+const isVentaAnulada = (venta) => String(venta?.estado || "").toLowerCase() === "anulada" || venta?.anulada === true;
 
-/**
- * Item "Caja": suma de todos los ingresos (pagos) de ventas registrados el día de hoy,
- * sin importar cuándo se creó la venta a la que pertenecen. Por ahora no incluye obras.
- */
+/** Ingresos registrados hoy; conserva el alcance actual de caja: pagos de ventas. */
 const CajaDelDia = () => {
   const [loading, setLoading] = useState(true);
   const [ventas, setVentas] = useState([]);
-  const [expanded, setExpanded] = useState(false);
+  const [error, setError] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const localize = useLocalizedPath();
   const fetchedRef = useRef(false);
 
@@ -68,131 +63,129 @@ const CajaDelDia = () => {
       }
       try {
         setLoading(true);
-        // Por ahora la Caja no incluye pagos de obras, solo ventas.
+        setError(false);
         const ventasSnap = await getDocs(collection(db, "ventas"));
-        const ventasData = ventasSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
+        const ventasData = ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
         cacheRef = { data: { ventas: ventasData }, ts: Date.now() };
         setVentas(ventasData);
-      } catch (error) {
-        console.error("Error cargando datos de Caja:", error);
+      } catch (loadError) {
+        console.error("Error cargando datos de Caja:", loadError);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
-
     if (!fetchedRef.current) {
       fetchedRef.current = true;
       cargar();
     }
   }, []);
 
-  const { total, ingresos } = useMemo(() => {
-    const hoy = hoyIso();
-    const lista = [];
-
-    ventas.forEach((v) => {
-      if (isVentaAnulada(v)) return;
-      let pagosArr = Array.isArray(v.pagos) ? v.pagos : [];
-      if ((!pagosArr || pagosArr.length === 0) && Number(v.montoAbonado) > 0) {
-        pagosArr = [
-          { monto: Number(v.montoAbonado), fecha: v.fecha || v.fechaCreacion, metodo: v.formaPago },
-        ];
+  const ingresos = useMemo(() => {
+    const today = hoyIso();
+    const list = [];
+    ventas.forEach((venta) => {
+      if (isVentaAnulada(venta)) return;
+      let pagos = Array.isArray(venta.pagos) ? venta.pagos : [];
+      if (!pagos.length && Number(venta.montoAbonado) > 0) {
+        pagos = [{ monto: Number(venta.montoAbonado), fecha: venta.fecha || venta.fechaCreacion, metodo: venta.formaPago }];
       }
-      pagosArr.forEach((p, idx) => {
-        if (fechaComoIso(p.fecha) !== hoy) return;
-        const monto = Number(p.monto) || 0;
+      pagos.forEach((pago, index) => {
+        const fechaIngreso = fechaComoIso(pago.fechaHora) || fechaComoIso(pago.fecha);
+        if (fechaIngreso !== today) return;
+        const monto = Number(pago.monto) || 0;
         if (monto <= 0) return;
-        lista.push({
-          key: `venta-${v.id}-${idx}`,
+        list.push({
+          key: `venta-${venta.id}-${index}`,
           monto,
-          metodo: p.metodo || v.formaPago || "-",
-          origen: "Venta",
-          referencia: v.numeroPedido ? `Venta #${v.numeroPedido}` : `Venta ${String(v.id).slice(0, 6)}`,
-          cliente: v.cliente?.nombre || "",
-          fechaCreacion: formatFechaHora(v.fechaCreacion),
-          fechaActualizacion: formatFechaHora(v.fechaActualizacion),
-          link: localize(`/ventas/${v.id}`),
+          metodo: pago.metodo || venta.formaPago || "—",
+          referencia: venta.numeroPedido
+            ? `#${String(venta.numeroPedido).replace(/^#+/, "").toLocaleUpperCase("es-AR")}`
+            : `#${String(venta.id).slice(0, 6).toLocaleUpperCase("es-AR")}`,
+          cliente: String(venta.cliente?.nombre || ""),
+          fechaHora: pago.fechaHora || null,
+          link: localize(`/ventas/${venta.id}`),
         });
       });
     });
-
-    lista.sort((a, b) => b.monto - a.monto);
-    const totalIngresos = lista.reduce((acc, item) => acc + item.monto, 0);
-    return { total: totalIngresos, ingresos: lista };
+    return list.sort((a, b) => (toDate(b.fechaHora)?.getTime() || 0) - (toDate(a.fechaHora)?.getTime() || 0));
   }, [ventas, localize]);
 
+  const total = ingresos.reduce((sum, ingreso) => sum + ingreso.monto, 0);
+  const ingresosRecientes = ingresos;
+
   return (
-    <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-teal-500/15 via-teal-500/10 to-cyan-500/10 shadow-lg backdrop-blur-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="w-full text-left p-4 md:p-5 flex items-center justify-between gap-3 transition-colors hover:bg-teal-500/5"
-        aria-expanded={expanded}
-      >
-        <div className="flex items-center gap-3">
-          <span className="inline-flex w-9 h-9 md:w-10 md:h-10 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-400">
-            <Icon icon="heroicons:banknotes" className="w-4 h-4 md:w-5 md:h-5" />
+    <section className="overflow-hidden rounded-xl border border-border/70 bg-card" aria-label="Caja de hoy">
+      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(220px,0.85fr)_minmax(420px,2.2fr)_minmax(210px,0.9fr)]">
+        <div className="flex min-w-0 items-center gap-3 border-b border-border/70 px-4 py-4 sm:px-5 lg:border-b-0 lg:border-r">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+            <Wallet className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
           </span>
-          <div>
-            <div className="text-xs md:text-sm font-semibold text-teal-700 dark:text-teal-300">
-              Caja (Hoy)
-            </div>
-            <div className="text-lg md:text-2xl font-extrabold tracking-tight">
-              {loading ? "..." : `$${nf.format(Math.round(total))}`}
-            </div>
-            {!loading && (
-              <div className="text-[10px] md:text-xs text-default-500 mt-0.5">
-                {ingresos.length} {ingresos.length === 1 ? "ingreso" : "ingresos"} registrados hoy
-              </div>
-            )}
+          <div className="min-w-0">
+            <div className="text-xs font-medium text-muted-foreground sm:text-[13px]">Caja (Hoy)</div>
+            <div className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums text-foreground">{loading ? "…" : `$${nf.format(Math.round(total))}`}</div>
+            <div className="text-xs text-muted-foreground">{loading ? "Cargando ingresos" : `${ingresos.length} ${ingresos.length === 1 ? "ingreso registrado" : "ingresos registrados"}`}</div>
           </div>
         </div>
-        <Icon
-          icon={expanded ? "heroicons:chevron-up" : "heroicons:chevron-down"}
-          className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0"
-        />
-      </button>
-      {expanded && (
-        <div className="border-t border-border/60 bg-card/60 max-h-80 overflow-y-auto">
-          {loading ? (
-            <div className="p-4 text-sm text-default-500">Cargando ingresos...</div>
-          ) : ingresos.length === 0 ? (
-            <div className="p-4 text-sm text-default-500">Todavía no hay ingresos registrados hoy.</div>
-          ) : (
-            <ul className="divide-y divide-border/60">
-              {ingresos.map((item) => (
-                <li key={item.key}>
-                  <Link
-                    href={item.link}
-                    className="flex items-center justify-between gap-3 p-3 md:p-4 hover:bg-teal-500/5 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-default-900 truncate">
-                        {item.referencia}
-                        {item.cliente ? ` · ${item.cliente}` : ""}
-                      </div>
-                      <div className="text-[11px] md:text-xs text-default-500">
-                        {item.origen} · {item.metodo}
-                      </div>
-                      {(item.fechaCreacion || item.fechaActualizacion) && (
-                        <div className="text-[10px] md:text-[11px] text-default-400 mt-0.5">
-                          {item.fechaCreacion && <>Creada: {item.fechaCreacion}</>}
-                          {item.fechaCreacion && item.fechaActualizacion ? " · " : ""}
-                          {item.fechaActualizacion && <>Modificada: {item.fechaActualizacion}</>}
-                        </div>
-                      )}
+
+        <div className="min-w-0 border-b border-border/70 lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3 sm:px-5">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">Últimos ingresos de hoy</h2>
+            <button type="button" className="inline-flex h-8 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setExpanded((previous) => !previous)} aria-expanded={expanded} aria-controls="cash-today-entries">
+              {expanded ? "Ocultar" : "Ver ingresos"}
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+            </button>
+          </div>
+          {expanded && (
+            <div id="cash-today-entries" className="px-4 pb-3 sm:px-5">
+              {loading ? (
+                <p className="py-6 text-sm text-muted-foreground" role="status">Cargando ingresos…</p>
+              ) : error ? (
+                <p className="py-6 text-sm text-muted-foreground" role="alert">No se pudieron cargar los ingresos. Volvé a intentarlo más tarde.</p>
+                ) : ingresosRecientes.length === 0 ? (
+                  <p className="py-6 text-sm text-muted-foreground">Todavía no hay ingresos registrados hoy.</p>
+                ) : (
+                  <>
+                    <div className="hidden grid-cols-[64px_minmax(160px,1.5fr)_minmax(90px,0.8fr)_minmax(110px,0.9fr)] gap-3 border-b border-border/70 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground md:grid">
+                      <span>Hora</span><span>Concepto</span><span className="text-right">Monto</span><span>Método</span>
                     </div>
-                    <div className="text-sm md:text-base font-bold text-teal-700 dark:text-teal-300 whitespace-nowrap">
-                      ${nf.format(Math.round(item.monto))}
+                    <div
+                      role="region"
+                      aria-label="Todos los ingresos de hoy; lista desplazable"
+                      tabIndex={0}
+                      className="max-h-[13.5rem] overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:max-h-48"
+                    >
+                      <ul className="divide-y divide-border/60">
+                        {ingresosRecientes.map((item) => {
+                          const { label: metodoLabel, Icon: MetodoIcon } = getMetodoInfo(item.metodo);
+                          return (
+                            <li key={item.key}>
+                              <Link href={item.link} className="grid h-[6.75rem] grid-cols-1 gap-1 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-12 md:grid-cols-[64px_minmax(160px,1.5fr)_minmax(90px,0.8fr)_minmax(110px,0.9fr)] md:items-center md:gap-3 md:py-2">
+                                <span className="text-xs tabular-nums text-muted-foreground">{formatHour(item.fechaHora)}</span>
+                                <span className="min-w-0 truncate text-sm font-medium text-foreground">{item.referencia}{item.cliente ? ` · ${item.cliente.toLocaleUpperCase("es-AR")}` : ""}</span>
+                                <span className="text-sm font-semibold tabular-nums text-foreground md:text-right">${nf.format(Math.round(item.monto))}</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
+                                  {MetodoIcon && <MetodoIcon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                                  <span className="truncate">{metodoLabel}</span>
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                  </>
+                )}
+            </div>
           )}
         </div>
-      )}
-    </div>
+
+        <aside className="flex flex-col justify-center gap-3 bg-muted/25 px-4 py-4 sm:px-5" aria-label="Resumen de caja">
+          <div className="flex items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">Ingresos</span><span className="font-semibold tabular-nums text-foreground">${loading ? "—" : nf.format(Math.round(total))}</span></div>
+          <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-sm"><span className="font-medium text-foreground">Saldo de caja</span><span className="text-lg font-semibold tracking-tight tabular-nums text-foreground">${loading ? "—" : nf.format(Math.round(total))}</span></div>
+        </aside>
+      </div>
+    </section>
   );
 };
 

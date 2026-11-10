@@ -9,7 +9,7 @@ const FormularioVentaPresupuesto = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex items-center justify-center min-h-[400px] rounded-2xl bg-default-100/50 animate-pulse" aria-hidden />
+      <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-slate-200 bg-white" aria-hidden><span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" /></div>
     ),
   }
 );
@@ -49,8 +49,8 @@ export default function CreateVentaPage() {
   };
 
   return (
-    <div className="py-6">
+    <main className="mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-6 sm:py-7">
       <FormularioVentaPresupuesto tipo="venta" onClose={() => {}} onSubmit={handleSubmit} />
-    </div>
+    </main>
   );
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 import { verifyFirebaseToken } from "@/lib/firebase-admin";
-import { anularPagoProveedorEngine } from "@/lib/erp/cuentas-pagar-engine";
+import { eliminarPagoProveedorEngine } from "@/lib/erp/cuentas-pagar-engine";
 
 export async function POST(request, { params }) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
     const actor = { uid: String(decoded?.uid || ""), email: String(decoded?.email || "") };
     const origen = String(body?.origen || "ui_gastos").trim() || "ui_gastos";
 
-    const res = await anularPagoProveedorEngine({
+    const res = await eliminarPagoProveedorEngine({
       actor,
       pagoId,
       motivo: body?.motivo,
@@ -29,4 +29,3 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: false, error: err?.message || "internal_error" }, { status });
   }
 }
-

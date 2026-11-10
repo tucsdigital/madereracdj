@@ -652,24 +652,25 @@ export default function CrearPresupuestoObraPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 py-8">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans sm:px-6 sm:py-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Nuevo Presupuesto (Obras)</h1>
-          <p className="text-gray-600 mt-1">Crea presupuestos organizados por bloques para diferentes secciones de tu obra</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Presupuestos · Obras</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] text-slate-900 sm:text-4xl">Nuevo presupuesto</h1>
+          <p className="mt-2 text-sm text-slate-500">Organizá materiales por bloques para cada sector de la obra.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Button variant="outline" onClick={() => window.location.reload()} className="h-9 rounded-md border-slate-200 px-3 text-xs">
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Cliente */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+        <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle>Cliente</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

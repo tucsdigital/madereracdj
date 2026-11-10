@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -176,37 +175,39 @@ const TicketsPage = () => {
   };
 
   return (
-    <div className="py-8 px-2 mx-auto">
-      <div className="mb-8 flex items-center gap-4">
-        <TicketIcon className="w-10 h-10 text-primary" />
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold mb-1">Tickets</h1>
-          <p className="text-sm text-muted-foreground">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Soporte · Seguimiento</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Tickets</h1>
+            <span className="text-xs tabular-nums text-slate-500">{filtered.length} resultados</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
             {isAdmin
               ? "Vista de administrador: todos los tickets del sistema."
               : "Vista personal: tickets en los que participás."}
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="h-9 self-start rounded-md px-3 text-xs sm:self-auto">
           <Link href={hrefCreate}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo ticket
           </Link>
         </Button>
-      </div>
+      </header>
 
-      <Card>
-        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle>Listado</CardTitle>
-          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40" aria-label="Listado de tickets">
+        <div className="flex flex-col gap-2 border-b border-slate-200 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:p-4">
             <Input
               placeholder="Buscar por título, descripción, email o referencia..."
               value={qText}
               onChange={(e) => setQText(e.target.value)}
-              className="md:w-[360px]"
+              aria-label="Buscar tickets"
+              className="h-9 min-w-0 rounded-md border-slate-200 text-xs shadow-sm sm:w-[min(360px,100%)]"
             />
             <select
-              className="h-10 rounded-lg border border-default-300 bg-background px-3 text-sm"
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:w-auto"
               value={fModule}
               onChange={(e) => setFModule(e.target.value)}
             >
@@ -218,7 +219,7 @@ const TicketsPage = () => {
               ))}
             </select>
             <select
-              className="h-10 rounded-lg border border-default-300 bg-background px-3 text-sm"
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:w-auto"
               value={fPriority}
               onChange={(e) => setFPriority(e.target.value)}
             >
@@ -230,7 +231,7 @@ const TicketsPage = () => {
               ))}
             </select>
             <select
-              className="h-10 rounded-lg border border-default-300 bg-background px-3 text-sm"
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:w-auto"
               value={fStatus}
               onChange={(e) => setFStatus(e.target.value)}
             >
@@ -241,9 +242,8 @@ const TicketsPage = () => {
                 </option>
               ))}
             </select>
-          </div>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+        </div>
+        <div>
           {authLoading || loading ? (
             <div className="py-10 text-center text-muted-foreground">Cargando...</div>
           ) : !user ? (
@@ -257,9 +257,9 @@ const TicketsPage = () => {
               No hay tickets para mostrar.
             </div>
           ) : (
-            <Table className="[&_th]:uppercase">
-              <TableHeader>
-                <TableRow>
+            <Table className="block w-full min-w-0 lg:table">
+              <TableHeader className="hidden lg:table-header-group">
+                <TableRow className="border-slate-200 bg-slate-50/70 hover:bg-slate-50/70">
                   <TableHead>Título</TableHead>
                   <TableHead>Módulo</TableHead>
                   <TableHead>Prioridad</TableHead>
@@ -270,44 +270,46 @@ const TicketsPage = () => {
                   <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="block lg:table-row-group">
                 {filtered.map((t) => (
                   <TableRow
                     key={t.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="block border-b border-slate-200 py-2 transition-colors hover:bg-slate-50/70 lg:table-row lg:py-0"
                     onClick={() => handleAbrirTicket(t.id)}
                   >
-                    <TableCell className="font-semibold">
+                    <TableCell data-label="Ticket" className="flex items-start justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:pt-0.5 before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
+                      <div className="min-w-0 flex-1">
                       {t.title || "Sin título"}
                       {t.commentCount ? (
                         <span className="ml-2 text-xs text-muted-foreground">
                           ({t.commentCount} com.)
                         </span>
                       ) : null}
+                      </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Módulo" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <Badge variant="outline" className={badgeClass("module", t.module)}>
                         {labelFor(TICKET_MODULES, t.module)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Prioridad" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <Badge variant="outline" className={badgeClass("priority", t.priority)}>
                         {labelFor(TICKET_PRIORITIES, t.priority)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Estado" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <Badge variant="outline" className={badgeClass("status", t.status)}>
                         {labelFor(TICKET_STATUSES, t.status)}
                       </Badge>
                     </TableCell>
                     {showDueDateColumn ? (
-                      <TableCell>{t.dueDate ? formatDateAR(t.dueDate) : "-"}</TableCell>
+                      <TableCell data-label="Vence" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{t.dueDate ? formatDateAR(t.dueDate) : "-"}</TableCell>
                     ) : null}
-                    {isAdmin ? <TableCell>{t.assignee?.name || t.assignee?.email || "-"}</TableCell> : null}
-                    <TableCell className="text-muted-foreground">
+                    {isAdmin ? <TableCell data-label="Asignado" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{t.assignee?.name || t.assignee?.email || "-"}</TableCell> : null}
+                    <TableCell data-label="Fecha" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right text-muted-foreground lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       {t.createdAt ? String(t.createdAt).slice(0, 10) : "-"}
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell data-label="Acciones" className="flex items-center justify-between gap-3 border-0 px-3 py-2 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-right before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center gap-2">
                         <Button
                           type="button"
@@ -360,9 +362,9 @@ const TicketsPage = () => {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 };
 

@@ -39,10 +39,10 @@ const SidebarImage = () => {
       }}
     >
       <div className="mb-2 relative inline-block px-3 py-[3px] rounded before:bg-(--theme-primary) before:absolute before:top-0 before:left-0 before:w-full  before:h-full before:rounded before:opacity-10 before:z-[-1]  text-(--theme-primary)  text-xs font-medium">
-        Sidebar Image
+        Imagen de fondo del sidebar
       </div>
       <div className="text-muted-foreground font-normal text-xs mb-4">
-        Choose a image of Sidebar.
+        Elegí una imagen o cargá una propia.
       </div>
       <div className=" grid grid-cols-7 gap-3">
         <button

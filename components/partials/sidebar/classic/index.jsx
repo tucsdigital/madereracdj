@@ -5,7 +5,6 @@ import { useSidebar, useThemeStore } from "@/store";
 import SidebarLogo from "../common/logo";
 import { useNavigationMenus } from "@/hooks/use-navigation-menus";
 import MenuLabel from "../common/menu-label";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePathname } from "next/navigation";
 import SingleMenuItem from "./single-menu-item";
@@ -69,11 +68,10 @@ const ClassicSidebar = ({ trans }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
-        "fixed  z-999 top-0  bg-card h-full hover:w-[248px]! border-border border-r  ",
+        "fixed left-0 top-0 z-[60] h-dvh border-r border-border/70 bg-background transition-[width,box-shadow] duration-200 hover:w-[226px]! hover:shadow-lg",
         {
-          "w-[248px]": !collapsed,
-          "w-[72px]": collapsed,
-          "shadow-md": collapsed || hovered,
+          "w-[226px]": !collapsed,
+          "w-[72px] shadow-sm": collapsed,
         }
       )}
     >
@@ -86,15 +84,11 @@ const ClassicSidebar = ({ trans }) => {
 
       <SidebarLogo hovered={hovered} />
 
-      <ScrollArea
-        className={cn("sidebar-menu  h-[calc(100%-80px)] ", {
-          "px-4": !collapsed || hovered,
-        })}
-      >
+      <ScrollArea className={cn("sidebar-menu h-[calc(100%-84px)]", { "px-3": !collapsed || hovered, "px-2": collapsed && !hovered })}>
         <ul
           dir={isRtl ? "rtl" : "ltr"}
-          className={cn(" space-y-1", {
-            " space-y-2 text-center": collapsed,
+          className={cn("space-y-1.5 py-3", {
+            "space-y-1.5 text-center": collapsed,
             "text-start": collapsed && hovered,
           })}
         >

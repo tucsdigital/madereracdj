@@ -165,37 +165,43 @@ export default function CargarDiaPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
-      <div className="flex items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Asistencia · Registro</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Carga diaria</h1>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
           <Icon icon="lucide:calendar" className="w-5 h-5" />
           <DateInput
             value={fecha}
             onChange={(v) => setFecha(v)}
-            buttonClassName="w-48 justify-start"
+            buttonClassName="h-9 w-full justify-start rounded-md border-slate-200 bg-white text-xs shadow-sm sm:w-48"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={()=>marcarTodos("presente")}>Marcar todos presentes</Button>
-          <Button variant="outline" onClick={copiarDesdeAyer}>Copiar desde ayer</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={()=>marcarTodos("presente")} className="h-9 rounded-md border-slate-200 px-3 text-xs">Marcar todos presentes</Button>
+          <Button variant="outline" onClick={copiarDesdeAyer} className="h-9 rounded-md border-slate-200 px-3 text-xs">Copiar desde ayer</Button>
         </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Carga rápida</CardTitle>
+        </div>
+      </header>
+      <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+        <CardHeader className="border-b border-slate-200 p-3 sm:p-4">
+          <CardTitle className="text-sm font-semibold text-slate-900">Equipo · {empleados.length} empleados</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm border rounded-lg overflow-hidden">
-              <thead className="bg-default-100">
-                <tr>
+        <CardContent className="p-0">
+          <div>
+            <table className="block w-full text-sm md:table">
+              <thead className="hidden bg-slate-50/70 md:table-header-group">
+                <tr className="border-b border-slate-200">
                   <th className="px-3 py-2 text-left">Empleado</th>
                   <th className="px-3 py-2 text-left">Estado</th>
                   <th className="px-3 py-2 text-left">Adicional</th>
                   <th className="px-3 py-2 text-right">Monto</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block divide-y divide-slate-200 md:table-row-group">
                 {empleados.map(emp=>{
                   const prev = asistencias[emp.id];
                   const d = prev?.days?.[dayKey(idx)] || { estado: "ausente", monto: 0 };
@@ -206,49 +212,16 @@ export default function CargarDiaPage() {
                     nota: String(d.extraNota || ""),
                   };
                   return (
-                    <tr key={emp.id} className="border-t">
-                      <td className="px-3 py-2">{emp.nombre || ""}</td>
-                      <td className="px-3 py-2">
-                        <select value={d.estado} onChange={e=>setEstado(emp,e.target.value)} className="border rounded-md px-2 py-1 text-sm">
-                          {estados.map(s=>(<option key={s.value} value={s.value}>{s.label}</option>))}
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col gap-2">
-                          <select
-                            value={draft.tipo}
-                            onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, tipo: e.target.value } }))}
-                            className="border rounded-md px-2 py-1 text-sm"
-                          >
-                            {adicionales.map(s=>(<option key={s.value || "none"} value={s.value}>{s.label}</option>))}
-                          </select>
-                          {draft.tipo === "horas" ? (
-                            <Input
-                              type="number"
-                              min={0}
-                              step="0.5"
-                              value={draft.cantidad}
-                              onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, cantidad: e.target.value } }))}
-                              placeholder="Horas"
-                              className="h-9"
-                            />
-                          ) : null}
-                          {draft.tipo === "manual" ? (
-                            <Input
-                              type="number"
-                              min={0}
-                              value={draft.monto}
-                              onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, monto: e.target.value } }))}
-                              placeholder="Monto"
-                              className="h-9"
-                            />
-                          ) : null}
-                          <Button variant="outline" size="sm" onClick={()=>setAdicional(emp, draft)}>
-                            Guardar adicional
-                          </Button>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right">${Number(d.monto||0).toLocaleString("es-AR")}</td>
+                    <tr key={emp.id} className="block px-1 py-2 md:table-row md:border-b md:border-slate-100 md:px-0 md:py-0">
+                      <td data-label="Empleado" className="flex items-center justify-between gap-3 px-3 py-2 md:table-cell md:px-4 md:py-3"><span className="w-[34%] shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 md:hidden">Empleado</span><span className="flex-1 text-right font-medium text-slate-900 md:text-left">{emp.nombre || ""}</span></td>
+                      <td data-label="Estado" className="flex items-center justify-between gap-3 px-3 py-2 md:table-cell md:px-4 md:py-3"><span className="w-[34%] shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 md:hidden">Estado</span><select aria-label={`Estado de asistencia de ${emp.nombre || "empleado"}`} value={d.estado} onChange={e=>setEstado(emp,e.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs md:w-auto md:flex-none">{estados.map(s=>(<option key={s.value} value={s.value}>{s.label}</option>))}</select></td>
+                      <td data-label="Adicional" className="flex items-start justify-between gap-3 px-3 py-2 md:table-cell md:px-4 md:py-3"><span className="w-[34%] shrink-0 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 md:hidden">Adicional</span><div className="min-w-0 flex-1 space-y-2">
+                        <select aria-label={`Tipo de adicional de ${emp.nombre || "empleado"}`} value={draft.tipo} onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, tipo: e.target.value } }))} className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs">{adicionales.map(s=>(<option key={s.value || "none"} value={s.value}>{s.label}</option>))}</select>
+                        {draft.tipo === "horas" ? <Input type="number" min={0} step="0.5" value={draft.cantidad} onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, cantidad: e.target.value } }))} placeholder="Horas" className="h-9 text-xs" /> : null}
+                        {draft.tipo === "manual" ? <Input type="number" min={0} value={draft.monto} onChange={e=>setAdicionalDrafts(p=>({ ...p, [emp.id]: { ...draft, monto: e.target.value } }))} placeholder="Monto" className="h-9 text-xs" /> : null}
+                        <Button variant="outline" size="sm" onClick={()=>setAdicional(emp, draft)} className="h-8 rounded-md border-slate-200 text-xs">Guardar adicional</Button>
+                      </div></td>
+                      <td data-label="Monto" className="flex items-center justify-between gap-3 px-3 py-2 text-right tabular-nums md:table-cell md:px-4 md:py-3 md:text-right"><span className="w-[34%] shrink-0 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-400 md:hidden">Monto</span><span className="flex-1 font-semibold text-slate-900">{formatCurrencyAR(Number(d.monto || 0))}</span></td>
                     </tr>
                   );
                 })}
@@ -257,6 +230,6 @@ export default function CargarDiaPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

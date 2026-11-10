@@ -9,13 +9,12 @@ import SingleMenuItem from "./single-menu-item";
 import SubMenuHandler from "./sub-menu-handler";
 import NestedSubMenu from "../common/nested-menus";
 import { useSidebar, useThemeStore } from "@/store";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePathname } from "next/navigation";
 
 const PopoverSidebar = ({ trans }) => {
   const { collapsed, sidebarBg } = useSidebar();
-  const { layout, isRtl } = useThemeStore();
+  const { isRtl } = useThemeStore();
   const menus = useNavigationMenus();
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [activeMultiMenu, setMultiMenu] = useState(null);
@@ -67,30 +66,25 @@ const PopoverSidebar = ({ trans }) => {
 
   return (
     <div
-      className={cn("fixed  top-0 border-border border-r  ", {
-        "w-[248px]": !collapsed,
-        "w-[72px]": collapsed,
-        "m-6 bottom-0   bg-card rounded-md": layout === "semibox",
-        "h-full   bg-card ": layout !== "semibox",
-      })}
+      className="fixed start-0 top-0 z-[60] isolate flex h-dvh w-[226px] flex-col overflow-hidden border-border/70 bg-background ltr:border-r rtl:border-l"
     >
       {sidebarBg !== "none" && (
         <div
-          className=" absolute left-0 top-0   z-[-1] w-full h-full bg-cover bg-center opacity-[0.07]"
+          className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center opacity-[0.07]"
           style={{ backgroundImage: `url(${sidebarBg})` }}
         ></div>
       )}
-      <SidebarLogo collapsed={collapsed} />
-      <Separator />
+      <div className="relative z-10"><SidebarLogo collapsed={collapsed} /></div>
       <ScrollArea
-        className={cn("sidebar-menu  h-[calc(100%-80px)] ", {
-          "px-4": !collapsed,
+        className={cn("sidebar-menu relative z-10 min-h-0 flex-1", {
+          "px-3": !collapsed,
+          "px-2": collapsed,
         })}
       >
         <ul
           dir={isRtl ? "rtl" : "ltr"}
-          className={cn(" space-y-1", {
-            " space-y-2 text-center": collapsed,
+          className={cn("space-y-1.5 py-3", {
+            "text-center": collapsed,
           })}
         >
           {menus.map((item, i) => (
@@ -105,9 +99,8 @@ const PopoverSidebar = ({ trans }) => {
                 />
               )}
 
-              {/* menu label */}
               {item.isHeader && !item.child && !collapsed && (
-                <MenuLabel item={item} trans={trans} />
+                <MenuLabel item={item} trans={trans} className="mt-1 mb-2 px-3" />
               )}
 
               {/* sub menu */}

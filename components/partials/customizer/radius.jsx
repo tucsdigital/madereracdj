@@ -10,7 +10,7 @@ const RadiusInit = () => {
   return (
     <div>
       <div className="mb-3  relative inline-block px-3 py-[3px] rounded bg-primary/10 text-primary  text-xs font-medium">
-        Rounded
+        Redondeo de bordes
       </div>
       <div className="grid grid-cols-5 gap-2">
         {["0", "0.3", "0.5", "0.75", "1.0"].map((value) => {

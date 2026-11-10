@@ -6,7 +6,7 @@ const MenuLabel = ({ item, className, trans }) => {
   return (
     <div
       className={cn(
-        "text-default-900 font-semibold uppercase mb-3 text-xs  mt-4",
+        "mt-6 mb-2 px-3 text-sm font-medium tracking-normal text-muted-foreground",
         className
       )}
     >

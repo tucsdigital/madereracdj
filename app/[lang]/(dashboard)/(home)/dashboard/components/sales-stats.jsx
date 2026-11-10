@@ -2,1137 +2,302 @@
 
 import React, { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Icon } from "@iconify/react";
-import { useDateRange } from "../context/date-range-context";
-import { useDashboardData } from "../context/dashboard-data-context";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import Link from "next/link";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { useTheme } from "next-themes";
+import { useThemeStore } from "@/store";
+import { themes } from "@/config/themes";
+import {
+  Award,
+  CalendarDays,
+  ChartNoAxesColumnIncreasing,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Landmark,
+  Layers,
+  Percent,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useDateRange } from "../context/date-range-context";
+import { useDashboardData } from "../context/dashboard-data-context";
 import CajaDelDia from "./caja-del-dia";
 import { getObraReferenceDate } from "@/lib/obras-fechas";
 
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+const COMMISSION_RATE = 2.5;
+const OBRAS_COMMISSION_RATE = 2.5;
+const nf = new Intl.NumberFormat("es-AR");
+
+const currency = (amount) => `$${nf.format(Math.round(Number(amount) || 0))}`;
+const calcularTotalObra = (obra) => Number(obra?.total) || Number(obra?.subtotal) || (Number(obra?.productosTotal) || 0) + (Number(obra?.materialesTotal) || 0) + (Number(obra?.gastoObraManual) || 0) + (Number(obra?.costoEnvio) || 0) - (Number(obra?.descuentoTotal) || 0);
+const getPrimaryTonalPalette = (primary, isDark) => {
+  const [hue, saturation] = String(primary || "").split(/[\s,]+/).map((value) => Number.parseFloat(value));
+  if (!Number.isFinite(hue) || !Number.isFinite(saturation)) {
+    return Array.from({ length: 5 }, () => `hsl(${primary})`);
+  }
+  const lightness = isDark ? [92, 80, 68, 56, 44] : [84, 69, 54, 39, 24];
+  return lightness.map((value) => `hsl(${hue} ${saturation}% ${value}%)`);
+};
+const obraPagada = (obra) => {
+  const cobranza = obra?.cobranzas || {};
+  const abonado = (Number(cobranza.senia) || 0) + (Number(cobranza.monto) || 0) + (Array.isArray(cobranza.historialPagos) ? cobranza.historialPagos.reduce((sum, pago) => sum + (Number(pago?.monto) || 0), 0) : 0);
+  return calcularTotalObra(obra) > 0 && abonado >= calcularTotalObra(obra);
+};
+const fechaUltimoPagoObra = (obra) => (obra?.cobranzas?.historialPagos || []).map((pago) => pago?.fecha).filter(Boolean).sort().at(-1) || "";
+
+const buildDonutOptions = (segments, total, isDark, chartTokens) => ({
+  chart: { type: "donut", toolbar: { show: false }, animations: { enabled: false }, foreColor: `hsl(${chartTokens.foreground})` },
+  labels: segments.map((segment) => segment.label),
+  colors: segments.map((segment) => segment.color),
+  stroke: { width: 2, colors: [`hsl(${chartTokens.card})`] },
+  legend: { show: false },
+  dataLabels: { enabled: false },
+  tooltip: { theme: isDark ? "dark" : "light", y: { formatter: (value) => `${Number(value) || 0}` } },
+  plotOptions: {
+    pie: {
+      expandOnClick: false,
+      donut: {
+        size: "76%",
+        labels: {
+          show: true,
+          name: { show: false },
+          value: { show: false },
+          total: { show: true, label: "Total", formatter: () => `${total}` },
+        },
+      },
+    },
+  },
+});
+
+const StatisticsDonut = ({ title, segments, isDark, chartTokens, chartThemeKey }) => {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  return (
+    <section className="min-w-0 rounded-xl border border-border/70 bg-card p-4 sm:p-5" aria-label={title}>
+      <h2 className="mb-3 text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+      {total ? (
+        <div className="flex min-h-[132px] items-center justify-center gap-3 sm:gap-5">
+          <div className="h-[128px] w-[128px] shrink-0" aria-hidden="true">
+            <Chart key={chartThemeKey} options={buildDonutOptions(segments, total, isDark, chartTokens)} series={segments.map((segment) => segment.value)} type="donut" height="100%" width="100%" />
+          </div>
+          <ul className="min-w-0 flex-1 space-y-2 text-xs sm:text-[13px]">
+            {segments.filter((segment) => segment.value > 0).map((segment) => (
+              <li key={segment.label} className="flex min-w-0 items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} aria-hidden="true" />
+                  <span className="truncate">{segment.label}</span>
+                </span>
+                <span className="shrink-0 tabular-nums font-medium text-foreground">
+                  {segment.value} <span className="text-muted-foreground">({Math.round((segment.value / total) * 100)}%)</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="flex min-h-[132px] items-center justify-center gap-4">
+          <div className="flex h-[112px] w-[112px] shrink-0 items-center justify-center rounded-full border-[14px] border-muted text-2xl font-semibold tabular-nums text-foreground">0</div>
+          <p className="text-sm text-muted-foreground">Sin datos para el período.</p>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const Metric = ({ icon: Icon, label, value, detail, href, emphasis = false }) => {
+  const content = (
+    <div className={`flex min-h-[82px] items-start justify-between gap-3 px-4 py-3 sm:px-5 ${emphasis ? "bg-muted/35" : ""}`}>
+      <div className="min-w-0">
+        <div className="text-xs font-medium text-muted-foreground sm:text-[13px]">{label}</div>
+        <div className="mt-1 truncate text-lg font-semibold tracking-tight text-foreground tabular-nums sm:text-[22px]">{value}</div>
+        {detail ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{detail}</div> : null}
+      </div>
+      <Icon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" />
+    </div>
+  );
+  return href ? <Link href={href} className="block rounded-md outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring">{content}</Link> : content;
+};
+
+const MetricRow = ({ metrics }) => (
+  <div className="grid grid-cols-1 divide-y divide-border/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+    {metrics.map((metric) => <Metric key={metric.label} {...metric} />)}
+  </div>
+);
+
 const SalesStats = () => {
+  const { resolvedTheme, theme } = useTheme();
+  const isDark = (resolvedTheme || theme) === "dark";
+  const selectedThemeName = useThemeStore((state) => state.theme);
+  const selectedTheme = themes.find((item) => item.name === selectedThemeName) || themes.find((item) => item.name === "violet");
+  const chartTokens = selectedTheme?.cssVars[isDark ? "dark" : "light"] || {};
+  const chartThemeKey = `${selectedThemeName}-${isDark ? "dark" : "light"}`;
+  const chartColors = useMemo(
+    () => getPrimaryTonalPalette(chartTokens.primary, isDark),
+    [chartTokens.primary, isDark]
+  );
   const { mesSeleccionado, setMesSeleccionado, isInRange } = useDateRange();
-  const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, allObras, clientes: clientesData, loading } = useDashboardData();
+  const { ventas: ventasFiltradas = [], presupuestos: presupuestosFiltrados = [], obras: obrasFromContext = [], allObras = [], loading } = useDashboardData();
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const now = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const canGoToNextMonth =
-    mesSeleccionado && mesSeleccionado < currentMonth;
-
-  const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
-  const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
+  const canGoToNextMonth = mesSeleccionado && mesSeleccionado < currentMonth;
 
   const changeMonth = (amount) => {
-    if (!mesSeleccionado) return;
-    setMesSeleccionado(
-      new Date(mesSeleccionado.getFullYear(), mesSeleccionado.getMonth() + amount, 1)
-    );
+    if (mesSeleccionado) setMesSeleccionado(new Date(mesSeleccionado.getFullYear(), mesSeleccionado.getMonth() + amount, 1));
   };
 
-  const selectMonthFromCalendar = (date) => {
-    if (!date) return;
-    setMesSeleccionado(date);
-    setMonthPickerOpen(false);
-  };
-
-  // Datos del contexto (ya filtrados por rango de fechas)
-  const obrasFiltradas = useMemo(() => {
-    return (obrasFromContext || []).filter((o) => o.tipo === "obra");
-  }, [obrasFromContext]);
-
-  const calcularTotalObra = (obra) => Number(obra?.total) || Number(obra?.subtotal) || (Number(obra?.productosTotal) || 0) + (Number(obra?.materialesTotal) || 0) + (Number(obra?.gastoObraManual) || 0) + (Number(obra?.costoEnvio) || 0) - (Number(obra?.descuentoTotal) || 0);
-  const obraPagada = (obra) => {
-    const cobranzas = obra?.cobranzas || {};
-    const abonado = (Number(cobranzas.senia) || 0) + (Number(cobranzas.monto) || 0) + (Array.isArray(cobranzas.historialPagos) ? cobranzas.historialPagos.reduce((sum, pago) => sum + (Number(pago?.monto) || 0), 0) : 0);
-    return calcularTotalObra(obra) > 0 && abonado >= calcularTotalObra(obra);
-  };
-  const fechaUltimoPagoObra = (obra) => (obra?.cobranzas?.historialPagos || []).map((pago) => pago?.fecha).filter(Boolean).sort().at(-1) || "";
-
-  // Misma regla del reporte: ejecución en el período o una obra completada/pagada en el período.
-  const obrasConfirmadas = useMemo(() => {
-    return (allObras || []).filter((obra) => {
-      const estado = String(obra?.estado || "").toLowerCase();
-      const enEjecucion = estado === "en_ejecucion" && isInRange(getObraReferenceDate(obra));
-      const finalizadaOPagada = (estado === "completada" || obraPagada(obra)) && isInRange(fechaUltimoPagoObra(obra) || obra?.fechaCompletada || obra?.fechaFinalizacion || obra?.fechaModificacion);
-      return enEjecucion || finalizadaOPagada;
-    });
-  }, [allObras, isInRange]);
-  const obrasComisionables = obrasConfirmadas;
+  const obrasFiltradas = useMemo(() => obrasFromContext.filter((obra) => obra.tipo === "obra"), [obrasFromContext]);
+  const obrasConfirmadas = useMemo(() => allObras.filter((obra) => {
+    const estado = String(obra?.estado || "").toLowerCase();
+    const enEjecucion = estado === "en_ejecucion" && isInRange(getObraReferenceDate(obra));
+    const finalizadaOPagada = (estado === "completada" || obraPagada(obra)) && isInRange(fechaUltimoPagoObra(obra) || obra?.fechaCompletada || obra?.fechaFinalizacion || obra?.fechaModificacion);
+    return enEjecucion || finalizadaOPagada;
+  }), [allObras, isInRange]);
 
   const kpis = useMemo(() => {
     const ventasCount = ventasFiltradas.length;
-    const ventasMonto = ventasFiltradas.reduce(
-      (acc, v) => acc + (Number(v.total) || 0),
-      0
-    );
-    const ticketPromedio = ventasCount > 0 ? ventasMonto / ventasCount : 0;
-
-    let cobranzasIngresado = 0;
-    let cobranzasPendiente = 0;
-    let cobranzasParcialPendiente = 0;
-    let cobranzasAbonadoParcial = 0;
+    const ventasMonto = ventasFiltradas.reduce((sum, venta) => sum + (Number(venta.total) || 0), 0);
     let cobranzasPagadoTotal = 0;
     let cobranzasIngresadoPeriodo = 0;
-    ventasFiltradas.forEach((v) => {
-      const total = Number(v.total) || 0;
-      let pagosArr = Array.isArray(v.pagos) ? v.pagos : [];
-      if ((!pagosArr || pagosArr.length === 0) && Number(v.montoAbonado)) {
-        pagosArr = [{ monto: Number(v.montoAbonado) }];
-      }
-      const abonado = pagosArr.reduce((s, p) => s + (Number(p.monto) || 0), 0);
-      pagosArr.forEach((p) => {
-        const f = p.fecha;
-        if (f && isInRange(f)) {
-          cobranzasIngresadoPeriodo += Number(p.monto) || 0;
-        }
-      });
-      let estado = String(v.estadoPago || "").toLowerCase();
-      if (!estado) {
-        if (abonado >= total && total > 0) estado = "pagado";
-        else if (abonado > 0 && abonado < total) estado = "parcial";
-        else estado = "pendiente";
-      }
-      cobranzasIngresado += abonado;
-      if (estado === "pagado") {
-        cobranzasPagadoTotal += total;
-      } else if (estado === "pendiente") {
-        cobranzasPendiente += total;
-      } else if (estado === "parcial") {
-        const saldo = Math.max(total - abonado, 0);
-        cobranzasParcialPendiente += saldo;
-        cobranzasAbonadoParcial += abonado;
-      }
+    let pendienteParcialTotal = 0;
+    ventasFiltradas.forEach((venta) => {
+      const total = Number(venta.total) || 0;
+      let pagos = Array.isArray(venta.pagos) ? venta.pagos : [];
+      if (!pagos.length && Number(venta.montoAbonado)) pagos = [{ monto: Number(venta.montoAbonado) }];
+      const abonado = pagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+      pagos.forEach((pago) => { if (pago.fecha && isInRange(pago.fecha)) cobranzasIngresadoPeriodo += Number(pago.monto) || 0; });
+      let estado = String(venta.estadoPago || "").toLowerCase();
+      if (!estado) estado = abonado >= total && total > 0 ? "pagado" : abonado > 0 && abonado < total ? "parcial" : "pendiente";
+      if (estado === "pagado") cobranzasPagadoTotal += total;
+      else if (estado === "pendiente") pendienteParcialTotal += total;
+      else if (estado === "parcial") pendienteParcialTotal += Math.max(total - abonado, 0);
     });
-    const pendienteParcialTotal = cobranzasPendiente + cobranzasParcialPendiente;
-
-    // Calcular totales de obras (todas las filtradas)
-    const obrasCount = obrasFiltradas.length;
-    const obrasMonto = obrasFiltradas.reduce((acc, o) => {
-      // Calcular total de la obra
-      const total =
-        Number(o.total) ||
-        Number(o.subtotal) ||
-        (Number(o.productosTotal) || 0) +
-          (Number(o.materialesTotal) || 0) +
-          (Number(o.gastoObraManual) || 0) +
-          (Number(o.costoEnvio) || 0) -
-          (Number(o.descuentoTotal) || 0);
-      return acc + total;
-    }, 0);
-
-    // Calcular comisión solo sobre obras confirmadas
-    const obrasMontoConfirmadas = obrasConfirmadas.reduce((acc, o) => {
-      // Calcular total de la obra
-      const total =
-        Number(o.total) ||
-        Number(o.subtotal) ||
-        (Number(o.productosTotal) || 0) +
-          (Number(o.materialesTotal) || 0) +
-          (Number(o.gastoObraManual) || 0) +
-          (Number(o.costoEnvio) || 0) -
-          (Number(o.descuentoTotal) || 0);
-      return acc + total;
-    }, 0);
-    const obrasMontoComisionable = obrasComisionables.reduce((acc, obra) => acc + calcularTotalObra(obra), 0);
-    const obrasComision = obrasMontoComisionable * (OBRAS_COMMISSION_RATE / 100);
-
-    const estados = ventasFiltradas.reduce(
-      (acc, v) => {
-        const e = (v.estadoPago || "").toLowerCase();
-        if (e === "pagado") acc.pagado += 1;
-        else if (e === "parcial") acc.parcial += 1;
-        else acc.pendiente += 1;
-        return acc;
-      },
-      { pagado: 0, parcial: 0, pendiente: 0 }
-    );
-
-    const envios = ventasFiltradas.reduce(
-      (acc, v) => {
-        const t = v.tipoEnvio || "";
-        if (t === "envio_domicilio") acc.domicilio += 1;
-        else if (t === "retiro_local") acc.retiro += 1;
-        else acc.otro += 1;
-        return acc;
-      },
-      { domicilio: 0, retiro: 0, otro: 0 }
-    );
-
-    const formasPago = ventasFiltradas.reduce((acc, v) => {
-      const f = (v.formaPago || "-").toLowerCase();
-      acc[f] = (acc[f] || 0) + 1;
+    const estados = ventasFiltradas.reduce((acc, venta) => {
+      const estado = String(venta.estadoPago || "").toLowerCase();
+      if (estado === "pagado") acc.pagado += 1;
+      else if (estado === "parcial") acc.parcial += 1;
+      else acc.pendiente += 1;
+      return acc;
+    }, { pagado: 0, parcial: 0, pendiente: 0 });
+    const formasPago = ventasFiltradas.reduce((acc, venta) => {
+      const forma = String(venta.formaPago || "-").toLowerCase();
+      acc[forma] = (acc[forma] || 0) + 1;
       return acc;
     }, {});
-
-    const prodMap = new Map();
-    ventasFiltradas.forEach((v) => {
-      const lineas =
-        Array.isArray(v.productos) && v.productos.length > 0
-          ? v.productos
-          : v.items || [];
-      lineas.forEach((l) => {
-        const key = l.id || l.nombre || "sin-id";
-        const prev = prodMap.get(key) || {
-          nombre: l.nombre || key,
-          unidades: 0,
-          monto: 0,
-        };
-        const unidades = Number(l.cantidad) || 0;
-        const montoLinea = (() => {
-          if (typeof l.subtotal === "number") return l.subtotal;
-          const precio = Number(l.precio) || 0;
-          if (
-            l.categoria === "Maderas" &&
-            (l.subcategoria === "machimbre" || l.subcategoria === "deck")
-          ) {
-            return precio;
-          }
-          return precio * (unidades || 1);
-        })();
-        prev.unidades += unidades;
-        prev.monto += montoLinea;
-        prodMap.set(key, prev);
-      });
-    });
-    const topProductos = Array.from(prodMap.values())
-      .sort((a, b) => b.monto - a.monto)
-      .slice(0, 5);
-
-    const presupuestosCount = presupuestosFiltrados.length;
-    const conversionAprox =
-      presupuestosCount > 0 ? (ventasCount / presupuestosCount) * 100 : 0;
-
+    const obrasMonto = obrasFiltradas.reduce((sum, obra) => sum + calcularTotalObra(obra), 0);
+    const obrasMontoComisionable = obrasConfirmadas.reduce((sum, obra) => sum + calcularTotalObra(obra), 0);
     return {
-      ventasCount,
-      ventasMonto,
-      ticketPromedio,
-      estados,
-      envios,
-      formasPago,
-      topProductos,
-      presupuestosCount,
-      conversionAprox,
-      obrasCount,
-      obrasMonto,
-      obrasComision,
-      cobranzasIngresado,
-      cobranzasPendiente,
-      cobranzasParcialPendiente,
-      cobranzasAbonadoParcial,
-      cobranzasPagadoTotal,
-      pendienteParcialTotal,
-      cobranzasIngresadoPeriodo,
+      ventasCount, ventasMonto, cobranzasPagadoTotal, pendienteParcialTotal, cobranzasIngresadoPeriodo, estados, formasPago,
+      obrasMonto, obrasCount: obrasFiltradas.length, obrasComision: obrasMontoComisionable * (OBRAS_COMMISSION_RATE / 100),
     };
-  }, [
-    ventasFiltradas,
-    presupuestosFiltrados,
-    obrasFiltradas,
-    obrasConfirmadas,
-    obrasComisionables,
-    OBRAS_COMMISSION_RATE,
-  ]);
+  }, [ventasFiltradas, obrasFiltradas, obrasConfirmadas, isInRange]);
 
-  const nf = useMemo(() => new Intl.NumberFormat("es-AR"), []);
-
-  // Visual helpers
-  const totalFormasPago = useMemo(() => {
-    return Object.values(kpis.formasPago || {}).reduce(
-      (acc, n) => acc + (Number(n) || 0),
-      0
-    );
-  }, [kpis.formasPago]);
-
-  const estadosTotal =
-    kpis.estados.pagado + kpis.estados.parcial + kpis.estados.pendiente;
-  const enviosTotal =
-    kpis.envios.domicilio + kpis.envios.retiro + kpis.envios.otro;
-
-  const conversionPct = useMemo(() => {
-    const raw = Number.isFinite(kpis.conversionAprox)
-      ? kpis.conversionAprox
-      : 0;
-    return Math.max(0, Math.min(100, Math.round(raw)));
-  }, [kpis.conversionAprox]);
-  const conversionLabel = useMemo(
-    () => Math.round(Number(kpis.conversionAprox) || 0),
-    [kpis.conversionAprox]
-  );
-
-  const palette = [
-    "#22c55e",
-    "#3b82f6",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#06b6d4",
-    "#84cc16",
-  ];
   const fpSegments = useMemo(() => {
-    const entries = Object.entries(kpis.formasPago || {});
-    const sorted = entries.sort(
-      (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
-    );
-    let offset = 0;
-    const segments = sorted.map(([label, value], idx) => {
-      const val = Number(value) || 0;
-      const pct = totalFormasPago ? (val / totalFormasPago) * 100 : 0;
-      const seg = {
-        label,
-        value: val,
-        pct,
-        offset,
-        color: palette[idx % palette.length],
-      };
-      offset += pct;
-      return seg;
+    const labels = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", cheque: "Cheque", otro: "Otro", mercadopago: "Mercado Pago", mercado_pago: "Mercado Pago" };
+    return Object.entries(kpis.formasPago).sort((a, b) => b[1] - a[1]).map(([label, value], index) => ({ label: labels[label] || label.replace(/\b\w/g, (letter) => letter.toUpperCase()), value, color: chartColors[index % chartColors.length] }));
+  }, [kpis.formasPago, chartColors]);
+  const saleTypeSegments = useMemo(() => {
+    const counts = { Contado: 0, Tarjeta: 0, Otro: 0 };
+    ventasFiltradas.forEach((sale) => {
+      const method = String(sale.formaPago || "").trim().toLowerCase().replace(/[\s_-]/g, "");
+      if (["efectivo", "transferencia"].includes(method)) counts.Contado += 1;
+      else if (["tarjeta", "debito", "creditodebito"].includes(method)) counts.Tarjeta += 1;
+      else counts.Otro += 1;
     });
-    return segments;
-  }, [kpis.formasPago, totalFormasPago]);
-
-  const estadosSegments = useMemo(() => {
-    return [
-      { label: "Pagado", value: kpis.estados.pagado || 0, color: "#10b981" },
-      { label: "Parcial", value: kpis.estados.parcial || 0, color: "#f59e0b" },
-      {
-        label: "Pendiente",
-        value: kpis.estados.pendiente || 0,
-        color: "#ef4444",
-      },
-    ];
-  }, [kpis.estados.pagado, kpis.estados.parcial, kpis.estados.pendiente]);
-
-  const enviosSegments = useMemo(() => {
-    return [
-      {
-        label: "Domicilio",
-        value: kpis.envios.domicilio || 0,
-        color: "#3b82f6",
-      },
-      { label: "Retiro", value: kpis.envios.retiro || 0, color: "#6366f1" },
-      { label: "Otro", value: kpis.envios.otro || 0, color: "#64748b" },
-    ];
-  }, [kpis.envios.domicilio, kpis.envios.retiro, kpis.envios.otro]);
-
-  // Clientes nuevos vs viejos (solo clientes que aparecen en ventas del rango)
-  const clientesCounts = useMemo(() => {
-    let nuevo = 0;
-    let viejo = 0;
-    const ids = new Set(
-      (ventasFiltradas || []).map((v) => v.clienteId).filter(Boolean)
-    );
-    ids.forEach((id) => {
-      const c = clientesData[id];
-      if (!c) return;
-      if (c.esClienteViejo) viejo += 1;
-      else nuevo += 1;
+    return Object.entries(counts).map(([label, value], index) => ({ label, value, color: chartColors[[0, 2, 4][index]] }));
+  }, [ventasFiltradas, chartColors]);
+  const channelSegments = useMemo(() => {
+    const counts = { Teléfono: 0, Web: 0 };
+    ventasFiltradas.forEach((sale) => {
+      const origin = String(sale.origen || "").toLowerCase();
+      if (origin.includes("web") || origin.includes("ecommerce")) counts.Web += 1;
+      else counts.Teléfono += 1;
     });
-    return { nuevo, viejo };
-  }, [ventasFiltradas, clientesData]);
-
-  const clientesTotal = useMemo(
-    () => clientesCounts.nuevo + clientesCounts.viejo,
-    [clientesCounts]
-  );
-
-  const clientesSegments = useMemo(() => {
     return [
-      { label: "Nuevos", value: clientesCounts.nuevo || 0, color: "#14b8a6" },
-      { label: "Viejos", value: clientesCounts.viejo || 0, color: "#f97316" },
+      { label: "Teléfono", value: counts.Teléfono, color: chartColors[0] },
+      { label: "Web", value: counts.Web, color: chartColors[3] },
     ];
-  }, [clientesCounts]);
+  }, [ventasFiltradas, chartColors]);
 
-  // Comisión sobre ventas (2.5% para todos los clientes)
-  const comisionesPorTipoCliente = useMemo(() => {
-    const basePagada = Number(kpis.cobranzasPagadoTotal) || 0;
-    const baseCobrosPeriodo = Number(kpis.cobranzasIngresadoPeriodo) || 0;
-    return {
-      comisionPagado: basePagada * (COMMISSION_RATE / 100),
-      comisionCobrosPeriodo: baseCobrosPeriodo * (COMMISSION_RATE / 100),
-    };
-  }, [kpis.cobranzasPagadoTotal, kpis.cobranzasIngresadoPeriodo, COMMISSION_RATE]);
-
-  // Eliminar cálculos anteriores que ya no se usan
-  // const totalVendidoClientesNuevos = useMemo(() => {
-  //   const idsNuevos = new Set(
-  //     Object.entries(clientesData)
-  //       .filter(([_, c]) => !c.esClienteViejo)
-  //       .map(([id]) => id)
-  //   );
-  //   return ventasFiltradas
-  //     .filter((v) => v.clienteId && idsNuevos.has(v.clienteId))
-  //     .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
-  // }, [ventasFiltradas, clientesData]);
-
-  // const ventasProporcionalesNuevos = useMemo(() => {
-  //   const total = Number(kpis.ventasMonto) || 0;
-  //   const propor = clientesTotal > 0 ? (clientesCounts.nuevo / clientesTotal) : 0;
-  //   return total * propor;
-  // }, [kpis.ventasMonto, clientesTotal, clientesCounts.nuevo]);
-
-  // const comisionClientesNuevos = useMemo(() => {
-  //   return ventasProporcionalesNuevos * 0.008;
-  // }, [ventasProporcionalesNuevos]);
-
-  const Chart = useMemo(
-    () => dynamic(() => import("react-apexcharts"), { ssr: false }),
-    []
-  );
-
-  // Apex options
-  const conversionOptions = useMemo(
-    () => ({
-      chart: { toolbar: { show: false } },
-      labels: ["Convertido", "Restante"],
-      stroke: { width: 0 },
-      legend: { show: false },
-      dataLabels: { enabled: false },
-      colors: ["#10b981", "#e5e7eb"],
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "70%",
-            labels: {
-              show: true,
-              name: { show: false },
-              value: { show: false },
-              total: {
-                show: true,
-                label: "",
-                formatter: () => `${conversionPct}%`,
-              },
-            },
-          },
-        },
-      },
-    }),
-    [conversionPct]
-  );
-
-  const estadosOptions = useMemo(
-    () => ({
-      chart: { toolbar: { show: false } },
-      labels: estadosSegments.map((s) => s.label.toUpperCase()),
-      stroke: { width: 0 },
-      legend: { show: false },
-      dataLabels: { enabled: false },
-      colors: estadosSegments.map((s) => s.color),
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "78%",
-            labels: {
-              show: true,
-              name: { show: false },
-              value: { show: false },
-              total: {
-                show: true,
-                label: "Total",
-                formatter: () => `${estadosTotal}`,
-              },
-            },
-          },
-        },
-      },
-    }),
-    [estadosSegments, estadosTotal]
-  );
-
-  const enviosOptions = useMemo(
-    () => ({
-      chart: { toolbar: { show: false } },
-      labels: enviosSegments.map((s) => s.label.toUpperCase()),
-      stroke: { width: 0 },
-      legend: { show: false },
-      dataLabels: { enabled: false },
-      colors: enviosSegments.map((s) => s.color),
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "78%",
-            labels: {
-              show: true,
-              name: { show: false },
-              value: { show: false },
-              total: {
-                show: true,
-                label: "Total",
-                formatter: () => `${enviosTotal}`,
-              },
-            },
-          },
-        },
-      },
-    }),
-    [enviosSegments, enviosTotal]
-  );
-
-  const clientesOptions = useMemo(
-    () => ({
-      chart: { toolbar: { show: false } },
-      labels: clientesSegments.map((s) => s.label.toUpperCase()),
-      stroke: { width: 0 },
-      legend: { show: false },
-      dataLabels: { enabled: false },
-      colors: clientesSegments.map((s) => s.color),
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "78%",
-            labels: {
-              show: true,
-              name: { show: false },
-              value: { show: false },
-              total: {
-                show: true,
-                label: "Total",
-                formatter: () => `${clientesTotal}`,
-              },
-            },
-          },
-        },
-      },
-    }),
-    [clientesSegments, clientesTotal]
-  );
-
-  const formasPagoOptions = useMemo(
-    () => ({
-      chart: { toolbar: { show: false } },
-      labels: fpSegments.map((s) => s.label.toUpperCase()),
-      stroke: { width: 0 },
-      legend: { show: false },
-      dataLabels: { enabled: false },
-      colors: fpSegments.map((s) => s.color),
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "78%",
-            labels: {
-              show: true,
-              name: { show: false },
-              value: { show: false },
-              total: {
-                show: true,
-                label: "Total",
-                formatter: () => `${totalFormasPago}`,
-              },
-            },
-          },
-        },
-      },
-    }),
-    [fpSegments, totalFormasPago]
-  );
-
-  const Skeleton = () => (
-    <div className="space-y-4">
-      {/* Skeletons para KPI Cards (Ventas, Monto, Ticket, Presup.) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { gradient: "from-primary/20 via-primary/10 to-primary/5", iconBg: "bg-primary/15" },
-          { gradient: "from-emerald-500/15 via-emerald-500/10 to-emerald-500/5", iconBg: "bg-emerald-500/15" },
-          { gradient: "from-indigo-500/15 via-indigo-500/10 to-purple-500/10", iconBg: "bg-indigo-500/15" },
-          { gradient: "from-amber-500/15 via-amber-500/10 to-amber-500/5", iconBg: "bg-amber-500/15" },
-        ].map((style, i) => (
-          <div
-            key={i}
-            className={`relative p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br ${style.gradient} shadow-lg backdrop-blur-sm overflow-hidden animate-pulse`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <div className="relative flex items-center justify-between mb-2">
-              <div className="h-3 md:h-3.5 w-16 md:w-20 bg-muted/60 rounded-lg" />
-              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-md ${style.iconBg} bg-muted/40`} />
-            </div>
-            <div className="relative h-6 md:h-8 lg:h-9 w-20 md:w-24 bg-muted/50 rounded-xl mt-2" />
-          </div>
-        ))}
-      </div>
-
-      {/* Skeletons para Comisiones Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        {[
-          { gradient: "from-fuchsia-500/15 via-fuchsia-500/10 to-pink-500/10", iconBg: "bg-fuchsia-500/15" },
-          { gradient: "from-blue-500/15 via-blue-500/10 to-cyan-500/10", iconBg: "bg-blue-500/15" },
-          { gradient: "from-orange-500/15 via-orange-500/10 to-amber-500/10", iconBg: "bg-orange-500/15" },
-        ].map((style, i) => (
-          <div
-            key={i}
-            className={`relative p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br ${style.gradient} shadow-lg backdrop-blur-sm overflow-hidden animate-pulse`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <div className="relative flex items-center justify-between mb-2">
-              <div className="h-3 md:h-3.5 w-24 md:w-28 bg-muted/60 rounded-lg" />
-              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-md ${style.iconBg} bg-muted/40`} />
-            </div>
-            <div className="relative h-6 md:h-7 lg:h-8 w-28 md:w-32 bg-muted/50 rounded-xl mt-2" />
-            <div className="relative h-2.5 md:h-3 w-32 md:w-36 bg-muted/40 rounded-lg mt-2" />
-          </div>
-        ))}
-      </div>
-
-      {/* Skeletons para Donut Charts */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="relative p-4 md:p-5 rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur-sm overflow-hidden animate-pulse"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            {/* Título */}
-            <div className="relative h-3.5 md:h-4 w-28 md:w-32 bg-muted/60 rounded-lg mb-3" />
-            {/* Gráfico circular */}
-            <div className="relative flex flex-col items-center gap-3">
-              <div className="w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px] rounded-full bg-gradient-to-br from-muted/50 to-muted/30 border-4 border-border/40 flex items-center justify-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/40" />
-              </div>
-              {/* Leyenda */}
-              <div className="flex-1 w-full grid grid-cols-1 gap-2">
-                {[1, 2, 3].map((j) => (
-                  <div key={j} className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-muted/50" />
-                      <div className="h-3 md:h-3.5 w-16 md:w-20 bg-muted/50 rounded" />
-                    </div>
-                    <div className="h-3 md:h-3.5 w-12 md:w-16 bg-muted/50 rounded" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const commissionSales = kpis.cobranzasPagadoTotal * (COMMISSION_RATE / 100);
+  const commissionTotal = commissionSales + kpis.obrasComision;
+  const firstRow = [
+    { label: "Ventas", value: nf.format(kpis.ventasCount), icon: TrendingUp, href: "/ventas" },
+    { label: "Total de ventas", value: currency(kpis.ventasMonto), icon: Layers },
+    { label: "Pagado (Ventas)", value: currency(kpis.cobranzasPagadoTotal), icon: Check },
+    { label: "Pendiente + Parcial", value: currency(kpis.pendienteParcialTotal), icon: Clock },
+  ];
+  const secondRow = [
+    { label: "Comisión Ventas", value: currency(commissionSales), detail: "2,5% sobre ventas pagadas", icon: Percent },
+    { label: "Comisión Obras", value: currency(kpis.obrasComision), detail: "2,5% sobre obras confirmadas", icon: Percent },
+    { label: "Total Comisiones", value: currency(commissionTotal), detail: "Ventas + Obras", icon: Award, emphasis: true },
+    { label: "Total Obras", value: currency(kpis.obrasMonto), detail: `${kpis.obrasCount} ${kpis.obrasCount === 1 ? "obra" : "obras"}`, icon: Landmark },
+  ];
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
-      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-700 via-gray-700 to-zinc-700 dark:from-slate-100 dark:via-gray-100 dark:to-zinc-100 flex items-center gap-3">
-            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
-              <Icon
-                icon="heroicons:chart-bar"
-                className="w-5 h-5 md:w-6 md:h-6 text-slate-700 dark:text-slate-200"
-              />
-            </div>
-            Estadísticas de Ventas
-          </CardTitle>
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/70 p-2 shadow-sm sm:justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => changeMonth(-1)}
-              className="h-10 w-10 shrink-0 rounded-xl text-default-700 hover:bg-muted"
-              aria-label="Ver mes anterior"
-              title="Mes anterior"
-            >
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </Button>
-
-            <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-10 min-w-36 flex-1 gap-2 rounded-xl px-3 font-semibold capitalize text-foreground hover:bg-muted sm:flex-initial"
-                  aria-label="Elegir mes de las estadísticas"
-                >
-                  <CalendarDays className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span>
-                    {mesSeleccionado
-                      ? format(mesSeleccionado, "MMMM yyyy", { locale: es })
-                      : "Elegir mes"}
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center">
-                <Calendar
-                  mode="single"
-                  month={mesSeleccionado || currentMonth}
-                  selected={mesSeleccionado || undefined}
-                  onSelect={selectMonthFromCalendar}
-                  onMonthChange={(month) => {
-                    if (month <= currentMonth) {
-                      setMesSeleccionado(month);
-                    }
-                  }}
-                  disabled={{ after: now }}
-                  toMonth={currentMonth}
-                  initialFocus
-                />
-                <p className="px-4 pb-3 text-center text-xs text-muted-foreground">
-                  Elegí cualquier día para ver las estadísticas de ese mes.
-                </p>
-              </PopoverContent>
-            </Popover>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => changeMonth(1)}
-              disabled={!canGoToNextMonth}
-              className="h-10 w-10 shrink-0 rounded-xl text-default-700 hover:bg-muted"
-              aria-label="Ver mes siguiente"
-              title="Mes siguiente"
-            >
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </Button>
+    <main className="space-y-4 sm:space-y-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card text-foreground">
+            <ChartNoAxesColumnIncreasing className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Estadísticas de Ventas</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Resumen general de ventas, cobros y estado de cuentas.</p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="relative pt-2 px-6 pb-6 space-y-4">
-        {/* Caja del día: ingresos de hoy (ventas, pagos de ventas viejas, pagos de obras), independiente del rango de fechas */}
-        <CajaDelDia />
-        {loading ? (
-          <Skeleton />
-        ) : (
-          <>
-            <TooltipProvider delayDuration={200}>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                {/* Ventas */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href="/ventas" className="block">
-                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.01]">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-xs md:text-sm text-default-700">
-                            Ventas
-                          </div>
-                          <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-                            <Icon
-                              icon="heroicons:shopping-cart"
-                              className="w-3 h-3 md:w-4 md:h-4"
-                            />
-                          </span>
-                        </div>
-                        <div className="text-xl md:text-3xl font-extrabold tracking-tight">
-                          {kpis.ventasCount}
-                        </div>
-                      </div>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" color="secondary">
-                    <div className="space-y-2 text-xs sm:text-sm">
-                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Total de ventas
-                      </div>
-                      <div className="text-gray-700 dark:text-gray-300">
-                        En el período seleccionado
-                      </div>
-                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
-                          Click para ver todas las ventas →
-                        </span>
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-                {/* Monto */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-emerald-500/15 via-emerald-500/10 to-emerald-500/5 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
-                          Total
-                        </div>
-                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                          <Icon
-                            icon="heroicons:banknotes"
-                            className="w-3 h-3 md:w-4 md:h-4"
-                          />
-                        </span>
-                      </div>
-                      <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                        ${nf.format(Math.round(kpis.ventasMonto))}
-                      </div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" color="secondary">
-                    <div className="space-y-2 text-xs sm:text-sm">
-                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Total del período
-                      </div>
-                      <div className="text-gray-700 dark:text-gray-300">
-                        Suma de ventas completas, parciales y pendientes
-                      </div>
-                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <div className="text-gray-600 dark:text-gray-400 text-xs">
-                          <span className="font-medium">Ticket promedio:</span> ${nf.format(Math.round(kpis.ticketPromedio))}
-                        </div>
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-                {/* Ticket */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-indigo-500/15 via-indigo-500/10 to-purple-500/10 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
-                          Pagado (ventas)
-                        </div>
-                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
-                          <Icon
-                            icon="heroicons:check-badge"
-                            className="w-3 h-3 md:w-4 md:h-4"
-                          />
-                        </span>
-                      </div>
-                      <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                        ${nf.format(Math.round(kpis.cobranzasPagadoTotal))}
-                      </div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" color="secondary">
-                    <div className="space-y-2 text-xs sm:text-sm">
-                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Ventas completamente pagadas
-                      </div>
-                      <div className="text-gray-700 dark:text-gray-300">
-                        Monto total de ventas con estado pagado
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-                {/* Pendiente + Parciales */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-500/5 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
-                          Pendiente + Parciales
-                        </div>
-                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                          <Icon
-                            icon="heroicons:exclamation-circle"
-                            className="w-3 h-3 md:w-4 md:h-4"
-                          />
-                        </span>
-                      </div>
-                      <div className="text-xl md:text-3xl font-extrabold tracking-tight">
-                        ${nf.format(Math.round(kpis.pendienteParcialTotal))}
-                      </div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" color="secondary">
-                    <div className="space-y-2 text-xs sm:text-sm">
-                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Suma de saldos
-                      </div>
-                      <div className="text-gray-700 dark:text-gray-300">
-                        Incluye pendientes y el saldo de ventas parciales
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
+        <div className="flex items-center justify-between gap-1 sm:justify-center">
+          <Button type="button" variant="outline" size="icon" onClick={() => changeMonth(-1)} className="h-10 w-10 shrink-0 rounded-full" aria-label="Ver mes anterior"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button>
+          <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" className="h-10 min-w-40 flex-1 gap-2 rounded-full px-4 font-medium capitalize sm:flex-initial" aria-label="Elegir mes de las estadísticas">
+                <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{mesSeleccionado ? format(mesSeleccionado, "MMMM yyyy", { locale: es }) : "Elegir mes"}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <Calendar mode="single" month={mesSeleccionado || currentMonth} selected={mesSeleccionado || undefined} onSelect={(date) => { if (date) { setMesSeleccionado(date); setMonthPickerOpen(false); } }} onMonthChange={(month) => { if (month <= currentMonth) setMesSeleccionado(month); }} disabled={{ after: now }} toMonth={currentMonth} initialFocus />
+              <p className="px-4 pb-3 text-center text-xs text-muted-foreground">Elegí cualquier día para ver ese mes.</p>
+            </PopoverContent>
+          </Popover>
+          <Button type="button" variant="outline" size="icon" onClick={() => changeMonth(1)} disabled={!canGoToNextMonth} className="h-10 w-10 shrink-0 rounded-full" aria-label="Ver mes siguiente"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button>
+        </div>
+      </header>
 
-            
+      <CajaDelDia />
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-              {/* Comisión por ventas */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-fuchsia-500/15 via-fuchsia-500/10 to-pink-500/10 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-fuchsia-700 dark:text-fuchsia-300">
-                    Comisión Ventas
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
-                    <Icon
-                      icon="heroicons:currency-dollar"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionPagado))}
-                </div>
-                <div className="text-[10px] md:text-xs text-default-500 mt-1">
-                  2.5% sobre ventas pagadas
-                </div>
-              </div>
-
-              {/* Total Obras */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-blue-500/15 via-blue-500/10 to-cyan-500/10 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-blue-700 dark:text-blue-300">
-                    Total Obras
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                    <Icon
-                      icon="heroicons:building-office"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.obrasMonto))}
-                </div>
-                <div className="text-[10px] md:text-xs text-default-500 mt-1">
-                  {kpis.obrasCount} {kpis.obrasCount === 1 ? "obra" : "obras"}
-                </div>
-              </div>
-              {/* Comisión por Obras */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-gradient-to-br from-orange-500/15 via-orange-500/10 to-amber-500/10 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-orange-700 dark:text-orange-300">
-                    Comisión Obras
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-orange-500/15 text-orange-600 dark:text-orange-400">
-                    <Icon
-                      icon="heroicons:currency-dollar"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.obrasComision))}
-                </div>
-                <div className="text-[10px] md:text-xs text-default-500 mt-1">
-                  2.5% sobre obras confirmadas
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
-              {/* Estado de pago (donut) */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
-                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
-                  Estado de pago
-                </div>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
-                    {typeof window !== "undefined" && (
-                      <Chart
-                        options={estadosOptions}
-                        series={estadosSegments.map((s) => s.value)}
-                        type="donut"
-                        height="100%"
-                        width="100%"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 w-full grid grid-cols-1 gap-2 text-xs md:text-sm">
-                    {estadosSegments.map((seg) => {
-                      const pct = estadosTotal
-                        ? Math.round((seg.value / estadosTotal) * 100)
-                        : 0;
-                      const color = seg.color;
-                      return (
-                        <div
-                          key={seg.label}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="inline-flex items-center gap-2 text-default-700">
-                            <span
-                              className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full"
-                              style={{ background: color }}
-                            />
-                            {seg.label}
-                          </span>
-                          <span className="font-semibold whitespace-nowrap">
-                            {seg.value} ({pct}%)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              {/* Tipo de envío (donut) */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
-                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
-                  Tipo de envío
-                </div>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
-                    {typeof window !== "undefined" && (
-                      <Chart
-                        options={enviosOptions}
-                        series={enviosSegments.map((s) => s.value)}
-                        type="donut"
-                        height="100%"
-                        width="100%"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 w-full grid grid-cols-1 gap-2 text-xs md:text-sm">
-                    {enviosSegments.map((seg) => {
-                      const pct = enviosTotal
-                        ? Math.round((seg.value / enviosTotal) * 100)
-                        : 0;
-                      const color = seg.color;
-                      return (
-                        <div
-                          key={seg.label}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="inline-flex items-center gap-2 text-default-700">
-                            <span
-                              className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full"
-                              style={{ background: color }}
-                            />
-                            {seg.label}
-                          </span>
-                          <span className="font-semibold whitespace-nowrap">
-                            {seg.value} ({pct}%)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              {/* Formas de pago - donut segmentado (ubicado al lado de Tipo de envío) */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
-                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
-                  Formas de pago
-                </div>
-                {totalFormasPago === 0 ? (
-                  <div className="text-default-500 text-xs md:text-sm">
-                    Sin datos
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
-                      {typeof window !== "undefined" && (
-                        <Chart
-                          options={formasPagoOptions}
-                          series={fpSegments.map((s) => s.value)}
-                          type="donut"
-                          height="100%"
-                          width="100%"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 w-full grid grid-cols-1 gap-2 text-xs md:text-sm overflow-hidden">
-                      {fpSegments.map((seg) => {
-                        const pct = totalFormasPago
-                          ? Math.round((seg.value / totalFormasPago) * 100)
-                          : 0;
-                        return (
-                          <div
-                            key={seg.label}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span className="inline-flex items-center gap-2 text-default-700 truncate min-w-0">
-                              <span
-                                className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full shrink-0"
-                                style={{ background: seg.color }}
-                              />
-                              <span className="truncate text-[10px] md:text-xs">
-                                {seg.label.toUpperCase()}
-                              </span>
-                            </span>
-                            <span className="font-semibold whitespace-nowrap text-[10px] md:text-xs">
-                              {seg.value} ({pct}%)
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Clientes nuevos vs viejos */}
-              <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
-                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
-                  Clientes (nuevos vs viejos)
-                </div>
-                {clientesTotal === 0 ? (
-                  <div className="text-default-500 text-xs md:text-sm">
-                    Sin datos
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
-                      {typeof window !== "undefined" && (
-                        <Chart
-                          options={clientesOptions}
-                          series={clientesSegments.map((s) => s.value)}
-                          type="donut"
-                          height="100%"
-                          width="100%"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 w-full grid grid-cols-1 gap-2 text-xs md:text-sm">
-                      {clientesSegments.map((seg) => {
-                        const pct = clientesTotal
-                          ? Math.round((seg.value / clientesTotal) * 100)
-                          : 0;
-                        const color = seg.color;
-                        return (
-                          <div
-                            key={seg.label}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span className="inline-flex items-center gap-2 text-default-700">
-                              <span
-                                className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full"
-                                style={{ background: color }}
-                              />
-                              {seg.label}
-                            </span>
-                            <span className="font-semibold whitespace-nowrap">
-                              {seg.value} ({pct}%)
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Top productos (monto) */}
-            {/* <div className="p-4 rounded-xl border border-default-200 bg-card shadow-sm">
-              <div className="text-sm font-semibold mb-2">Top productos (monto)</div>
-              {kpis.topProductos.length === 0 ? (
-                <div className="text-default-500 text-sm">Sin datos en el rango</div>
-              ) : (
-                <div className="space-y-2">
-                  {kpis.topProductos.map((p, idx) => (
-                    <div
-                      key={p.nombre}
-                      className="flex items-center justify-between gap-4 p-3 rounded-lg border border-default-200 bg-default-50/50 hover:bg-default-100/60 shadow-sm transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-7 h-7 rounded-full bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center text-xs font-bold">
-                          {idx + 1}
-                        </span>
-                        <div className="truncate">
-                          <div className="text-sm font-semibold truncate">{p.nombre}</div>
-                          <div className="text-xs text-default-500">{p.unidades} unidades</div>
-                        </div>
-                      </div>
-                      <div className="text-sm font-semibold whitespace-nowrap">$ {nf.format(Math.round(p.monto))}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div> */}
-          </>
-        )}
-      </CardContent>
-    </Card>
+      {loading ? (
+        <div className="space-y-4" aria-label="Cargando estadísticas" aria-busy="true">
+          {[0, 1].map((row) => <div key={row} className="grid min-h-[82px] grid-cols-2 overflow-hidden rounded-xl border border-border/70 bg-card sm:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="space-y-3 border-b border-r border-border/60 p-4"><div className="h-3 w-24 animate-pulse rounded bg-muted"/><div className="h-6 w-32 animate-pulse rounded bg-muted"/></div>)}</div>)}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-[196px] animate-pulse rounded-xl border border-border/70 bg-card"/>)}</div>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2.5">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card"><MetricRow metrics={firstRow} /></div>
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card"><MetricRow metrics={secondRow} /></div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+            <StatisticsDonut isDark={isDark} chartTokens={chartTokens} chartThemeKey={chartThemeKey} title="Estado de pagos" segments={[
+              { label: "Pagado", value: kpis.estados.pagado, color: chartColors[0] },
+              { label: "Parcial", value: kpis.estados.parcial, color: chartColors[2] },
+              { label: "Pendiente", value: kpis.estados.pendiente, color: chartColors[4] },
+            ]} />
+            <StatisticsDonut isDark={isDark} chartTokens={chartTokens} chartThemeKey={chartThemeKey} title="Tipo de venta" segments={saleTypeSegments} />
+            <StatisticsDonut isDark={isDark} chartTokens={chartTokens} chartThemeKey={chartThemeKey} title="Forma de pago" segments={fpSegments} />
+            <StatisticsDonut isDark={isDark} chartTokens={chartTokens} chartThemeKey={chartThemeKey} title="Canal de venta (origen)" segments={channelSegments} />
+          </div>
+        </>
+      )}
+    </main>
   );
 };
 

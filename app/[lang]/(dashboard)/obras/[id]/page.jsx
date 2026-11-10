@@ -37,7 +37,7 @@ import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
 import {
   Dialog,
   DialogContent,
@@ -115,6 +115,7 @@ const ObraDetallePage = () => {
   });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [confirmarCancelar, setConfirmarCancelar] = useState(false);
+  const [responsablesActivos, setResponsablesActivos] = useState([]);
 
   const {
     obra,
@@ -142,6 +143,10 @@ const ObraDetallePage = () => {
     setClienteId,
     setCliente,
     cliente,
+    responsableObraId,
+    setResponsableObraId,
+    responsableObraNombre,
+    setResponsableObraNombre,
     setItemsCatalogo,
     guardarEdicion,
     cambiarBloquesPresupuesto,
@@ -149,6 +154,38 @@ const ObraDetallePage = () => {
     hayCambiosSinGuardar,
     setObra,
   } = useObra(id);
+
+  useEffect(() => {
+    let activo = true;
+    const cargarResponsables = async () => {
+      try {
+        const snap = await getDocs(collection(db, "responsablesObra"));
+        if (!activo) return;
+        const lista = snap.docs
+          .map((item) => ({ id: item.id, ...item.data() }))
+          .filter((item) => item.activo !== false)
+          .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es", { sensitivity: "base" }));
+        setResponsablesActivos(lista);
+      } catch (loadError) {
+        console.error("Error al cargar responsables de obra:", loadError);
+      }
+    };
+    cargarResponsables();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const handleResponsableObraChange = (value) => {
+    if (value === "sin-responsable") {
+      setResponsableObraId("");
+      setResponsableObraNombre("");
+      return;
+    }
+    const responsable = responsablesActivos.find((item) => item.id === value);
+    setResponsableObraId(value);
+    setResponsableObraNombre(responsable?.nombre || responsableObraNombre || "");
+  };
 
   // Sincroniza el borrador de la página con la obra guardada. Solo se
   // reinicia al cargar otra obra o tras guardarla, no ante cambios parciales.
@@ -1156,7 +1193,7 @@ const ObraDetallePage = () => {
   })();
 
   return (
-    <div className="w-full mx-auto p-4 space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-7 px-3 py-5 sm:px-6 sm:py-7">
       <ObraHeader
         obra={obra}
         editando={editando}
@@ -1190,22 +1227,23 @@ const ObraDetallePage = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* COLUMNA IZQUIERDA: Datos principales, Estado, Fechas */}
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="border-b border-border/50 pb-4">
-              <CardTitle className="text-lg">Datos Generales</CardTitle>
+          <Card className="rounded-none bg-transparent shadow-none">
+            <CardHeader className="mb-0 border-b border-slate-200/80 px-0 pb-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-amber-700">Ficha de proyecto</p>
+              <CardTitle className="text-xl font-semibold tracking-tight">Datos generales</CardTitle>
               <p className="text-sm text-muted-foreground">Cliente, estado y planificación de la obra.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5 px-0 pt-5">
               {/* Información y cambio de cliente */}
-              <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <section className="border-b border-slate-200/80 pb-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="mb-3 flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</span>
+                      <User className="h-4 w-4 text-slate-500" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[.16em] text-slate-400">Cliente</span>
                     </div>
                     <div className="text-lg font-semibold leading-tight text-foreground">
                       {(cliente?.nombre || obra?.cliente?.nombre || "Sin cliente asignado").toUpperCase()}
@@ -1248,9 +1286,9 @@ const ObraDetallePage = () => {
                 </div>
               </section>
 
-              <section className="rounded-xl border border-border/60 p-4">
-                <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seguimiento</div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <section className="pt-1">
+                <div className="mb-4 text-[10px] font-semibold uppercase tracking-[.16em] text-slate-400">Seguimiento</div>
+                <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
                   {/* Estado */}
                   <div className="space-y-2">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado de la obra</label>
@@ -1337,6 +1375,40 @@ const ObraDetallePage = () => {
                         {fechasEdit?.fin || obra?.fechas?.fin
                           ? formatearFecha(fechasEdit?.fin || obra.fechas.fin)
                           : "No especificada"}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2 xl:col-span-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-[.14em] text-slate-500">
+                      Responsable de obra
+                    </label>
+                    {editando ? (
+                      <Select
+                        value={responsableObraId || "sin-responsable"}
+                        onValueChange={handleResponsableObraChange}
+                        disabled={guardandoEdicion}
+                      >
+                        <SelectTrigger className="h-10 border-0 border-b border-slate-300 bg-slate-50/70 px-2 shadow-none focus:ring-0">
+                          <SelectValue placeholder="Seleccionar responsable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sin-responsable">Sin asignar</SelectItem>
+                          {responsableObraId && !responsablesActivos.some((item) => item.id === responsableObraId) ? (
+                            <SelectItem value={responsableObraId}>
+                              {responsableObraNombre || "Responsable inactivo"} (inactivo)
+                            </SelectItem>
+                          ) : null}
+                          {responsablesActivos.map((responsable) => (
+                            <SelectItem key={responsable.id} value={responsable.id}>
+                              {responsable.nombre || "Sin nombre"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-sm font-medium text-slate-800">
+                        {responsableObraNombre || "Sin asignar"}
                       </p>
                     )}
                   </div>

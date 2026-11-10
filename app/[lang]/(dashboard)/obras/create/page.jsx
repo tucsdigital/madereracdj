@@ -619,23 +619,24 @@ export default function CrearObraPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 py-8">
-      <div className="flex justify-between items-center">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Nueva Obra</h1>
-          <p className="text-gray-600">Complete los datos para crear una obra</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Obras · Alta</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] text-slate-900 sm:text-4xl">Nueva obra</h1>
+          <p className="mt-2 text-sm text-slate-500">Completá los datos del cliente, la ubicación y el presupuesto.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Button variant="outline" onClick={() => window.location.reload()} className="h-9 rounded-md border-slate-200 px-3 text-xs">
             <RefreshCw className="w-4 h-4 mr-2" /> Actualizar
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Datos Generales + Ubicación en 2 columnas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+        <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle>Datos Generales</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -644,7 +645,7 @@ export default function CrearObraPage() {
             <DateInput
               value={fechaInicio}
               onChange={setFechaInicio}
-              buttonClassName="mt-1 w-full justify-start"
+              buttonClassName="mt-1 h-9 w-full justify-start rounded-md border-slate-200 bg-white text-xs shadow-sm"
             />
           </div>
 
@@ -695,8 +696,8 @@ export default function CrearObraPage() {
       </Card>
 
       {/* Ubicación */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+        <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle>Ubicación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -777,8 +778,8 @@ export default function CrearObraPage() {
       </div>
 
       {/* Presupuesto y costos */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+        <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle>Presupuesto y costos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -806,8 +807,8 @@ export default function CrearObraPage() {
       </Card>
 
       {/* Catálogo de materiales (productos) */}
-      <Card>
-        <CardHeader>
+      <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+        <CardHeader className="border-b border-slate-100 pb-3">
           <CardTitle className="flex items-center gap-2"><Filter className="w-5 h-5" /> Materiales a Utilizar</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

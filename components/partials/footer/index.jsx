@@ -6,7 +6,7 @@ import MobileFooter from "./mobile-footer";
 import FooterLayout from "./footer-layout";
 import { useMounted } from "@/hooks/use-mounted";
 
-const Footer = ({ handleOpenSearch }) => {
+const Footer = () => {
   const { collapsed, sidebarType } = useSidebar();
   const { layout, footerType } = useThemeStore();
   const mounted = useMounted();
@@ -16,7 +16,7 @@ const Footer = ({ handleOpenSearch }) => {
     return null;
   }
   if (!isMobile && sidebarType === "module") {
-    return <MobileFooter handleOpenSearch={handleOpenSearch} />;
+    return <MobileFooter />;
   }
 
   if (footerType === "hidden") {
@@ -25,11 +25,9 @@ const Footer = ({ handleOpenSearch }) => {
 
   if (layout === "semibox") {
     return (
-      <div className="xl:mx-20 mx-6">
+      <div className="ltr:xl:ml-[226px] rtl:xl:mr-[226px]">
         <FooterLayout
-          className={cn(" rounded-md border", {
-            "xl:ltr:ml-[72px] xl:rtl:mr-[72px]": collapsed,
-            "xl:ltr:ml-[272px] xl:rtl:mr-[272px]": !collapsed,
+          className={cn("rounded-none border-x-0", {
             "sticky bottom-0": footerType === "sticky",
           })}
         >
@@ -42,7 +40,7 @@ const Footer = ({ handleOpenSearch }) => {
     return (
       <FooterLayout
         className={cn("", {
-          "xl:ltr:ml-[248px] xl:rtl:mr-[248px]": !collapsed,
+          "xl:ltr:ml-[226px] xl:rtl:mr-[226px]": !collapsed,
           "xl:ltr:ml-[72px] xl:rtl:mr-[72px]": collapsed,
           "sticky bottom-0": footerType === "sticky",
         })}

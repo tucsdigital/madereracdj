@@ -36,9 +36,9 @@ const SubMenuItem = ({ subItem, trans }) => {
     <LockLink href={localize(subItem.href)} subItem={{ ...subItem, active: isMenuActive(subItem, pathname) }} trans={trans}>
       <div
         className={cn(
-          "min-h-11 text-sm font-normal flex gap-2 items-center transition-colors rounded-md hover:text-primary",
+          "min-h-10 rounded-md px-2 text-sm font-normal flex gap-2 items-center transition-colors hover:bg-muted hover:text-foreground",
           {
-            "text-primary font-medium": isMenuActive(subItem, pathname),
+            "bg-primary/10 text-primary font-medium": isMenuActive(subItem, pathname),
             "text-default-600 dark:text-default-700": !isMenuActive(subItem, pathname),
           }
         )}

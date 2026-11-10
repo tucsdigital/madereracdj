@@ -50,14 +50,14 @@ const ProfileInfo = () => {
         <DropdownMenuTrigger asChild className=" cursor-pointer">
           <div className=" flex items-center  ">
           {/* Puedes agregar un avatar por defecto si quieres */}
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase">
+          <div className="w-9 h-9 rounded-full bg-default-100 flex items-center justify-center text-default-900 font-semibold uppercase">
             {user.displayName?.[0] || user.email?.[0] || "U"}
           </div>
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56 p-0" align="end">
         <DropdownMenuLabel className="flex gap-2 items-center mb-1 p-3">
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase">
+          <div className="w-9 h-9 rounded-full bg-default-100 flex items-center justify-center text-default-900 font-semibold uppercase">
             {user.displayName?.[0] || user.email?.[0] || "U"}
           </div>
           <div>

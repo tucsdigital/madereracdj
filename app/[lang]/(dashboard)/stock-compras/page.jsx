@@ -848,26 +848,27 @@ function StockComprasPage() {
 
   return (
     <TooltipProvider>
-      <div className="py-8 px-2 max-w-8xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Stock y Compras</h1>
-          <p className="text-lg text-muted-foreground">Controla el inventario, repón productos y gestiona los movimientos de stock de tu maderera.</p>
-        </div>
+      <main className="mx-auto flex w-full max-w-[1700px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+        <header className="border-b border-slate-200 pb-5">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Inventario · Operaciones</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Stock y compras</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-500">Controlá existencias, reposición y movimientos de inventario.</p>
+        </header>
         <Tabs value={tab} onValueChange={setTab} className="mb-6">
-          <TabsList className="mb-4">
-            <TabsTrigger value="inventario">Inventario</TabsTrigger>
-            <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
-          </TabsList>
+        <TabsList className="mb-4 h-auto gap-1 rounded-none border-b border-slate-200 bg-transparent p-0">
+          <TabsTrigger value="inventario" className="h-10 rounded-none border-b-2 border-transparent px-4 text-sm text-slate-500 shadow-none data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-slate-900 data-[state=active]:shadow-none">Inventario</TabsTrigger>
+          <TabsTrigger value="movimientos" className="h-10 rounded-none border-b-2 border-transparent px-4 text-sm text-slate-500 shadow-none data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-slate-900 data-[state=active]:shadow-none">Movimientos</TabsTrigger>
+        </TabsList>
           <TabsContent value="inventario">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-4">
-                <CardTitle>Inventario</CardTitle>
-                <div className="flex gap-2 items-center">
-                  <Input placeholder="Buscar producto..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-48" />
+            <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+              <CardHeader className="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><CardTitle className="text-sm font-semibold">Inventario</CardTitle><span className="text-xs tabular-nums text-slate-500">{totalProductos} productos</span></div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                  <Input placeholder="Buscar producto..." value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Buscar productos en stock" className="h-9 w-full rounded-md border-slate-200 bg-white text-xs shadow-sm sm:w-48" />
                   <select
                     value={productosPorPagina}
                     onChange={(e) => setProductosPorPagina(Number(e.target.value))}
-                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                    className="h-9 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700"
                   >
                     <option value={10}>10 / pág.</option>
                     <option value={20}>20 / pág.</option>
@@ -884,12 +885,13 @@ function StockComprasPage() {
                       setFiltroEstado("");
                       setPaginaActual(1);
                     }}
+                    className="h-9 rounded-md border-slate-200 px-3 text-xs"
                   >
                     Limpiar filtros
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 sm:p-4">
                 {/* Filtros avanzados */}
                 <div className="mb-6 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -901,7 +903,7 @@ function StockComprasPage() {
                       <select
                         value={categoriaId}
                         onChange={(e) => setCategoriaId(e.target.value)}
-                        className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="">Todas las categorías</option>
                         {categoriasUnicas.map((cat) => (
@@ -921,7 +923,7 @@ function StockComprasPage() {
                         <select
                           value={filtroTipoMadera}
                           onChange={(e) => setFiltroTipoMadera(e.target.value)}
-                          className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
                         >
                           <option value="">Todos los tipos</option>
                           {tiposMaderaUnicos.map((tipo) => (
@@ -942,7 +944,7 @@ function StockComprasPage() {
                         <select
                           value={filtroSubCategoria}
                           onChange={(e) => setFiltroSubCategoria(e.target.value)}
-                          className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
                         >
                           <option value="">Todas las subcategorías</option>
                           {subCategoriasFerreteria.map((subCat) => (
@@ -962,7 +964,7 @@ function StockComprasPage() {
                       <select
                         value={filtroEstado}
                         onChange={(e) => setFiltroEstado(e.target.value)}
-                        className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="">Todos los estados</option>
                         <option value="sin_stock">Sin stock</option>
@@ -983,7 +985,7 @@ function StockComprasPage() {
                   </div>
                                 </div>
               </CardContent>
-              <CardContent className="overflow-x-auto">
+              <CardContent className="p-0">
                 {loadingProd ? (
                   <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                 ) : error ? (
@@ -1011,9 +1013,9 @@ function StockComprasPage() {
                       </div>
                     )}
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
+                    <Table className="block w-full min-w-0 lg:table">
+                      <TableHeader className="hidden lg:table-header-group">
+                        <TableRow className="border-slate-200 bg-slate-50/70 hover:bg-slate-50/70">
                           <TableHead className="w-10">
                             <div className="flex items-center justify-center">
                               <Checkbox
@@ -1031,7 +1033,7 @@ function StockComprasPage() {
                           <TableHead>Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody>
+                      <TableBody className="block lg:table-row-group">
                         {productosPaginados.map((p) => {
                           const isSelected = selectedProductoIds.has(p.id);
                           const stock = getStockValue(p.stock);
@@ -1040,15 +1042,17 @@ function StockComprasPage() {
                           return (
                             <TableRow
                               key={p.id}
-                              className={
+                              className={`block border-b border-slate-200 py-2 lg:table-row lg:py-0 ${
                                 isSelected
                                   ? "bg-blue-500/5 ring-1 ring-blue-200/70"
                                   : isLow
                                   ? "bg-amber-500/10"
                                   : ""
-                              }
+                              }`}
+                              data-state={isSelected ? "selected" : undefined}
+                              data-stock-low={isLow ? "true" : undefined}
                             >
-                              <TableCell className="w-10">
+                              <TableCell data-label="Seleccionar" className="flex items-center justify-end border-0 px-3 py-1 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:hidden">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
                                     checked={isSelected}
@@ -1057,7 +1061,7 @@ function StockComprasPage() {
                                   />
                                 </div>
                               </TableCell>
-                              <TableCell>
+                              <TableCell data-label="Producto" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold">{p.nombre}</span>
                                   {stock <= 0 && (
@@ -1077,8 +1081,8 @@ function StockComprasPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell>{p.categoria}</TableCell>
-                              <TableCell>
+                              <TableCell data-label="Categoría" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{p.categoria}</TableCell>
+                              <TableCell data-label="Stock" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="cursor-help">{stock}</span>
@@ -1091,14 +1095,14 @@ function StockComprasPage() {
                                   </TooltipContent>
                                 </Tooltip>
                               </TableCell>
-                              <TableCell>
+                              <TableCell data-label="Unidad" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                                 {p.unidadMedida ||
                                   p.unidadVenta ||
                                   p.unidadVentaHerraje ||
                                   p.unidadVentaQuimico ||
                                   p.unidadVentaHerramienta}
                               </TableCell>
-                              <TableCell>
+                              <TableCell data-label="Estado" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                                 {stock <= 0 ? (
                                   <span className="text-red-700 dark:text-red-300 font-semibold">Sin stock</span>
                                 ) : stock <= stockMinimo ? (
@@ -1107,10 +1111,12 @@ function StockComprasPage() {
                                   <span className="text-emerald-700 dark:text-emerald-300 font-semibold">OK</span>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell data-label="Acciones" className="flex items-center justify-between gap-2 border-0 px-3 py-2 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
+                                <div className="flex flex-wrap justify-end gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
+                                  className="h-8 rounded-md px-2 text-xs"
                                   onClick={() => {
                                     setOpenMov(true);
                                     handleSeleccionarProducto(p.id);
@@ -1119,14 +1125,16 @@ function StockComprasPage() {
                                   <RefreshCw className="w-4 h-4 mr-1" />
                                   Movimientos
                                 </Button>
-                                <Button size="sm" variant="soft" onClick={() => handleVerDetalleProducto(p)}>
+                                <Button size="sm" variant="outline" className="h-8 rounded-md px-2 text-xs" onClick={() => handleVerDetalleProducto(p)}>
                                   <Plus className="w-4 h-4 mr-1" />
                                   Ver detalle
                                 </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
                         })}
+                        {productosPaginados.length === 0 ? <TableRow className="block lg:table-row"><TableCell colSpan={7} className="block py-12 text-center text-sm text-slate-500 lg:table-cell">No hay productos en esta búsqueda.</TableCell></TableRow> : null}
                       </TableBody>
                     </Table>
                   </>
@@ -1156,15 +1164,15 @@ function StockComprasPage() {
             </Card>
           </TabsContent>
           <TabsContent value="movimientos">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-4">
-                <CardTitle>Movimientos de Stock</CardTitle>
-                <div className="flex gap-2 items-center flex-wrap justify-end">
-                  <Input placeholder="Buscar producto o usuario..." value={filtroMov} onChange={e => setFiltroMov(e.target.value)} className="w-56" />
+            <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+              <CardHeader className="flex flex-col gap-3 border-b border-slate-200 p-3 sm:p-4">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><CardTitle className="text-sm font-semibold">Movimientos de stock</CardTitle><span className="text-xs tabular-nums text-slate-500">{totalMovimientos} resultados</span></div>
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <Input placeholder="Buscar producto o usuario..." value={filtroMov} onChange={e => setFiltroMov(e.target.value)} aria-label="Buscar movimientos de stock" className="h-9 w-full rounded-md border-slate-200 bg-white text-xs shadow-sm sm:w-56" />
                   <select
                     value={filtroMovTipo}
                     onChange={(e) => setFiltroMovTipo(e.target.value)}
-                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 sm:w-auto"
                   >
                     <option value="">Todos los tipos</option>
                     <option value="entrada">Entradas</option>
@@ -1174,7 +1182,7 @@ function StockComprasPage() {
                   <select
                     value={filtroMovUsuario}
                     onChange={(e) => setFiltroMovUsuario(e.target.value)}
-                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 sm:w-auto"
                   >
                     <option value="">Todos los usuarios</option>
                     {usuariosMovUnicos.map((usuarioMov) => (
@@ -1184,7 +1192,7 @@ function StockComprasPage() {
                   <select
                     value={movimientosPorPagina}
                     onChange={(e) => setMovimientosPorPagina(Number(e.target.value))}
-                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 sm:w-auto"
                   >
                     <option value={15}>15 / pág.</option>
                     <option value={30}>30 / pág.</option>
@@ -1198,20 +1206,21 @@ function StockComprasPage() {
                       setFiltroMovUsuario("");
                       setPaginaActualMov(1);
                     }}
+                    className="h-9 rounded-md border-slate-200 px-3 text-xs"
                   >
                     Limpiar filtros
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
+              <CardContent className="p-0">
                 {loadingMov ? (
                   <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                 ) : error ? (
                   <div className="text-red-700 dark:text-red-300 py-4 text-center">{error}</div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
+                  <Table className="block w-full min-w-0 lg:table">
+                    <TableHeader className="hidden lg:table-header-group">
+                      <TableRow className="border-slate-200 bg-slate-50/70 hover:bg-slate-50/70">
                         <TableHead>Fecha</TableHead>
                         <TableHead>Producto</TableHead>
                         <TableHead>Tipo</TableHead>
@@ -1222,18 +1231,18 @@ function StockComprasPage() {
                         <TableHead>Observaciones</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="block lg:table-row-group">
                       {movimientosPaginados.map(m => (
-                        <TableRow key={m.id}>
-                          <TableCell>{formatFechaHora(m.fecha)}</TableCell>
-                          <TableCell>{m.productoNombre}</TableCell>
-                          <TableCell>
+                        <TableRow key={m.id} className="block border-b border-slate-200 py-2 lg:table-row lg:py-0">
+                          <TableCell data-label="Fecha" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{formatFechaHora(m.fecha)}</TableCell>
+                          <TableCell data-label="Producto" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{m.productoNombre}</TableCell>
+                          <TableCell data-label="Tipo" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                             {m.tipo === "entrada" && <span className="text-emerald-700 dark:text-emerald-300 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
                             {m.tipo === "salida" && <span className="text-red-700 dark:text-red-300 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
                             {m.tipo === "ajuste" && <span className="text-blue-700 dark:text-blue-300 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
                           </TableCell>
-                          <TableCell>{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
-                          <TableCell>
+                          <TableCell data-label="Stock antes" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right tabular-nums lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
+                          <TableCell data-label="Cantidad" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right tabular-nums lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                             {Number.isFinite(Number(m.stockDelta)) ? (
                               <span className={Number(m.stockDelta) < 0 ? "text-red-700 dark:text-red-300 font-semibold" : Number(m.stockDelta) > 0 ? "text-emerald-700 dark:text-emerald-300 font-semibold" : ""}>
                                 {Number(m.stockDelta) > 0 ? `+${Number(m.stockDelta)}` : Number(m.stockDelta)}
@@ -1242,21 +1251,22 @@ function StockComprasPage() {
                               "-"
                             )}
                           </TableCell>
-                          <TableCell>{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
-                          <TableCell>{m.usuario}</TableCell>
-                          <TableCell>{m.observaciones}</TableCell>
+                          <TableCell data-label="Stock después" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right tabular-nums lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
+                          <TableCell data-label="Usuario" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">{m.usuario}</TableCell>
+                          <TableCell data-label="Observaciones" className="flex items-start justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:pt-0.5 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden"><span className="min-w-0 break-words text-right lg:text-left">{m.observaciones || "—"}</span></TableCell>
                         </TableRow>
                       ))}
+                      {movimientosPaginados.length === 0 ? <TableRow className="block lg:table-row"><TableCell colSpan={8} className="block py-12 text-center text-sm text-slate-500 lg:table-cell">No hay movimientos para los filtros seleccionados.</TableCell></TableRow> : null}
                     </TableBody>
                   </Table>
                 )}
                 {!loadingMov && !error && (
-                  <div className="flex items-center justify-between mt-4 border-t pt-4">
-                    <div className="text-sm text-muted-foreground">
+                  <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                    <div className="text-xs text-slate-500">
                       Mostrando {totalMovimientos === 0 ? 0 : (paginaActualMov - 1) * movimientosPorPagina + 1}-{Math.min(paginaActualMov * movimientosPorPagina, totalMovimientos)} de {totalMovimientos} movimientos
                     </div>
                     {totalPaginasMov > 1 && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 self-end sm:self-auto">
                         <Button size="icon" variant="outline" onClick={() => cambiarPaginaMov(1)} disabled={paginaActualMov === 1 || isLoadingPaginationMov}>
                           <ChevronsLeft className="w-4 h-4" />
                         </Button>
@@ -1681,7 +1691,7 @@ function StockComprasPage() {
             )}
           </DialogContent>
         </Dialog>
-      </div>
+      </main>
     </TooltipProvider>
   );
 }

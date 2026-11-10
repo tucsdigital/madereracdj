@@ -24,8 +24,23 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { generarContenidoImpresion, descargarPDFDesdeIframe, calcularTotalFinalObra } from "@/lib/obra-utils";
 import { repairObraPedidosByCreationDate } from "@/lib/obra-numbering";
 import {
@@ -36,7 +51,6 @@ import {
   Trash2,
   X,
   AlertTriangle,
-  Info,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -45,6 +59,11 @@ import {
   Pencil,
   ArrowRightCircle,
   Plus,
+  Users,
+  ExternalLink,
+  MapPin,
+  MoreVertical,
+  Phone,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -97,11 +116,14 @@ const PERIODOS_LISTA = [
   { value: "todos", label: "Fecha: Todo el periodo" },
 ];
 
-const formatCurrency = (value) =>
-  `$${Number(value || 0).toLocaleString("es-AR", {
-    minimumFractionDigits: 2,
+const formatCurrency = (value) => {
+  const amount = Number(value) || 0;
+  const roundedAmount = Math.round(amount * 100) / 100;
+  return `$${roundedAmount.toLocaleString("es-AR", {
+    minimumFractionDigits: Number.isInteger(roundedAmount) ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
+};
 
 const normalizeSearch = (value) =>
   String(value || "")
@@ -134,10 +156,40 @@ const getClienteSecondaryLabel = (cliente = {}) =>
   cliente.email ||
   "-";
 
+const getDireccionClienteObra = (item = {}) => {
+  const cliente = item.cliente || {};
+  const ubicacion = item.ubicacion || {};
+  const usaUbicacionObra = item.usarDireccionCliente === false;
+  const principal = usaUbicacionObra ? ubicacion : cliente;
+  const alternativa = usaUbicacionObra ? cliente : ubicacion;
+  const partesDireccion = (datos = {}) => [
+    datos.direccion,
+    datos.localidad,
+    datos.provincia,
+    datos.barrio ? `Barrio ${datos.barrio}` : "",
+    datos.lote ? `Lote ${datos.lote}` : "",
+  ]
+    .map((parte) => String(parte || "").trim())
+    .filter(Boolean);
+
+  const partes = partesDireccion(principal);
+  return (partes.length > 0 ? partes : partesDireccion(alternativa)).join(", ");
+};
+
+const getRegistroTag = (prefijo, numeroPedido, id) => {
+  const numero = String(numeroPedido || id?.slice(-8) || "SIN-NÚMERO").trim().toLocaleUpperCase("es-AR");
+  const prefijoNormalizado = String(prefijo || "").trim().toLocaleUpperCase("es-AR");
+  if (prefijoNormalizado === "PO" && numero.startsWith("PRESUPUESTO-")) {
+    return `PO-${numero.slice("PRESUPUESTO-".length)}`;
+  }
+  return numero.startsWith(`${prefijoNormalizado}-`) ? numero : `${prefijoNormalizado}-${numero}`;
+};
+
 const buildSearchHaystack = (item = {}) =>
   normalizeSearch(
     [
       item.numeroPedido,
+      getRegistroTag(item.tipo === "presupuesto" ? "PO" : "OBRA", item.numeroPedido, item.id),
       item.id,
       ...getClienteSearchFields(item.cliente),
       item.vendedor,
@@ -276,17 +328,12 @@ const TotalCellWithDropdown = ({ obra, bloques }) => {
   const totalFinal = calcularTotalFinalObra(obra);
   const aplicaIva = obra?.aplicarIva === true || obra?.aplicaIva === true;
   const aplicaTransferencia = obra?.aplicarTransferencia === true || obra?.aplicaTransferencia === true;
-  const formatTotal = (value) =>
-    Number(value || 0).toLocaleString("es-AR", {
-      minimumFractionDigits: 2,
-    });
-
   // Si solo hay un bloque, mostrar el total final directamente
   if (!bloques || bloques.length <= 1) {
     return (
       <div>
         <div className="font-medium">
-          ${formatTotal(totalFinal)}
+          {formatCurrency(totalFinal)}
         </div>
         <div className="text-xs text-gray-500 mt-0.5">
           {(aplicaIva || aplicaTransferencia) ? "Total final c/ impuestos" : `${bloques?.length || 0} bloque${bloques?.length === 1 ? "" : "s"}`}
@@ -299,54 +346,52 @@ const TotalCellWithDropdown = ({ obra, bloques }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <div
-        className="flex items-center gap-2 cursor-pointer hover:bg-purple-50 rounded p-1 transition-colors"
+        className="flex items-center gap-2 cursor-pointer rounded px-1 py-1 transition-colors hover:bg-slate-50"
         onClick={(e) => {
           e.stopPropagation();
           setIsExpanded(!isExpanded);
         }}
       >
         <div className="flex-1">
-          <div className="font-medium text-purple-700">
-            Total: ${formatTotal(totalFinal)}
+          <div className="font-medium text-slate-900">
+            Total: {formatCurrency(totalFinal)}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
             {bloques.length} bloques{(aplicaIva || aplicaTransferencia) ? " · c/ impuestos" : ""}
           </div>
         </div>
         {isExpanded ? (
-          <ChevronUp className="w-4 h-4 text-purple-600" />
+          <ChevronUp className="h-4 w-4 text-slate-500" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-purple-600" />
+          <ChevronDown className="h-4 w-4 text-slate-500" />
         )}
       </div>
 
       {isExpanded && (
         <div
-          className="absolute top-full left-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg z-50 min-w-[200px] p-2"
+          className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-lg border border-slate-200 bg-white p-2 shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="space-y-1">
             {bloques.map((bloque, index) => (
               <div
                 key={bloque.id || index}
-                className="flex items-center justify-between p-2 hover:bg-purple-50 rounded transition-colors cursor-default"
+                className="flex cursor-default items-center justify-between rounded p-2 transition-colors hover:bg-slate-50"
               >
                 <div className="flex-1">
                   <div className="text-xs font-semibold text-gray-700">
                     {bloque.nombre || `Bloque ${index + 1}`}
                   </div>
-                  <div className="text-xs text-purple-700 font-medium mt-0.5">
-                    ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
-                      minimumFractionDigits: 2,
-                    })}
+                  <div className="mt-0.5 text-xs font-medium text-slate-700">
+                    {formatCurrency(bloque.total)}
                   </div>
                 </div>
               </div>
             ))}
             {(aplicaIva || aplicaTransferencia) && (
-              <div className="flex items-center justify-between p-2 border-t border-purple-100 mt-1 pt-2">
+              <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-2">
                 <div className="text-xs font-bold text-gray-800">Total final</div>
-                <div className="text-xs font-bold text-emerald-700">${formatTotal(totalFinal)}</div>
+                <div className="text-xs font-bold text-slate-900">{formatCurrency(totalFinal)}</div>
               </div>
             )}
           </div>
@@ -359,6 +404,7 @@ const TotalCellWithDropdown = ({ obra, bloques }) => {
 const ObrasPage = () => {
   const [obrasData, setObrasData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [errorCargaObras, setErrorCargaObras] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -510,6 +556,12 @@ const ObrasPage = () => {
   const [loadingNotas, setLoadingNotas] = useState(true);
   const [clientes, setClientes] = useState([]);
   const [empleados, setEmpleados] = useState([]);
+  const [responsablesData, setResponsablesData] = useState([]);
+  const [showResponsablesDialog, setShowResponsablesDialog] = useState(false);
+  const [responsableForm, setResponsableForm] = useState("");
+  const [responsableEditId, setResponsableEditId] = useState(null);
+  const [savingResponsable, setSavingResponsable] = useState(false);
+  const [responsableError, setResponsableError] = useState("");
   
   const router = useRouter();
   const params = useParams();
@@ -594,14 +646,30 @@ const ObrasPage = () => {
     fetchClientes();
   }, []);
 
+  const loadResponsables = useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, "responsablesObra"));
+      const all = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es", { sensitivity: "base" }));
+      setResponsablesData(all);
+    } catch (error) {
+      console.error("Error al cargar responsables de obra:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadResponsables();
+  }, [loadResponsables]);
+
   useEffect(() => {
     const fetchEmpleados = async () => {
       try {
         const snap = await getDocs(collection(db, "empleados"));
         const data = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((e) => e?.activo !== false);
-        data.sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es", { sensitivity: "base" }));
+          .filter((empleado) => empleado?.activo !== false)
+          .sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es", { sensitivity: "base" }));
         setEmpleados(data);
       } catch (error) {
         console.error("Error al cargar empleados:", error);
@@ -609,6 +677,63 @@ const ObrasPage = () => {
     };
     fetchEmpleados();
   }, []);
+
+  const resetResponsableForm = () => {
+    setResponsableForm("");
+    setResponsableEditId(null);
+    setResponsableError("");
+  };
+
+  const guardarResponsable = async (event) => {
+    event.preventDefault();
+    const nombre = String(responsableForm || "").trim();
+    if (!nombre) {
+      setResponsableError("Ingresá el nombre de la persona.");
+      return;
+    }
+
+    try {
+      setSavingResponsable(true);
+      setResponsableError("");
+      if (responsableEditId) {
+        await updateDoc(doc(db, "responsablesObra", responsableEditId), {
+          nombre,
+          actualizadoEn: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "responsablesObra"), {
+          nombre,
+          activo: true,
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp(),
+        });
+      }
+      await loadResponsables();
+      resetResponsableForm();
+    } catch (error) {
+      console.error("Error al guardar responsable:", error);
+      setResponsableError("No se pudo guardar. Intentá nuevamente.");
+    } finally {
+      setSavingResponsable(false);
+    }
+  };
+
+  const cambiarEstadoResponsable = async (responsable) => {
+    const estaActivo = responsable.activo !== false;
+    const accion = estaActivo ? "desactivar" : "reactivar";
+    if (!window.confirm(`¿Querés ${accion} a ${responsable.nombre || "esta persona"}?`)) return;
+
+    try {
+      await updateDoc(doc(db, "responsablesObra", responsable.id), {
+        activo: !estaActivo,
+        actualizadoEn: serverTimestamp(),
+      });
+      await loadResponsables();
+    } catch (error) {
+      console.error("Error al cambiar estado del responsable:", error);
+      setResponsableError("No se pudo cambiar el estado. Intentá nuevamente.");
+    }
+  };
 
   // Guardar o actualizar nota
   const saveNota = async () => {
@@ -748,33 +873,32 @@ const ObrasPage = () => {
     {
       accessorKey: "numeroPedido",
       header: "N° Presupuesto",
-      cell: ({ row }) => {
-        const numero = row.getValue("numeroPedido");
-        return (
-          <div className="flex items-center gap-2">
-            <div className="font-medium cursor-pointer hover:underline text-purple-600">
-              {numero || "Sin número"}
-            </div>
-            <Badge
-              variant="outline"
-              className="text-xs bg-purple-50 text-purple-700 border-purple-200"
-            >
-              PO
-            </Badge>
-          </div>
-        );
-      },
+      exportValue: (presupuesto) => getRegistroTag("PO", presupuesto.numeroPedido, presupuesto.id),
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-mono text-xs font-semibold tracking-wide text-slate-700">
+          {getRegistroTag("PO", row.original.numeroPedido, row.original.id)}
+        </span>
+      ),
     },
     {
-      accessorKey: "cliente",
+      id: "cliente",
+      accessorFn: (presupuesto) => presupuesto.cliente?.nombre || "Sin nombre",
       header: "Cliente",
+      exportValue: (presupuesto) => String(presupuesto.cliente?.nombre || "Sin nombre").toLocaleUpperCase("es-AR"),
       cell: ({ row }) => {
-        const cliente = row.original.cliente;
-          return (
-            <div>
-              <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
+        const presupuesto = row.original;
+        const cliente = presupuesto.cliente || {};
+        const contacto = getClienteSecondaryLabel(cliente);
+        const direccion = getDireccionClienteObra(presupuesto);
+        return (
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-slate-900">{String(cliente.nombre || "Sin nombre").toLocaleUpperCase("es-AR")}</div>
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+              {contacto !== "-" ? <span className="inline-flex min-w-0 items-center gap-1.5"><Phone aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{contacto}</span></span> : null}
+              {direccion ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{direccion}</span></span> : null}
             </div>
-          );
+          </div>
+        );
       },
     },
     {
@@ -803,6 +927,7 @@ const ObrasPage = () => {
     {
       id: "bloques",
       header: "Bloques",
+      exportValue: (presupuesto) => presupuesto.bloques?.length || 0,
       cell: ({ row }) => {
         const totalBloques = Array.isArray(row.original.bloques)
           ? row.original.bloques.length
@@ -817,17 +942,12 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const estado = row.getValue("estadoUI");
         const estadoInfo = estadosObra[estado] || estadosObra.activo;
-        const EstadoIcon = estadoInfo.icon;
 
         return (
-          <Badge
-            variant="outline"
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-0 p-0 ${estadoInfo.color}`}
-            title={estadoInfo.label}
-            aria-label={`Estado: ${estadoInfo.label}`}
-          >
-            <EstadoIcon className="h-4 w-4" aria-hidden="true" />
-          </Badge>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${estado === "cancelada" ? "bg-rose-50 text-rose-700 ring-rose-200" : estado === "pausada" ? "bg-amber-50 text-amber-800 ring-amber-200" : estado === "en_ejecucion" ? "bg-blue-50 text-blue-700 ring-blue-200" : "bg-emerald-50 text-emerald-700 ring-emerald-200"}`} title={`Estado: ${estadoInfo.label}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${estado === "cancelada" ? "bg-rose-500" : estado === "pausada" ? "bg-amber-500" : estado === "en_ejecucion" ? "bg-blue-500" : "bg-emerald-500"}`} aria-hidden="true" />
+            {estadoInfo.label}
+          </span>
         );
       },
     },
@@ -835,51 +955,25 @@ const ObrasPage = () => {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => {
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-              title="Convertir a Obra"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPresupuestoParaConvertir(row.original);
-                setShowWizardConversion(true);
-              }}
-            >
-              <ArrowRightCircle className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              title="Editar"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/${lang}/obras/presupuesto/${row.original.id}`);
-              }}
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
-              title="Eliminar"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.dispatchEvent(
-                  new CustomEvent("deletePresupuesto", {
-                    detail: { id: row.original.id },
-                  })
-                );
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        );
+        const presupuesto = row.original;
+        return <div className="flex items-center justify-end gap-1.5 lg:justify-start">
+          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`); }}>
+            Abrir<ExternalLink aria-hidden="true" className="ml-2 h-3.5 w-3.5" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Más acciones para presupuesto ${presupuesto.numeroPedido || ""}`} className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" onClick={(event) => event.stopPropagation()}>
+                <MoreVertical aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => { setPresupuestoParaConvertir(presupuesto); setShowWizardConversion(true); }}><ArrowRightCircle className="mr-2 h-4 w-4" />Convertir a obra</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}><Pencil className="mr-2 h-4 w-4" />Editar presupuesto</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-red-700 focus:text-red-700" onSelect={() => window.dispatchEvent(new CustomEvent("deletePresupuesto", { detail: { id: presupuesto.id } }))}><Trash2 className="mr-2 h-4 w-4" />Eliminar</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>;
       },
       enableSorting: false,
     },
@@ -897,9 +991,24 @@ const ObrasPage = () => {
     {
       accessorKey: "numeroPedido",
       header: "N° Obra",
+      exportValue: (obra) => getRegistroTag("OBRA", obra.numeroPedido, obra.id),
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-mono text-xs font-semibold tracking-wide text-slate-700">
+          {getRegistroTag("OBRA", row.original.numeroPedido, row.original.id)}
+        </span>
+      ),
+    },
+    {
+      id: "cliente",
+      accessorFn: (obra) => obra.cliente?.nombre || "Sin nombre",
+      header: "Cliente",
+      exportValue: (obra) => String(obra.cliente?.nombre || "Sin nombre").toLocaleUpperCase("es-AR"),
       cell: ({ row }) => {
-        const numero = row.getValue("numeroPedido");
         const obra = row.original;
+        const cliente = obra.cliente || {};
+        const numero = getRegistroTag("OBRA", obra.numeroPedido, obra.id);
+        const contacto = getClienteSecondaryLabel(cliente);
+        const direccion = getDireccionClienteObra(obra);
         const tieneDocumentacion = obra.documentacion?.links && Array.isArray(obra.documentacion.links) && obra.documentacion.links.length > 0;
         // Verificar si hay notas asociadas (por número de obra o nombre de cliente)
         const tieneNotas = notas.some(n => {
@@ -914,47 +1023,17 @@ const ObrasPage = () => {
         const enRangoFechas = estaEnEjecucion && hoy >= obra.fechas.inicio && hoy <= obra.fechas.fin;
         
         return (
-          <div className="flex items-center gap-2">
-          <div className="font-medium cursor-pointer hover:underline text-blue-600">
-            {numero || "Sin número"}
-            </div>
-            <div className="flex items-center gap-1">
-              {tieneDocumentacion && (
-                <Icon
-                  icon="heroicons:paper-clip"
-                  className="w-4 h-4 text-blue-500"
-                  title="Tiene documentación"
-                />
-              )}
-              {tieneNotas && (
-                <Icon
-                  icon="heroicons:document-text"
-                  className="w-4 h-4 text-yellow-500"
-                  title="Tiene notas asociadas"
-                />
-              )}
-              {enRangoFechas && (
-                <Icon
-                  icon="heroicons:play-circle"
-                  className="w-4 h-4 text-green-500 animate-pulse"
-                  title="En ejecución actualmente"
-                />
-              )}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-slate-900">{String(cliente.nombre || "Sin nombre").toLocaleUpperCase("es-AR")}</div>
+            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+              {contacto !== "-" ? <span className="inline-flex min-w-0 items-center gap-1.5"><Phone aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{contacto}</span></span> : null}
+              {direccion ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{direccion}</span></span> : null}
+              {tieneDocumentacion ? <Icon icon="heroicons:paper-clip" className="h-3.5 w-3.5 text-slate-500" title="Tiene documentación" /> : null}
+              {tieneNotas ? <Icon icon="heroicons:document-text" className="h-3.5 w-3.5 text-slate-500" title="Tiene notas asociadas" /> : null}
+              {enRangoFechas ? <Icon icon="heroicons:play-circle" className="h-3.5 w-3.5 text-emerald-600" title="En ejecución actualmente" /> : null}
             </div>
           </div>
         );
-      },
-    },
-    {
-      accessorKey: "cliente",
-      header: "Cliente",
-      cell: ({ row }) => {
-        const cliente = row.original.cliente;
-          return (
-            <div>
-              <div className="font-medium">{(cliente?.nombre || "Sin nombre").toUpperCase()}</div>
-            </div>
-          );
       },
     },
     {
@@ -979,17 +1058,12 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const estado = row.getValue("estado");
         const estadoInfo = estadosObra[estado] || estadosObra.pendiente_inicio;
-        const EstadoIcon = estadoInfo.icon;
 
         return (
-          <Badge
-            variant="outline"
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-0 p-0 ${estadoInfo.color}`}
-            title={estadoInfo.label}
-            aria-label={`Estado: ${estadoInfo.label}`}
-          >
-            <EstadoIcon className="h-4 w-4" aria-hidden="true" />
-          </Badge>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${estado === "cancelada" ? "bg-rose-50 text-rose-700 ring-rose-200" : estado === "pausada" ? "bg-amber-50 text-amber-800 ring-amber-200" : estado === "en_ejecucion" ? "bg-blue-50 text-blue-700 ring-blue-200" : estado === "completada" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`} title={`Estado: ${estadoInfo.label}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${estado === "completada" ? "bg-emerald-500" : estado === "cancelada" ? "bg-rose-500" : estado === "pausada" ? "bg-amber-500" : estado === "en_ejecucion" ? "bg-blue-500" : "bg-slate-500"}`} aria-hidden="true" />
+            {estadoInfo.label}
+          </span>
         );
       },
     },
@@ -1003,6 +1077,7 @@ const ObrasPage = () => {
     {
       id: "pago",
       header: "Pago",
+      exportValue: (obra) => getObraPaymentMetrics(obra).totalAbonado,
       cell: ({ row }) => {
         const { total, totalAbonado } = getObraPaymentMetrics(row.original);
         const paidRatio = total > 0 ? Math.min((totalAbonado / total) * 100, 100) : 0;
@@ -1018,6 +1093,7 @@ const ObrasPage = () => {
     {
       id: "debe",
       header: "Debe",
+      exportValue: (obra) => getObraPaymentMetrics(obra).debe,
       cell: ({ row }) => {
         const { debe } = getObraPaymentMetrics(row.original);
 
@@ -1033,48 +1109,25 @@ const ObrasPage = () => {
       header: "Acciones",
       cell: ({ row }) => {
         const obra = row.original;
-        
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-              title="Ver panel"
-              onClick={(e) => {
-                e.stopPropagation();
-                setObraSeleccionada(obra);
-                setShowObraPanel(true);
-              }}
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              title="Editar"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/${lang}/obras/${obra.id}`);
-              }}
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
-              title="Eliminar obra"
-              onClick={(e) => {
-                e.stopPropagation();
-                showDeleteConfirmation(obra.id, "obra", obra.numeroPedido || "obra");
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        );
+
+        return <div className="flex items-center justify-end gap-1.5 lg:justify-start">
+          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/${obra.id}`); }}>
+            Abrir<ExternalLink aria-hidden="true" className="ml-2 h-3.5 w-3.5" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Más acciones para obra ${obra.numeroPedido || ""}`} className="h-8 w-8 rounded-md text-slate-600 hover:bg-slate-100" onClick={(event) => event.stopPropagation()}>
+                <MoreVertical aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => { setObraSeleccionada(obra); setShowObraPanel(true); }}><Eye className="mr-2 h-4 w-4" />Ver resumen</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push(`/${lang}/obras/${obra.id}`)}><Pencil className="mr-2 h-4 w-4" />Editar obra</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-red-700 focus:text-red-700" onSelect={() => showDeleteConfirmation(obra.id, "obra", obra.numeroPedido || "obra")}><Trash2 className="mr-2 h-4 w-4" />Eliminar</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>;
       },
       enableSorting: false,
     },
@@ -1197,6 +1250,7 @@ const ObrasPage = () => {
   // Función para cargar datos (reutilizable)
   const fetchData = useCallback(async ({ showLoader = true } = {}) => {
       try {
+        setErrorCargaObras("");
         if (showLoader) setLoading(true);
         const obrasSnap = await getDocs(collection(db, "obras"));
         const base = obrasSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
@@ -1280,6 +1334,7 @@ const ObrasPage = () => {
         setObrasData(enriched);
       } catch (error) {
         console.error("Error al cargar datos:", error);
+        setErrorCargaObras("No se pudieron cargar las obras y presupuestos.");
       } finally {
         if (showLoader) setLoading(false);
       }
@@ -1601,8 +1656,8 @@ const ObrasPage = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todos los clientes</SelectItem>
                   {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre || "Sin nombre"}
+                     <SelectItem key={cliente.id} value={cliente.id}>
+                       {(cliente.nombre || "Sin nombre").toLocaleUpperCase("es-AR")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1731,8 +1786,8 @@ const ObrasPage = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todos los clientes</SelectItem>
                   {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre || "Sin nombre"}
+                     <SelectItem key={cliente.id} value={cliente.id}>
+                       {(cliente.nombre || "Sin nombre").toLocaleUpperCase("es-AR")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1817,10 +1872,10 @@ const ObrasPage = () => {
   const FiltrosFechas = () => (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-10 rounded-xl border-border/60 bg-background px-4">
+        <Button variant="outline" className="h-9 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50">
           <Icon icon="heroicons:calendar-days" className="mr-2 h-4 w-4" />
           Fechas
-          {(filtros.fechaDesde || filtros.fechaHasta) ? <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">1</span> : null}
+          {(filtros.fechaDesde || filtros.fechaHasta) ? <span className="ml-2 text-[10px] font-semibold text-slate-600">1</span> : null}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[320px] rounded-2xl border-border/60 p-4">
@@ -1836,23 +1891,42 @@ const ObrasPage = () => {
   );
 
   const toolbarRightPresupuestos = (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
       <FiltrosFechas />
-      <Button type="button" onClick={() => router.push(`/${lang}/obras/presupuesto/create`)} className="h-10 rounded-xl px-4"><Plus className="mr-2 h-4 w-4" />Nuevo presupuesto</Button>
     </div>
   );
 
+  const toolbarActionPresupuestos = (
+    <Button type="button" onClick={() => router.push(`/${lang}/obras/presupuesto/create`)} className="h-9 w-full rounded-md px-3 text-xs sm:w-auto"><Plus className="mr-2 h-4 w-4" />Nuevo presupuesto</Button>
+  );
+
   const toolbarRightObras = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
       <Select value={filtros.estado || "todos"} onValueChange={(estado) => setFiltros((actual) => ({ ...actual, estado: estado === "todos" ? "" : estado }))}>
-        <SelectTrigger className="h-10 w-[190px] rounded-xl border-border/60 bg-background"><SelectValue placeholder="Estado" /></SelectTrigger>
+        <SelectTrigger className="h-9 w-[178px] rounded-md border-slate-200 bg-white text-xs shadow-sm"><SelectValue placeholder="Estado" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="todos">Todos los estados</SelectItem>
           {Object.entries(estadosObra).filter(([value]) => value !== "activo").map(([value, estado]) => <SelectItem key={value} value={value}>{estado.label}</SelectItem>)}
         </SelectContent>
       </Select>
       <FiltrosFechas />
-      <Button type="button" onClick={() => router.push(`/${lang}/obras/create`)} className="h-10 rounded-xl px-4"><Plus className="mr-2 h-4 w-4" />Nueva obra</Button>
+    </div>
+  );
+
+  const toolbarActionObras = (
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          resetResponsableForm();
+          setShowResponsablesDialog(true);
+        }}
+        className="h-9 rounded-md border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm hover:bg-slate-50"
+      >
+        <Users className="mr-2 h-4 w-4" />Responsables
+      </Button>
+      <Button type="button" onClick={() => router.push(`/${lang}/obras/create`)} className="h-9 flex-1 rounded-md px-3 text-xs sm:flex-none"><Plus className="mr-2 h-4 w-4" />Nueva obra</Button>
     </div>
   );
 
@@ -1868,42 +1942,51 @@ const ObrasPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
-      {/* Mensaje de estado - Mejorado con animación */}
+    <div className="mx-auto flex w-full max-w-[1700px] flex-col gap-7 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-9">
+      {errorCargaObras ? (
+        <div role="alert" className="flex flex-col gap-2 border-l-2 border-red-600 py-2 pl-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorCargaObras}</span>
+          <Button type="button" variant="ghost" size="sm" onClick={() => fetchData()} className="self-start text-red-800 hover:bg-red-50 sm:self-auto">
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
       {deleteMessage && (
         <div
-          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm md:text-base font-medium shadow-lg border transition-all duration-500 animate-in slide-in-from-top-2 fade-in ${
+          role="status"
+          className={`flex items-center gap-3 border-l-2 py-2 pl-3 text-sm transition-colors ${
             deleteMessage.startsWith("✅")
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100"
+              ? "border-emerald-600 text-emerald-800"
               : deleteMessage.startsWith("⚠️")
-              ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-800 shadow-yellow-100"
-              : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+              ? "border-amber-500 text-amber-800"
+              : "border-red-600 text-red-800"
           }`}
         >
           {deleteMessage.startsWith("✅") ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
+            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-700" />
           ) : deleteMessage.startsWith("⚠️") ? (
-            <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
-              <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            </div>
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" />
           ) : (
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-700" />
           )}
-          <span className="font-semibold flex-1">{deleteMessage}</span>
+          <span className="flex-1">{deleteMessage}</span>
           <button
             onClick={() => setDeleteMessage("")}
-            className="w-6 h-6 rounded-full hover:bg-white/50 flex items-center justify-center transition-colors"
+            type="button"
+            aria-label="Cerrar notificación"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-current/70 transition-colors hover:bg-slate-100 hover:text-current"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Header Funcional */}
+      <header className="border-b border-slate-200/80 pb-5">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.2em] text-amber-700">Planificación · Ejecución</p>
+        <h1 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Obras y presupuestos</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">Planificá el trabajo, revisá presupuestos y seguí cada proyecto en curso.</p>
+      </header>
+
       <ObrasHeader
         vistaCalendario={vistaCalendario}
         onVistaCalendarioChange={setVistaCalendario}
@@ -1956,17 +2039,19 @@ const ObrasPage = () => {
         onDeleteNota={confirmDeleteNota}
       />
 
-      <div className="grid grid-cols-1 gap-4 px-2 xl:grid-cols-2">
+      <div className="space-y-10">
         <ObrasListTable
           tabs={[]}
           activeTab="presupuestos"
           data={presupuestosTabla}
           columns={presupuestosColumns}
           title="Presupuestos"
+          description="Consultá presupuestos, clientes y montos en un solo lugar."
           searchValue={busquedaPresupuestos}
           onSearchChange={setBusquedaPresupuestos}
           searchPlaceholder="Buscar presupuesto, cliente, teléfono o documento..."
           toolbarRight={toolbarRightPresupuestos}
+          toolbarAction={toolbarActionPresupuestos}
           loading={loadingBusquedaPresupuestos}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/presupuesto/${item.id}`)}
@@ -1977,55 +2062,131 @@ const ObrasPage = () => {
           data={obrasTabla}
           columns={obrasColumns}
           title="Obras"
+          description="Seguí el avance, los pagos y el saldo de cada obra."
           searchValue={busquedaObras}
           onSearchChange={setBusquedaObras}
           searchPlaceholder="Buscar obra, cliente, teléfono o documento..."
           toolbarRight={toolbarRightObras}
+          toolbarAction={toolbarActionObras}
           loading={loadingBusquedaObras}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/${item.id}`)}
         />
       </div>
 
-      {/* Diálogo de confirmación de eliminación mejorado */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
-          <DialogHeader className="text-center pb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-            <DialogTitle className="text-xl font-bold text-gray-900">
-              Confirmar Eliminación
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2">
-              ¿Estás seguro de que quieres eliminar este{" "}
-              {deleteType === "obra" ? "obra" : "presupuesto"}?
+      <Dialog
+        open={showResponsablesDialog}
+        onOpenChange={(open) => {
+          setShowResponsablesDialog(open);
+          if (!open) resetResponsableForm();
+        }}
+      >
+        <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto rounded-[20px] border-0 shadow-2xl">
+          <DialogHeader>
+            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-amber-700">Equipo</p>
+            <DialogTitle className="text-2xl font-semibold tracking-tight">Responsables de obra</DialogTitle>
+            <DialogDescription>
+              Creá y administrá las personas que se pueden asignar a una obra. Desactivar conserva las asignaciones existentes.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Info className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-red-800">
-                  {itemToDelete?.name || "Elemento"}
-                </div>
-                <div className="text-sm text-red-700">
-                  {deleteType === "obra"
-                    ? "Esta acción eliminará la obra permanentemente."
-                    : "Esta acción eliminará el presupuesto permanentemente."}
-                </div>
-              </div>
+          <form onSubmit={guardarResponsable} className="space-y-3 border-y border-slate-200/80 py-4">
+            <label className="sr-only" htmlFor="responsable-obra-nombre">Nombre del responsable</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="responsable-obra-nombre"
+                value={responsableForm}
+                onChange={(event) => {
+                  setResponsableForm(event.target.value);
+                  setResponsableError("");
+                }}
+                placeholder="Nombre y apellido"
+                maxLength={100}
+                autoComplete="name"
+                disabled={savingResponsable}
+              />
+              <Button type="submit" disabled={savingResponsable || !responsableForm.trim()}>
+                {savingResponsable ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {responsableEditId ? "Guardar" : "Agregar"}
+              </Button>
+              {responsableEditId ? (
+                <Button type="button" variant="outline" onClick={resetResponsableForm} disabled={savingResponsable}>
+                  Cancelar
+                </Button>
+              ) : null}
             </div>
+            {responsableError ? <p role="alert" className="text-sm text-destructive">{responsableError}</p> : null}
+          </form>
+
+          <div className="space-y-2 border-t pt-4">
+            <h3 className="text-sm font-semibold">Personas registradas ({responsablesData.length})</h3>
+            {responsablesData.length > 0 ? (
+                <ul className="divide-y divide-slate-200/80">
+                {responsablesData.map((responsable, index) => {
+                  const activo = responsable.activo !== false;
+                  return (
+                    <li key={responsable.id} className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-slate-50/70">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{responsable.nombre || "Sin nombre"}</p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                          <span className={`h-1.5 w-1.5 rounded-full ${activo ? "bg-emerald-600" : "bg-slate-400"}`} />
+                          {activo ? "Activo" : "Inactivo"} <span className="text-slate-300">·</span> <span className="font-mono text-[10px]">{String(index + 1).padStart(2, "0")}</span>
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setResponsableEditId(responsable.id);
+                            setResponsableForm(responsable.nombre || "");
+                            setResponsableError("");
+                          }}
+                        >
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => cambiarEstadoResponsable(responsable)}
+                        >
+                          {activo ? "Desactivar" : "Reactivar"}
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="py-5 text-sm text-muted-foreground">
+                Todavía no hay responsables. Agregá una persona para poder asignarla a una obra.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de eliminación */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="w-[95vw] max-w-md rounded-[20px] border-0 shadow-2xl">
+          <DialogHeader className="pb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-red-700">Acción irreversible</p>
+            <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900">Eliminar {deleteType === "obra" ? "obra" : "presupuesto"}</DialogTitle>
+            <DialogDescription className="text-slate-500">Esta acción no se puede deshacer.</DialogDescription>
+          </DialogHeader>
+
+          <div className="border-l-2 border-red-500 py-1 pl-3">
+            <p className="font-medium text-slate-900">{itemToDelete?.name || "Elemento"}</p>
+            <p className="mt-1 text-sm text-slate-500">Se eliminará permanentemente junto con los datos asociados.</p>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+          <DialogFooter className="flex flex-col gap-2 pt-3 sm:flex-row">
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              className="w-full sm:w-auto"
               disabled={deleting}
             >
               <X className="w-4 h-4 mr-2" />
@@ -2034,7 +2195,7 @@ const ObrasPage = () => {
             <Button
               variant="destructive"
               onClick={confirmDelete}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105"
+              className="w-full sm:w-auto"
               disabled={deleting}
             >
               {deleting ? (
@@ -2071,15 +2232,13 @@ const ObrasPage = () => {
           });
         }
       }}>
-        <DialogContent className="w-[95vw] max-w-lg rounded-2xl border-0 shadow-2xl bg-white">
-          <DialogHeader className="pb-4">
-            <div className={`w-16 h-16 bg-gradient-to-br ${editingNotaId ? 'from-amber-100 to-orange-100' : 'from-blue-100 to-indigo-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-              <Icon icon={editingNotaId ? "heroicons:pencil" : "heroicons:pencil-square"} className={`w-8 h-8 ${editingNotaId ? 'text-amber-600' : 'text-blue-600'}`} />
-            </div>
-            <DialogTitle className="text-xl font-bold text-gray-900 text-center">
+        <DialogContent className="w-[95vw] max-w-lg rounded-[20px] border-0 shadow-2xl">
+          <DialogHeader className="pb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-amber-700">Calendario de obra</p>
+            <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900">
               {editingNotaId ? "Editar Nota de Obra" : "Nueva Nota de Obra"}
             </DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2 text-center">
+            <DialogDescription className="text-slate-500">
               {editingNotaId 
                 ? "Modifica los detalles de tu nota"
                 : "Agrega una nota rápida para recordar entregas o trabajos pendientes"}
@@ -2103,7 +2262,7 @@ const ObrasPage = () => {
                     empleadoNombre,
                   }));
                 }}
-                className="w-full h-10 px-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#183f38]/20"
               >
                 <option value="">Seleccionar empleado</option>
                 {empleados.map((emp) => (
@@ -2162,7 +2321,7 @@ const ObrasPage = () => {
                 placeholder="Ej: Entregar materiales / medir / avanzar con estructura..."
                 value={notaForm.detalle}
                 onChange={(e) => setNotaForm({ ...notaForm, detalle: e.target.value })}
-                className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="min-h-[100px] w-full resize-none rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#183f38]/20"
               />
             </div>
 
@@ -2194,13 +2353,13 @@ const ObrasPage = () => {
                   buttonClassName="w-full h-10 px-3 border-gray-300 rounded-lg bg-white"
                 />
               </div>
-              <div className="sm:col-span-2 text-xs text-gray-500">
+              <div className="text-xs text-slate-500 sm:col-span-2">
                 Se duplica la nota en cada día del rango.
               </div>
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+          <DialogFooter className="flex flex-col gap-2 border-t border-slate-200/80 pt-4 sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
@@ -2218,7 +2377,7 @@ const ObrasPage = () => {
                   fechaHasta: "",
                 });
               }}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium cursor-pointer"
+              className="w-full sm:w-auto"
               disabled={savingNota}
             >
               <X className="w-4 h-4 mr-2" />
@@ -2227,11 +2386,7 @@ const ObrasPage = () => {
             <Button
               onClick={saveNota}
               disabled={savingNota}
-              className={`w-full sm:w-auto px-6 py-3 rounded-xl ${
-                editingNotaId
-                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-              } shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+              className="w-full bg-[#183f38] text-white hover:bg-[#24574d] sm:w-auto"
             >
               {savingNota ? (
                 <>
@@ -2240,7 +2395,6 @@ const ObrasPage = () => {
                 </>
               ) : (
                 <>
-                  <Icon icon="heroicons:check" className="w-4 h-4 mr-2" />
                   {editingNotaId ? "Actualizar Nota" : "Guardar Nota"}
                 </>
               )}
@@ -2251,47 +2405,40 @@ const ObrasPage = () => {
 
       {/* Diálogo de confirmación para eliminar nota */}
       <Dialog open={showDeleteNotaDialog} onOpenChange={setShowDeleteNotaDialog}>
-        <DialogContent className="w-[95vw] max-w-sm rounded-2xl border-0 shadow-2xl bg-white">
-          <DialogHeader className="text-center pb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-            <DialogTitle className="text-lg font-bold text-gray-900">
+        <DialogContent className="w-[95vw] max-w-sm rounded-[20px] border-0 shadow-2xl">
+          <DialogHeader className="pb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-red-700">Acción irreversible</p>
+            <DialogTitle className="text-lg font-semibold tracking-tight text-slate-900">
               ¿Eliminar esta nota?
             </DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2">
-              Esta acción no se puede deshacer
+            <DialogDescription className="text-slate-500">
+              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
 
           {notaToDelete && (
-            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-3 mb-4 border border-yellow-200">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Icon icon="heroicons:document-text" className="w-4 h-4 text-yellow-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-800 text-sm truncate">
+            <div className="border-l-2 border-amber-500 py-1 pl-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-slate-900">
                     {notaToDelete.numObra || notaToDelete.nombreObra || notaToDelete.barrioLote || "Nota"}
                   </div>
                   {(notaToDelete.detalle || notaToDelete.productos) && (
-                    <div className="text-xs text-gray-600 truncate">
+                    <div className="truncate text-xs text-slate-500">
                       {notaToDelete.detalle || notaToDelete.productos}
                     </div>
                   )}
-                </div>
               </div>
             </div>
           )}
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+          <DialogFooter className="flex flex-col gap-2 border-t border-slate-200/80 pt-4 sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
                 setShowDeleteNotaDialog(false);
                 setNotaToDelete(null);
               }}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+              className="w-full sm:w-auto"
               disabled={deletingNota}
             >
               <X className="w-4 h-4 mr-2" />
@@ -2301,7 +2448,7 @@ const ObrasPage = () => {
               variant="destructive"
               onClick={deleteNota}
               disabled={deletingNota}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto"
             >
               {deletingNota ? (
                 <>

@@ -116,6 +116,8 @@ const estadoEditableDesdeObra = (data) => {
       ? data.documentacion.links
       : [],
     movimientos: movimientosDesdeCobranzas(data.cobranzas),
+    responsableObraId: data.responsableObraId || "",
+    responsableObraNombre: data.responsableObraNombre || "",
   };
 
   if (data.tipo === "obra") {
@@ -204,6 +206,8 @@ export const useObra = (id) => {
 
   const [clienteId, setClienteId] = useState("");
   const [cliente, setCliente] = useState(null);
+  const [responsableObraId, setResponsableObraId] = useState("");
+  const [responsableObraNombre, setResponsableObraNombre] = useState("");
   const [clientes, setClientes] = useState([]);
   const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
 
@@ -259,6 +263,8 @@ export const useObra = (id) => {
       ubicacionEdit: setUbicacionEdit,
       clienteId: setClienteId,
       cliente: setCliente,
+      responsableObraId: setResponsableObraId,
+      responsableObraNombre: setResponsableObraNombre,
       usarDireccionCliente: setUsarDireccionCliente,
       itemsCatalogo: setItemsCatalogo,
       gastoObraManual: setGastoObraManual,
@@ -286,6 +292,8 @@ export const useObra = (id) => {
       ubicacionEdit,
       clienteId,
       cliente,
+      responsableObraId,
+      responsableObraNombre,
       usarDireccionCliente,
       itemsCatalogo,
       gastoObraManual: Number(gastoObraManual) || 0,
@@ -1141,6 +1149,8 @@ export const useObra = (id) => {
     };
 
     if (obra.tipo === "obra") {
+      updateData.responsableObraId = responsableObraId || "";
+      updateData.responsableObraNombre = responsableObraNombre || "";
       updateData.materialesCatalogo =
         materialesSanitizados;
 
@@ -1742,6 +1752,8 @@ export const useObra = (id) => {
     ubicacionEdit,
     clienteId,
     cliente,
+    responsableObraId,
+    responsableObraNombre,
     clientes,
     usarDireccionCliente,
     productosCatalogo,
@@ -1778,6 +1790,8 @@ export const useObra = (id) => {
     setUbicacionEdit,
     setClienteId,
     setCliente,
+    setResponsableObraId,
+    setResponsableObraNombre,
     setUsarDireccionCliente,
     setCategoriaId,
     setBusquedaProducto,

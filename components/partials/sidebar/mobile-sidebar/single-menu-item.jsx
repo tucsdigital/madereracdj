@@ -9,40 +9,35 @@ const SingleMenuItem = ({ item, collapsed }) => {
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
   const localize = useLocalizedPath();
+  const active = isLocationMatch(href, locationName);
   return (
-    <Link href={localize(href)}>
+    <Link href={localize(href)} aria-current={active ? "page" : undefined} className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
       <>
         {collapsed ? (
           <div>
             <span
               className={cn(
-                "h-12 w-12 mx-auto rounded-md  transition-all duration-300 inline-flex flex-col items-center justify-center  relative  ",
+                "relative mx-auto inline-flex h-10 w-10 flex-col items-center justify-center rounded-md transition-colors",
                 {
-                  "bg-primary text-primary-foreground ": isLocationMatch(
-                    href,
-                    locationName
-                  ),
-                  " text-default-600  ": !isLocationMatch(href, locationName),
+                  "bg-primary text-primary-foreground": active,
+                  "text-default-600 hover:bg-muted hover:text-foreground": !active,
                 }
               )}
             >
-              <item.icon className="w-6 h-6" />
+              <item.icon className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden="true" />
             </span>
           </div>
         ) : (
           <div
             className={cn(
-              "flex gap-3  text-default-700 text-sm capitalize px-[10px] py-3 rounded cursor-pointer hover:bg-primary hover:text-primary-foreground",
+              "flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium capitalize text-default-700 transition-colors hover:bg-muted/70 hover:text-foreground",
               {
-                "bg-primary text-primary-foreground": isLocationMatch(
-                  href,
-                  locationName
-                ),
+                "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground": active,
               }
             )}
           >
             <span className="grow-0">
-              <item.icon className="w-5 h-5" />
+              <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} aria-hidden="true" />
             </span>
             <div className="text-box grow">{title}</div>
             {badge && <Badge className=" rounded">{item.badge}</Badge>}

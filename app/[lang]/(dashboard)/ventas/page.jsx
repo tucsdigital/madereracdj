@@ -28,7 +28,13 @@ import {
   ShoppingCart,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Plus,
   Search,
+  Wallet,
+  ArrowDown,
+  ArrowDownUp,
+  ArrowUp,
 } from "lucide-react";
 import {
   flexRender,
@@ -37,14 +43,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -126,6 +124,8 @@ const compareByNumeroPedidoDesc = (rowA, rowB, columnId) => {
   return a > b ? 1 : -1;
 };
 
+const escaparCSV = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
 const parseMaybeDate = (value) => {
   if (!value) return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
@@ -165,8 +165,6 @@ const isPresupuestoAnulado = (presupuesto) => {
 const CompactTableCard = ({
   title,
   count,
-  icon: Icon,
-  accent,
   data,
   columns,
   searchValue,
@@ -179,8 +177,6 @@ const CompactTableCard = ({
   showEstadoFiltro = false,
   mostrarAnulados,
   onMostrarAnuladosChange,
-  onCreateClick,
-  createLabel,
   onRowClick,
   rowClassName,
   cellClassName,
@@ -188,6 +184,7 @@ const CompactTableCard = ({
   loadingBusqueda = false,
 }) => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([{ id: "numeroPedido", desc: true }]);
 
   const columnsWithCorrelativeSort = useMemo(
     () =>
@@ -213,211 +210,195 @@ const CompactTableCard = ({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     autoResetPageIndex: false,
-    state: {
-      sorting: [{ id: "numeroPedido", desc: true }],
-      pagination,
-    },
+    state: { sorting, pagination },
+    onSortingChange: setSorting,
     onPaginationChange: setPagination,
   });
 
+  const gridTemplate = table.getVisibleLeafColumns().map((column, index) => {
+    if (column.id === "numeroPedido") return "minmax(125px, 0.9fr)";
+    if (column.id === "cliente") return "minmax(205px, 1.7fr)";
+    if (column.id === "estadoPago" || column.id === "estadoPresupuesto") return "minmax(105px, 0.8fr)";
+    if (column.id === "fechaCreacion") return "minmax(125px, 1fr)";
+    if (column.id === "total" || column.id === "montoAbonado") return "minmax(115px, 0.9fr)";
+    if (column.id === "actions") return "minmax(140px, auto)";
+    return index === 0 ? "minmax(150px, 1.2fr)" : "minmax(110px, 0.85fr)";
+  }).join(" ");
+  const columnLabels = {
+    numeroPedido: title === "Ventas" ? "N° venta" : "N° presupuesto",
+    cliente: "Cliente",
+    estadoPresupuesto: "Estado",
+    fechaCreacion: "Fecha",
+    total: "Total",
+    estadoPago: "Estado",
+    montoAbonado: "Abonado",
+    vendedor: "Vendedor",
+    actions: "Acciones",
+  };
+  const pageCount = Math.max(table.getPageCount(), 1);
+  const startRow = data.length === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
+  const endRow = Math.min((pagination.pageIndex + 1) * pagination.pageSize, data.length);
+  const headingId = `${title.toLocaleLowerCase("es-AR")}-list-heading`;
+
+  const exportarCSV = () => {
+    const columnasExportables = columns.filter((column) => column.id !== "actions");
+    const filas = [
+      columnasExportables.map((column) => column.exportHeader || column.header),
+      ...data.map((record) => columnasExportables.map((column) => {
+        if (typeof column.exportValue === "function") return column.exportValue(record);
+        const accessor = column.accessorKey || column.id;
+        return String(accessor || "").split(".").reduce((value, key) => value?.[key], record) ?? "";
+      })),
+    ];
+    const contenido = filas.map((fila) => fila.map(escaparCSV).join(",")).join("\r\n");
+    const blob = new Blob([`\uFEFF${contenido}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${title.toLocaleLowerCase("es-AR")}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   return (
-    <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
-      <div className="flex flex-col gap-3 p-4 sm:p-5 border-b border-border/50 bg-gradient-to-b from-background to-muted/20">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${accent}`}>
-              <Icon className="h-5 w-5" />
+    <section aria-labelledby={headingId}>
+      <div className="flex flex-col gap-4 pb-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id={headingId} className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
+              <span className="text-xs tabular-nums text-slate-500">{count} resultados</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-foreground leading-tight truncate">
-                {title}
-                <span className="ml-2 text-xs font-semibold text-muted-foreground">({count})</span>
-              </h2>
-            </div>
-            <div className="shrink-0">
-              <Button
-                type="button"
-                size="sm"
-                onClick={onCreateClick}
-                className="h-8 rounded-lg px-3 text-xs font-semibold shadow-sm hover:shadow transition-all select-none"
-                onDoubleClick={(e) => e.preventDefault()}
-              >
-                <Icon className="mr-1.5 h-4 w-4" />
-                {createLabel}
-              </Button>
-            </div>
+            <p className="mt-1 text-sm text-slate-500">{title === "Ventas" ? "Operaciones, cobros y estado de cada venta." : "Propuestas vigentes e historial de presupuestos."}</p>
           </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-8 pl-8 pr-3 rounded-lg text-xs border-border/60 w-full"
-            />
-          </div>
-
-          <Select value={periodo} onValueChange={onPeriodoChange}>
-            <SelectTrigger className="h-8 rounded-lg text-xs border-border/60 w-full sm:w-[170px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIODOS_LISTA.map((p) => (
-                <SelectItem key={p.value} value={p.value} className="text-xs">
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {showEstadoFiltro && (
-            <Select value={estadoFiltro} onValueChange={onEstadoFiltroChange}>
-              <SelectTrigger className="h-8 rounded-lg text-xs border-border/60 w-full sm:w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:flex 2xl:w-auto 2xl:flex-none 2xl:flex-wrap 2xl:items-center 2xl:justify-end">
+            <label className="relative min-w-0 sm:col-span-2 2xl:w-[280px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Input
+                value={searchValue}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                className="h-9 rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs shadow-sm placeholder:text-slate-500 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200"
+              />
+            </label>
+            <Select value={periodo} onValueChange={onPeriodoChange}>
+              <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{PERIODOS_LISTA.map((p) => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}</SelectContent>
+            </Select>
+            {showEstadoFiltro ? (
+              <Select value={estadoFiltro} onValueChange={onEstadoFiltroChange}>
+                <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[145px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos" className="text-xs">Todos los estados</SelectItem>
+                  <SelectItem value="pagado" className="text-xs">Pagado</SelectItem>
+                  <SelectItem value="parcial" className="text-xs">Parcial</SelectItem>
+                  <SelectItem value="pendiente" className="text-xs">Pendiente</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Select
+              value={`${sorting[0]?.id || "numeroPedido"}-${sorting[0]?.desc ? "desc" : "asc"}`}
+              onValueChange={(value) => {
+                const [id, direction] = value.split("-");
+                setSorting([{ id, desc: direction === "desc" }]);
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
+              }}
+            >
+              <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[175px]" aria-label="Ordenar registros"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos" className="text-xs">Estado: Todos</SelectItem>
-                <SelectItem value="pagado" className="text-xs">Pagado</SelectItem>
-                <SelectItem value="parcial" className="text-xs">Parcial</SelectItem>
-                <SelectItem value="pendiente" className="text-xs">Pendiente</SelectItem>
+                <SelectItem value="numeroPedido-desc" className="text-xs">Orden: número reciente</SelectItem>
+                <SelectItem value="fechaCreacion-desc" className="text-xs">Orden: fecha reciente</SelectItem>
+                <SelectItem value="total-desc" className="text-xs">Orden: mayor importe</SelectItem>
+                <SelectItem value="cliente-asc" className="text-xs">Orden: cliente A–Z</SelectItem>
               </SelectContent>
             </Select>
-          )}
-
-          <label className="flex items-center gap-2 h-8 px-3 rounded-lg border border-border/60 bg-background cursor-pointer select-none w-full sm:w-auto justify-center">
-            <Checkbox
-              checked={mostrarAnulados}
-              onCheckedChange={(c) => onMostrarAnuladosChange(Boolean(c))}
-              className="h-3.5 w-3.5"
-            />
-            <span className="text-xs font-medium text-foreground whitespace-nowrap">Anulados</span>
-          </label>
-
-        </div>
+            <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 xl:justify-start">
+              <Checkbox checked={mostrarAnulados} onCheckedChange={(checked) => onMostrarAnuladosChange(Boolean(checked))} className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium text-slate-700">Anulados</span>
+            </label>
+            <Button type="button" variant="outline" onClick={exportarCSV} disabled={loadingBusqueda || data.length === 0} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50">
+              <Download className="mr-2 h-4 w-4" />Exportar
+            </Button>
+          </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="w-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-border/50 hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="h-8 px-2.5 py-1.5 text-[10.5px] font-bold uppercase tracking-normal text-muted-foreground bg-muted/30 whitespace-nowrap"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {loadingBusqueda ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-20 text-center">
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    Buscando resultados...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const rowOriginal = row.original;
-                const anulado = isAnuladoFn?.(rowOriginal);
-                const customRowClass = rowClassName?.(rowOriginal) || "";
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+      <div role="table" aria-label={title}>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <div key={headerGroup.id} role="row" className="hidden gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[.09em] text-slate-500 xl:grid xl:px-5" style={{ gridTemplateColumns: gridTemplate }}>
+            {headerGroup.headers.map((header) => {
+              const sorted = header.column.getIsSorted();
+              const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowDownUp;
+              const alignRight = header.column.id === "actions" || ["total", "montoAbonado"].includes(header.column.id);
+              return (
+                <div key={header.id} role="columnheader" aria-sort={sorted ? (sorted === "asc" ? "ascending" : "descending") : "none"} className={alignRight ? "text-right" : ""}>
+                  {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button type="button" onClick={header.column.getToggleSortingHandler()} aria-label={`Ordenar por ${columnLabels[header.column.id] || header.column.id}`} className={`inline-flex items-center gap-1.5 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${alignRight ? "justify-end" : ""}`}>
+                      {flexRender(header.column.columnDef.header, header.getContext())}<SortIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
+                    </button>
+                  ) : flexRender(header.column.columnDef.header, header.getContext())}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        {loadingBusqueda ? (
+          <div className="flex min-h-36 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Buscando resultados…</div>
+        ) : table.getRowModel().rows?.length ? table.getRowModel().rows.map((row) => {
+          const rowOriginal = row.original;
+          const anulado = isAnuladoFn?.(rowOriginal);
+          const customRowClass = rowClassName?.(rowOriginal) || "";
+          return (
+            <article key={row.id} role="row" aria-label={`${rowOriginal.cliente?.nombre || (title === "Ventas" ? "Venta" : "Presupuesto")}, ${rowOriginal.numeroPedido || rowOriginal.id?.slice(-8) || "sin número"}`} onClick={(event) => {
+              if (event.target instanceof Element && event.target.closest("button, a, [role='button'], input, select")) return;
+              onRowClick?.(rowOriginal);
+            }} className={`grid cursor-pointer grid-cols-1 gap-x-3 gap-y-2 border-b border-slate-200 px-3 py-3 transition-colors last:border-0 hover:bg-slate-50/70 sm:px-4 xl:grid-cols-[var(--record-columns)] xl:items-center xl:gap-3 xl:px-5 ${anulado ? "bg-rose-50/40" : ""} ${customRowClass}`} style={{ "--record-columns": gridTemplate }}>
+              {row.getVisibleCells().map((cell) => {
+                const customCellClass = cellClassName?.(rowOriginal, cell.column.id) || "";
+                const numeric = ["total", "montoAbonado"].includes(cell.column.id);
                 return (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => onRowClick?.(rowOriginal)}
-                    className={`h-8 cursor-pointer border-border/40 transition-colors ${
-                      anulado ? "bg-red-50/60 hover:bg-red-50/80" : "hover:bg-muted/40"
-                    } ${customRowClass}`}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const customCellClass =
-                        cellClassName?.(rowOriginal, cell.column.id) || "";
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          className={`px-2.5 py-1.5 text-xs whitespace-nowrap ${
-                            anulado && String(cell.column.id) !== "actions"
-                              ? "text-red-700 line-through"
-                              : anulado && String(cell.column.id) === "actions"
-                                ? "text-red-700"
-                                : ""
-                          } ${customCellClass}`}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
+                  <div key={cell.id} role="cell" className={`flex min-w-0 items-start justify-between gap-4 border-b border-slate-100 pb-2 text-right last:border-0 last:pb-0 xl:block xl:border-0 xl:pb-0 xl:text-left ${cell.column.id === "cliente" ? "text-left" : ""} ${cell.column.id === "actions" ? "justify-end border-t pt-2 xl:justify-end xl:border-0 xl:pt-0" : ""} ${numeric ? "tabular-nums xl:text-right" : ""} ${anulado && cell.column.id !== "actions" ? "text-rose-700" : ""} ${customCellClass}`}>
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 xl:hidden">{columnLabels[cell.column.id] || cell.column.id}</span>
+                    <div className={`min-w-0 ${cell.column.id === "actions" ? "w-auto" : "flex-1 xl:flex-none"} ${numeric ? "text-right" : cell.column.id === "cliente" ? "text-left" : "text-right xl:text-left"}`}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
+                  </div>
                 );
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-20 text-center text-xs text-muted-foreground"
-                >
-                  Sin resultados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              })}
+            </article>
+          );
+        }) : (
+          <div className="px-4 py-14 text-center">
+            <p className="text-sm font-medium text-slate-800">Sin resultados para mostrar</p>
+            <p className="mt-1 text-xs text-slate-500">Probá cambiar la búsqueda, el período{showEstadoFiltro ? " o el estado" : ""}.</p>
+          </div>
+        )}
+      </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 p-3 sm:p-4 border-t border-border/50 bg-muted/10">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">Mostrar:</span>
+      <footer className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500">{startRow}–{endRow} de {data.length} {title.toLocaleLowerCase("es-AR")}</p>
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
           <Select
             value={String(pagination.pageSize)}
             onValueChange={(value) =>
               setPagination({ pageIndex: 0, pageSize: Math.min(100, Number(value) || 10) })
             }
           >
-            <SelectTrigger className="h-7 rounded-lg text-xs border-border/60 w-full sm:w-[120px]">
+            <SelectTrigger className="h-9 w-28 border-0 bg-transparent text-xs shadow-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {[10, 20, 50, 100].map((size) => (
                 <SelectItem key={size} value={String(size)} className="text-xs">
-                  {size}
+                  {size} por página
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <span className="text-[11px] text-muted-foreground text-center sm:text-left">
-            Total: {data.length}
-          </span>
-        </div>
-        <div className="flex items-center justify-center sm:justify-end gap-1.5">
-          <span className="mr-2 text-[11px] text-muted-foreground">
-            Pág. {table.getState().pagination.pageIndex + 1} de {table.getPageCount() || 1}
-          </span>
-          {Array.from({ length: Math.min(5, table.getPageCount() || 1) }, (_, index) => (
-            <Button
-              key={index + 1}
-              type="button"
-              variant={pagination.pageIndex === index ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPagination((current) => ({ ...current, pageIndex: index }))}
-              className="h-7 min-w-7 px-2 text-xs"
-            >
-              {index + 1}
-            </Button>
-          ))}
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() =>
               setPagination((current) => ({
@@ -426,36 +407,35 @@ const CompactTableCard = ({
               }))
             }
             disabled={pagination.pageIndex <= 0}
-            className="h-7 px-2.5 rounded-lg text-xs border-border/60"
+            className="h-8 px-2.5 text-xs"
           >
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="mr-1 h-3.5 w-3.5" />Anterior
           </Button>
+          <span className="min-w-12 text-center text-xs tabular-nums text-slate-500">{pagination.pageIndex + 1} / {pageCount}</span>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() =>
               setPagination((current) => ({
                 ...current,
-                pageIndex: Math.min(
-                  Math.max(0, table.getPageCount() - 1),
-                  current.pageIndex + 1
-                ),
+                pageIndex: Math.min(pageCount - 1, current.pageIndex + 1),
               }))
             }
-            disabled={pagination.pageIndex >= Math.max(0, table.getPageCount() - 1)}
-            className="h-7 px-2.5 rounded-lg text-xs border-border/60"
+            disabled={pagination.pageIndex >= pageCount - 1}
+            className="h-8 px-2.5 text-xs"
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            Siguiente<ChevronRight className="ml-1 h-3.5 w-3.5" />
           </Button>
         </div>
-      </div>
-    </div>
+      </footer>
+    </section>
   );
 };
 
 const VentasPage = () => {
   const { user } = useAuth();
+  const [activeList, setActiveList] = useState("ventas");
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -475,6 +455,7 @@ const VentasPage = () => {
   const [busquedaVentas, setBusquedaVentas] = useState("");
   const [loadingBusquedaVentas, setLoadingBusquedaVentas] = useState(false);
   const [loadingBusquedaPresupuestos, setLoadingBusquedaPresupuestos] = useState(false);
+  const [errorCarga, setErrorCarga] = useState("");
   const modoCargaVentasRef = useRef("limitado");
   const modoCargaPresupuestosRef = useRef("limitado");
 
@@ -491,6 +472,7 @@ const VentasPage = () => {
     const cargarVentas = tipo === "ambas" || tipo === "ventas";
     const cargarPresupuestos = tipo === "ambas" || tipo === "presupuestos";
     try {
+      setErrorCarga("");
       if (mostrarCarga) setLoading(true);
       if (esBusqueda && cargarVentas) setLoadingBusquedaVentas(true);
       if (esBusqueda && cargarPresupuestos) setLoadingBusquedaPresupuestos(true);
@@ -518,6 +500,7 @@ const VentasPage = () => {
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
+      setErrorCarga("No se pudieron actualizar las listas. Revisá tu conexión e intentá nuevamente.");
     } finally {
       if (mostrarCarga) setLoading(false);
       if (esBusqueda && cargarVentas) setLoadingBusquedaVentas(false);
@@ -688,16 +671,30 @@ const VentasPage = () => {
       router.push(`/${lang}/ventas/${event.detail.id}`);
     };
 
+    const handleOpenPresupuestoEvent = (event) => {
+      if (!event?.detail?.id) return;
+      router.push(`/${lang}/presupuestos/${event.detail.id}`);
+    };
+
+    const handleOpenVentaEvent = (event) => {
+      if (!event?.detail?.id) return;
+      router.push(`/${lang}/ventas/${event.detail.id}`);
+    };
+
     window.addEventListener("deletePresupuesto", handleDeletePresupuestoEvent);
     window.addEventListener("editPresupuesto", handleEditPresupuestoEvent);
     window.addEventListener("anularVenta", handleAnularVentaEvent);
     window.addEventListener("editVenta", handleEditVentaEvent);
+    window.addEventListener("openPresupuesto", handleOpenPresupuestoEvent);
+    window.addEventListener("openVenta", handleOpenVentaEvent);
 
     return () => {
       window.removeEventListener("deletePresupuesto", handleDeletePresupuestoEvent);
       window.removeEventListener("editPresupuesto", handleEditPresupuestoEvent);
       window.removeEventListener("anularVenta", handleAnularVentaEvent);
       window.removeEventListener("editVenta", handleEditVentaEvent);
+      window.removeEventListener("openPresupuesto", handleOpenPresupuestoEvent);
+      window.removeEventListener("openVenta", handleOpenVentaEvent);
     };
   }, [presupuestosData, ventasData, showDeleteConfirmation, router, lang]);
 
@@ -717,8 +714,10 @@ const VentasPage = () => {
         [
           presupuesto.numeroPedido,
           presupuesto.id,
+          presupuesto.nombreCliente,
           ...getClienteSearchFields(presupuesto.cliente),
           presupuesto.vendedor,
+          presupuesto.estado,
         ].join(" ")
       );
 
@@ -745,9 +744,13 @@ const VentasPage = () => {
         [
           venta.numeroPedido,
           venta.id,
+          venta.nombreCliente,
           ...getClienteSearchFields(venta.cliente),
+          venta.direccionEnvio,
+          venta.localidadEnvio,
           venta.vendedor,
           venta.estadoPago,
+          venta.estado,
         ].join(" ")
       );
 
@@ -767,7 +770,26 @@ const VentasPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 py-4 sm:py-6 px-2 sm:px-4 font-sans w-full max-w-none">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-7 px-4 py-6 font-sans text-slate-900 sm:px-7 sm:py-9">
+      <header className="flex flex-col gap-5 border-b border-slate-200/80 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.2em] text-amber-700">Comercial · Gestión</p>
+          <h1 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Ventas y presupuestos</h1>
+          <p className="mt-2 max-w-xl text-sm text-slate-500">Buscá operaciones, revisá estados y gestioná nuevos registros.</p>
+        </div>
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+          <Button type="button" onClick={() => router.push(OPCIONES_CREACION.venta.href(lang))} className="h-9 px-3 text-xs font-semibold shadow-none">
+            <Plus className="mr-1.5 h-4 w-4" />Nueva venta
+          </Button>
+          <Button type="button" onClick={() => router.push(OPCIONES_CREACION.presupuesto.href(lang))} className="h-9 px-3 text-xs font-semibold shadow-none">
+            <Plus className="mr-1.5 h-4 w-4" />Nuevo presupuesto
+          </Button>
+          <Button type="button" onClick={() => router.push(`/${lang}/ventas/deudores`)} className="h-9 px-3 text-xs font-semibold shadow-none">
+            <Wallet className="mr-1.5 h-4 w-4" />
+            Deudores
+          </Button>
+        </div>
+      </header>
       {deleteMessage && (
         <div
           className={`p-3 rounded-xl flex items-center gap-3 text-sm font-medium shadow-sm border transition-all duration-500 ${
@@ -795,38 +817,50 @@ const VentasPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
-        <CompactTableCard
-          title="Presupuestos"
-          count={presupuestosFiltrados.length}
-          icon={FileText}
-          accent="bg-blue-100/80 text-blue-700"
-          data={presupuestosFiltrados}
-          columns={columnsPresupuestos}
-          searchValue={busquedaPresupuestos}
-          onSearchChange={setBusquedaPresupuestos}
-          searchPlaceholder="Buscar cliente, teléfono o doc..."
-          periodo={periodoPresupuestos}
-          onPeriodoChange={setPeriodoPresupuestos}
-          mostrarAnulados={mostrarAnuladosPresupuestos}
-          onMostrarAnuladosChange={setMostrarAnuladosPresupuestos}
-          onCreateClick={() => router.push(OPCIONES_CREACION.presupuesto.href(lang))}
-          createLabel="Nuevo presupuesto"
-          onRowClick={(item) => router.push(`/${lang}/presupuestos/${item.id}`)}
-          isAnuladoFn={isPresupuestoAnulado}
-          loadingBusqueda={loadingBusquedaPresupuestos}
-        />
+      {errorCarga ? (
+        <p role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          <span>{errorCarga}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => cargarListas({ limitado: !Boolean(normalize(busquedaVentas) || normalize(busquedaPresupuestos)) })}
+            className="h-7 px-2 text-rose-800"
+          >
+            Reintentar
+          </Button>
+        </p>
+      ) : null}
 
+      <div className="border-b border-slate-200">
+        <div role="tablist" aria-label="Tipo de registro" className="flex gap-6">
+          {[
+            { value: "ventas", label: "Ventas" },
+            { value: "presupuestos", label: "Presupuestos" },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={activeList === tab.value}
+              onClick={() => setActiveList(tab.value)}
+              className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-1 text-sm transition-colors ${activeList === tab.value ? "border-slate-900 font-semibold text-slate-950" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeList === "ventas" ? (
         <CompactTableCard
           title="Ventas"
           count={ventasFiltradas.length}
-          icon={ShoppingCart}
-          accent="bg-emerald-100/80 text-emerald-700"
           data={ventasFiltradas}
           columns={columnsVentas}
           searchValue={busquedaVentas}
           onSearchChange={setBusquedaVentas}
-          searchPlaceholder="Buscar cliente, teléfono o doc..."
+          searchPlaceholder="Cliente, número de venta o contacto"
           periodo={periodoVentas}
           onPeriodoChange={setPeriodoVentas}
           estadoFiltro={ventaEstadoFiltro}
@@ -834,13 +868,28 @@ const VentasPage = () => {
           showEstadoFiltro
           mostrarAnulados={mostrarAnuladosVentas}
           onMostrarAnuladosChange={setMostrarAnuladosVentas}
-          onCreateClick={() => router.push(OPCIONES_CREACION.venta.href(lang))}
-          createLabel="Nueva venta"
           onRowClick={(item) => router.push(`/${lang}/ventas/${item.id}`)}
           isAnuladoFn={isVentaAnulada}
           loadingBusqueda={loadingBusquedaVentas}
         />
-      </div>
+      ) : (
+        <CompactTableCard
+          title="Presupuestos"
+          count={presupuestosFiltrados.length}
+          data={presupuestosFiltrados}
+          columns={columnsPresupuestos}
+          searchValue={busquedaPresupuestos}
+          onSearchChange={setBusquedaPresupuestos}
+          searchPlaceholder="Cliente, número de presupuesto o contacto"
+          periodo={periodoPresupuestos}
+          onPeriodoChange={setPeriodoPresupuestos}
+          mostrarAnulados={mostrarAnuladosPresupuestos}
+          onMostrarAnuladosChange={setMostrarAnuladosPresupuestos}
+          onRowClick={(item) => router.push(`/${lang}/presupuestos/${item.id}`)}
+          isAnuladoFn={isPresupuestoAnulado}
+          loadingBusqueda={loadingBusquedaPresupuestos}
+        />
+      )}
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="w-[95vw] max-w-md rounded-2xl border border-border/60 shadow-2xl bg-card">
@@ -922,7 +971,7 @@ const VentasPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 };
 

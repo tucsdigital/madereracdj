@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@iconify/react";
@@ -64,26 +63,41 @@ const AuditoriaPage = () => {
     }
   };
 
-  const obtenerColorTipo = (tipo) => {
-    switch (tipo) {
-      case 'presupuestos':
-        return 'bg-blue-500/10 text-blue-800 dark:text-blue-300 border-blue-500/20';
-      case 'ventas':
-        return 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/20';
-      default:
-        return 'bg-muted/50 text-foreground border-border/60';
-    }
-  };
-
   const obtenerIconoTipo = (tipo) => {
     switch (tipo) {
       case 'presupuestos':
         return 'heroicons:document-text';
       case 'ventas':
         return 'heroicons:shopping-cart';
+      case 'pagosProveedores':
+        return 'heroicons:banknotes';
       default:
         return 'heroicons:document';
     }
+  };
+
+  const tituloRegistro = (registro) => {
+    switch (registro?.accion) {
+      case 'ELIMINACION_PAGO_PROVEEDOR':
+        return 'Movimiento de proveedor eliminado';
+      case 'ELIMINACION_PAGO_MANUAL_CUENTA_PROVEEDOR':
+        return 'Pago manual eliminado';
+      case 'ANULACION_PAGO_PROVEEDOR':
+        return 'Pago de proveedor anulado';
+      case 'ELIMINACION':
+        return `${registro.coleccion === 'presupuestos' ? 'Presupuesto' : registro.coleccion === 'ventas' ? 'Venta' : 'Documento'} eliminado`;
+      default:
+        return String(registro?.accion || 'Registro de auditoría').replaceAll('_', ' ').toLocaleLowerCase('es-AR');
+    }
+  };
+
+  const formatearImporte = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return 'N/A';
+    return `$${amount.toLocaleString('es-AR', {
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   if (!user) {
@@ -99,27 +113,22 @@ const AuditoriaPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
+    <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 px-2">
+      <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
-            <Icon
-              icon="heroicons:clipboard-document-list"
-              className="w-8 h-8"
-            />
-            Historial de Auditoría
-          </h1>
-          <p className="text-base text-muted-foreground mt-2">
-            Registro de todas las eliminaciones de presupuestos y ventas
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Control · Trazabilidad</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Auditoría</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Registro de eliminaciones de presupuestos, ventas y pagos de proveedores
           </p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button
             variant="outline"
             onClick={() => router.push(`/${lang}/ventas`)}
-            className="flex items-center gap-2"
+            className="h-9 rounded-md border-slate-200 px-3 text-xs"
           >
             <Icon icon="heroicons:arrow-left" className="w-4 h-4" />
             Volver
@@ -129,7 +138,7 @@ const AuditoriaPage = () => {
             variant="default"
             onClick={cargarAuditoria}
             disabled={loading}
-            className="flex items-center gap-2"
+            className="h-9 rounded-md px-3 text-xs"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -139,19 +148,11 @@ const AuditoriaPage = () => {
             Actualizar
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Filtros */}
-      <div className="px-2">
-        <Card className="rounded-xl shadow-lg border border-border/60 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Icon icon="heroicons:funnel" className="w-5 h-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
+      <section className="flex flex-col gap-3 border-b border-slate-200 pb-4" aria-label="Filtrar registros">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={filtroTipo === "todos" ? "default" : "outline"}
                 onClick={() => setFiltroTipo("todos")}
@@ -176,34 +177,32 @@ const AuditoriaPage = () => {
                 <Icon icon="heroicons:shopping-cart" className="w-4 h-4 mr-2" />
                 Solo Ventas
               </Button>
+              <Button
+                variant={filtroTipo === "pagosProveedores" ? "default" : "outline"}
+                onClick={() => setFiltroTipo("pagosProveedores")}
+                size="sm"
+              >
+                <Icon icon="heroicons:banknotes" className="w-4 h-4 mr-2" />
+                Pagos de proveedores
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+      </section>
 
       {/* Mensaje de error */}
       {error && (
-        <div className="px-2">
-          <div className="bg-red-500/15 border border-red-500/20 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg flex items-center gap-3">
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             <AlertCircle className="w-5 h-5 text-red-700 dark:text-red-300" />
             <span className="font-medium">Error: {error}</span>
-          </div>
         </div>
       )}
 
       {/* Lista de auditoría */}
-      <div className="px-2">
-        <Card className="rounded-xl shadow-lg border border-border/60 bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Icon icon="heroicons:clock" className="w-5 h-5" />
-              Registro de Eliminaciones
-              <Badge variant="secondary" className="ml-2">
-                {auditoria.length} registros
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40" aria-labelledby="auditoria-list-heading">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:px-5">
+            <h2 id="auditoria-list-heading" className="text-sm font-semibold text-slate-900">Registro de eliminaciones</h2>
+            <span className="text-xs tabular-nums text-slate-500">{auditoria.length} registros</span>
+          </div>
+          <div className="px-4 sm:px-5">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="flex items-center gap-3">
@@ -222,20 +221,22 @@ const AuditoriaPage = () => {
                 <p className="text-muted-foreground">
                   {filtroTipo === "todos" 
                     ? "No se han eliminado documentos aún"
-                    : `No se han eliminado ${filtroTipo} aún`
+                    : filtroTipo === "pagosProveedores"
+                      ? "No se han eliminado pagos de proveedores aún"
+                      : `No se han eliminado ${filtroTipo} aún`
                   }
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="divide-y divide-slate-200">
                 {auditoria.map((registro) => (
                   <div
                     key={registro.id}
-                    className="border border-border/60 rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                    className="py-4 transition-colors first:pt-4 last:pb-4 hover:bg-slate-50/50"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${obtenerColorTipo(registro.coleccion)}`}>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-600">
                           <Icon 
                             icon={obtenerIconoTipo(registro.coleccion)} 
                             className="w-5 h-5" 
@@ -243,7 +244,7 @@ const AuditoriaPage = () => {
                         </div>
                         <div>
                           <h4 className="font-semibold text-foreground">
-                            {registro.coleccion === 'presupuestos' ? 'Presupuesto' : 'Venta'} Eliminado
+                            {tituloRegistro(registro)}
                           </h4>
                           <p className="text-sm text-muted-foreground">
                             ID: {registro.documentoId?.slice(-8) || 'N/A'}
@@ -254,7 +255,7 @@ const AuditoriaPage = () => {
                       <div className="text-right">
                         <Badge variant="destructive" className="mb-2">
                           <Trash2 className="w-3 h-3 mr-1" />
-                          Eliminado
+                          {registro.accion === 'ANULACION_PAGO_PROVEEDOR' ? 'Anulado' : 'Eliminado'}
                         </Badge>
                         <div className="text-xs text-muted-foreground">
                           {formatearFecha(registro.fechaEliminacion)}
@@ -268,7 +269,7 @@ const AuditoriaPage = () => {
                           <Icon icon="heroicons:user" className="w-4 h-4" />
                           Usuario Responsable
                         </h5>
-                        <div className="bg-muted/50 border border-border/60 rounded p-2">
+                        <div className="space-y-1">
                           <p className="font-medium">{registro.usuarioEmail || 'N/A'}</p>
                           <p className="text-xs text-muted-foreground">ID: {registro.usuarioId || 'N/A'}</p>
                         </div>
@@ -279,7 +280,7 @@ const AuditoriaPage = () => {
                           <Icon icon="heroicons:information-circle" className="w-4 h-4" />
                           Información del Documento
                         </h5>
-                        <div className="bg-muted/50 border border-border/60 rounded p-2">
+                        <div className="space-y-1">
                           {registro.datosEliminados?.cliente?.nombre && (
                             <p className="font-medium">
                               Cliente: {registro.datosEliminados.cliente.nombre}
@@ -287,7 +288,7 @@ const AuditoriaPage = () => {
                           )}
                           {registro.datosEliminados?.total && (
                             <p className="text-green-600 font-medium">
-                              Total: ${Number(registro.datosEliminados.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                              Total: ${Number(registro.datosEliminados.total).toLocaleString('es-AR', { minimumFractionDigits: Number.isInteger(Number(registro.datosEliminados.total)) ? 0 : 2, maximumFractionDigits: 2 })}
                             </p>
                           )}
                           {registro.datosEliminados?.vendedor && (
@@ -299,6 +300,46 @@ const AuditoriaPage = () => {
                       </div>
                     </div>
 
+                    {registro.coleccion === 'pagosProveedores' ? (
+                      <div className="mt-4 border-t border-slate-200 pt-3">
+                        <h5 className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                          <Icon icon="heroicons:banknotes" className="w-4 h-4" />
+                          Detalle de pago eliminado
+                        </h5>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                          <p>
+                            <span className="text-muted-foreground">Proveedor:</span>{' '}
+                            <span className="font-medium uppercase">{registro.proveedorNombre || registro.datosEliminados?.movimiento?.proveedor?.nombre || 'N/A'}</span>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Tipo:</span>{' '}
+                            {registro.accion === 'ELIMINACION_PAGO_MANUAL_CUENTA_PROVEEDOR'
+                              ? 'Pago manual'
+                              : registro.datosEliminados?.movimiento?.tipo === 'pagoGlobal'
+                                ? 'Pago global'
+                                : 'Saldo a favor'}
+                          </p>
+                          <p><span className="text-muted-foreground">Importe:</span> <span className="font-semibold tabular-nums">{formatearImporte(registro.monto)}</span></p>
+                          <p><span className="text-muted-foreground">Medio:</span> {registro.datosEliminados?.movimiento?.metodo || registro.datosEliminados?.pago?.metodo || 'N/A'}</p>
+                          {registro.datosEliminados?.movimiento?.aplicadoACuentas != null ? (
+                            <p><span className="text-muted-foreground">Aplicado a cuentas:</span> <span className="tabular-nums">{formatearImporte(registro.datosEliminados.movimiento.aplicadoACuentas)}</span></p>
+                          ) : null}
+                          {registro.cuentaId ? <p><span className="text-muted-foreground">Cuenta:</span> <span className="font-mono">#{String(registro.cuentaId).slice(-8)}</span></p> : null}
+                          {registro.motivo ? <p className="sm:col-span-2"><span className="text-muted-foreground">Motivo:</span> {registro.motivo}</p> : null}
+                        </div>
+                        {Array.isArray(registro.datosEliminados?.cuentasAfectadas) && registro.datosEliminados.cuentasAfectadas.length > 0 ? (
+                          <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200 text-xs">
+                            {registro.datosEliminados.cuentasAfectadas.map((cuenta, index) => (
+                              <li key={`${cuenta.cuentaId || 'cuenta'}-${index}`} className="flex flex-wrap justify-between gap-2 py-2">
+                                <span>{cuenta.cuentaConcepto || `Cuenta #${String(cuenta.cuentaId || '').slice(-8)}`}</span>
+                                <span className="tabular-nums text-slate-600">Aplicado: {formatearImporte(cuenta.montoAplicado)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                                          {registro.coleccion === 'ventas' && (
                        <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                          <div className="flex items-start gap-2 text-emerald-800 dark:text-emerald-200">
@@ -309,7 +350,7 @@ const AuditoriaPage = () => {
                                  Stock repuesto automáticamente para todos los productos
                                </span>
                                <span className="text-xs text-emerald-700 dark:text-emerald-300 block mt-1">
-                                 Movimientos de entrada registrados en la colección "Movimientos"
+                                  Movimientos de entrada registrados en la colección &quot;Movimientos&quot;
                                </span>
                              </div>
                              
@@ -344,10 +385,9 @@ const AuditoriaPage = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          </div>
+      </section>
+    </main>
   );
 };
 

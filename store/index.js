@@ -8,25 +8,13 @@ export const useThemeStore = create(
       setTheme: (theme) => set({ theme }),
       radius: siteConfig.radius,
       setRadius: (value) => set({ radius: value }),
-      layout: siteConfig.layout,
-      setLayout: (value) => {
-        set({ layout: value });
-
-        // If the new layout is "semibox," also set the sidebarType to "popover"
-        if (value === "semibox") {
-          useSidebar.setState({ sidebarType: "popover" });
-        }
-        if (value === "horizontal") {
-          useSidebar.setState({ sidebarType: "classic" });
-        }
-        //
-        if (value === "horizontal") {
-          // update  setNavbarType
-          useThemeStore.setState({ navbarType: "sticky" });
-        }
+      layout: "semibox",
+      setLayout: () => {
+        set({ layout: "semibox" });
+        useSidebar.setState({ sidebarType: "popover", collapsed: false });
       },
-      navbarType: siteConfig.navbarType,
-      setNavbarType: (value) => set({ navbarType: value }),
+      navbarType: "sticky",
+      setNavbarType: () => set({ navbarType: "sticky" }),
       footerType: siteConfig.footerType,
       setFooterType: (value) => set({ footerType: value }),
       isRtl: false,
@@ -35,6 +23,13 @@ export const useThemeStore = create(
     {
       name: "theme-store",
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        // Ignore layout values saved by older versions of the customizer.
+        layout: "semibox",
+        navbarType: "sticky",
+      }),
     }
   )
 );
@@ -43,12 +38,9 @@ export const useSidebar = create(
   persist(
     (set) => ({
       collapsed: false,
-      setCollapsed: (value) => set({ collapsed: value }),
-      sidebarType:
-        siteConfig.layout === "semibox" ? "popover" : siteConfig.sidebarType,
-      setSidebarType: (value) => {
-        set({ sidebarType: value });
-      },
+      setCollapsed: () => set({ collapsed: false }),
+      sidebarType: "popover",
+      setSidebarType: () => set({ sidebarType: "popover" }),
       subMenu: false,
       setSubmenu: (value) => set({ subMenu: value }),
       // background image
@@ -60,6 +52,13 @@ export const useSidebar = create(
     {
       name: "sidebar-store",
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        // Keep legacy saved preferences from collapsing or changing the sidebar.
+        collapsed: false,
+        sidebarType: "popover",
+      }),
     }
   )
 );

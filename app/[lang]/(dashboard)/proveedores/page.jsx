@@ -4,10 +4,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Plus, Save, X, Eye, Building2, Phone, Mail, FileText } from "lucide-react";
+import { Truck, Plus, Save, X, Eye, Building2, Phone, Mail, FileText, Search, ExternalLink } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
@@ -136,85 +135,75 @@ const ProveedoresPage = () => {
     return { total, pagado, pendienteBruto, saldoAFavor: saldoAFavorNum, pendienteNeto };
   };
 
+  const proveedoresFiltrados = proveedores.filter((proveedor) =>
+    [proveedor.nombre, proveedor.cuit, proveedor.rubro, proveedor.telefono, proveedor.email]
+      .some((value) => String(value || "").toLocaleLowerCase("es-AR").includes(filtro.toLocaleLowerCase("es-AR")))
+  );
+
   return (
-    <div className="py-8 px-2 mx-auto">
-      <div className="mb-8 flex items-center gap-4">
-        <Truck className="w-10 h-10 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold mb-1">Proveedores</h1>
-          <p className="text-lg text-muted-foreground">Gestión de proveedores y cuentas por pagar.</p>
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Abastecimiento · Cuentas</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Proveedores</h1>
+            <span className="text-xs tabular-nums text-slate-500">{proveedoresFiltrados.length} resultados</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">Directorio de proveedores y condiciones de pago.</p>
         </div>
+        <Button onClick={() => setOpen(true)} className="h-9 self-start rounded-md px-3 text-xs sm:self-auto">
+          <Plus className="mr-2 h-4 w-4" />Agregar proveedor
+        </Button>
+      </header>
+
+      <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <label className="relative min-w-0 flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Input placeholder="Buscar por nombre, CUIT, rubro o contacto..." value={filtro} onChange={(e) => setFiltro(e.target.value)} aria-label="Buscar proveedores" className="h-9 rounded-md border-slate-200 bg-white pl-9 text-xs shadow-sm placeholder:text-slate-500" />
+        </label>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle>Listado de Proveedores</CardTitle>
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Buscar proveedor..." 
-              value={filtro} 
-              onChange={e => setFiltro(e.target.value)} 
-              className="w-56" 
-            />
-            <Button variant="default" onClick={() => setOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              Agregar Proveedor
-            </Button>
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white" aria-label="Listado de proveedores">
+        {loading ? (
+          <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-slate-500"><span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />Cargando proveedores…</div>
+        ) : proveedoresFiltrados.length === 0 ? (
+          <div className="px-4 py-14 text-center"><p className="text-sm font-medium text-slate-800">No se encontraron proveedores</p><p className="mt-1 text-xs text-slate-500">Probá con otro nombre, CUIT, rubro o contacto.</p></div>
+        ) : (
+          <div role="table" aria-label="Proveedores">
+            <div role="row" className="hidden gap-5 border-b border-slate-200 bg-slate-50/70 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500 lg:grid lg:grid-cols-[minmax(180px,1.15fr)_minmax(200px,1.2fr)_minmax(170px,1fr)_minmax(95px,.65fr)_auto]">
+              <span role="columnheader">Proveedor</span><span role="columnheader">Contacto</span><span role="columnheader">Rubro y pago</span><span role="columnheader">Estado</span><span role="columnheader" className="text-right">Acción</span>
+            </div>
+            {proveedoresFiltrados.map((proveedor) => (
+              <article key={proveedor.id} role="row" className="grid grid-cols-1 gap-x-5 gap-y-3 border-b border-slate-200 px-4 py-4 last:border-0 sm:px-5 lg:grid-cols-[minmax(180px,1.15fr)_minmax(200px,1.2fr)_minmax(170px,1fr)_minmax(95px,.65fr)_auto] lg:items-center">
+                <div role="cell" className="min-w-0 border-b border-slate-100 pb-3 lg:border-0 lg:pb-0">
+                  <h2 className="truncate text-sm font-semibold uppercase text-slate-900">{proveedor.nombre || "Proveedor sin nombre"}</h2>
+                  <p className="mt-1 truncate font-mono text-[11px] text-slate-500">CUIT {proveedor.cuit || "Sin informar"}</p>
+                </div>
+                <div role="cell" className="grid min-w-0 gap-1 text-xs text-slate-600">
+                  <span className="flex min-w-0 justify-between gap-3 lg:block"><span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Tel.</span><span className="truncate">{proveedor.telefono || "Sin informar"}</span></span>
+                  <span className="flex min-w-0 justify-between gap-3 lg:block"><span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Email</span><span className="truncate">{proveedor.email || "Sin informar"}</span></span>
+                </div>
+                <div role="cell" className="flex flex-wrap items-center justify-between gap-2 lg:justify-start">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Rubro y pago</span>
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-xs text-slate-600">{proveedor.rubro || "Sin rubro"}</span>
+                    <Badge variant="outline" className={`rounded-full px-2 py-0.5 text-[10px] ${proveedor.condicionPago === "Contado" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : proveedor.condicionPago === "Cuenta Corriente" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{proveedor.condicionPago || "Contado"}</Badge>
+                  </div>
+                </div>
+                <div role="cell" className="flex items-center justify-between gap-4 lg:block">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Estado</span>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${proveedor.estado === "Activo" ? "text-emerald-700" : "text-slate-500"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${proveedor.estado === "Activo" ? "bg-emerald-600" : "bg-slate-400"}`} aria-hidden="true" />{proveedor.estado || "Sin estado"}
+                  </span>
+                </div>
+                <div role="cell" className="flex justify-end border-t border-slate-100 pt-2 lg:border-0 lg:pt-0">
+                  <Button size="sm" variant="outline" onClick={() => handleVerDetalle(proveedor)} className="h-8 rounded-md border-slate-200 px-3 text-xs">Ver cuenta <ExternalLink aria-hidden="true" className="ml-2 h-3 w-3" /></Button>
+                </div>
+              </article>
+            ))}
           </div>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table className="[&_th]:uppercase [&_td]:uppercase">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>CUIT</TableHead>
-                <TableHead>Rubro</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Condición de Pago</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={8}>Cargando...</TableCell></TableRow>
-              ) : proveedores.filter(p => 
-                p.nombre.toLowerCase().includes(filtro.toLowerCase()) || 
-                (p.cuit || "").includes(filtro) ||
-                (p.rubro || "").toLowerCase().includes(filtro.toLowerCase())
-              ).map(p => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.nombre}</TableCell>
-                  <TableCell>{p.cuit || "-"}</TableCell>
-                  <TableCell>{p.rubro || "-"}</TableCell>
-                  <TableCell>{p.telefono}</TableCell>
-                  <TableCell>{p.email || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={
-                      p.condicionPago === "Contado" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" :
-                      p.condicionPago === "Cuenta Corriente" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" :
-                      "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20"
-                    }>
-                      {p.condicionPago || "Contado"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.estado === "Activo" ? "default" : "secondary"}>
-                      {p.estado}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => handleVerDetalle(p)}>
-                      Ver
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
       {/* Modal alta proveedor */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -778,7 +767,7 @@ const ProveedoresPage = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 };
 

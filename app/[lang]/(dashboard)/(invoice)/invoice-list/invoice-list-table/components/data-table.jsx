@@ -26,7 +26,7 @@ import { DataTableToolbar } from "./data-table-toolbar";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 
-export function DataTable({ columns, data, rowClassName, cellClassName }) {
+export function DataTable({ columns, data, rowClassName, cellClassName, responsive = false }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState([]);
@@ -88,11 +88,11 @@ export function DataTable({ columns, data, rowClassName, cellClassName }) {
       <div className="p-4 bg-card">
         <DataTableToolbar table={table} />
       </div>
-      <div className="overflow-x-auto">
-        <Table className="w-full bg-card">
-          <TableHeader className="bg-muted/50">
+      <div className={responsive ? "" : "overflow-x-auto"}>
+        <Table className={`w-full bg-card ${responsive ? "block min-w-0 lg:table" : ""}`}>
+          <TableHeader className={`bg-muted/50 ${responsive ? "hidden lg:table-header-group" : ""}`}>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted/50">
+              <TableRow key={headerGroup.id} className={`bg-muted/50 ${responsive ? "hidden lg:table-row" : ""}`}>
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
@@ -104,13 +104,13 @@ export function DataTable({ columns, data, rowClassName, cellClassName }) {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className={responsive ? "block lg:table-row-group" : ""}>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={`border-b border-border/50 cursor-pointer hover:bg-muted/30 bg-card transition-colors ${
+                  className={`border-b border-border/50 cursor-pointer hover:bg-muted/30 bg-card transition-colors ${responsive ? "block py-2 lg:table-row lg:py-0" : ""} ${
                     typeof rowClassName === "function"
                       ? rowClassName(row.original) || ""
                       : rowClassName || ""
@@ -120,13 +120,22 @@ export function DataTable({ columns, data, rowClassName, cellClassName }) {
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={`px-4 py-2 text-foreground ${
+                      className={`px-3 py-2 text-foreground ${responsive ? "block border-0 lg:table-cell lg:border-b lg:px-4" : ""} ${
                         typeof cellClassName === "function"
                           ? cellClassName(row.original, cell.column.id) || ""
                           : cellClassName || ""
                       }`}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {responsive ? (
+                        <div className="flex min-w-0 items-start justify-between gap-3 lg:contents">
+                          <span className="w-[34%] shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground lg:hidden">
+                            {typeof cell.column.columnDef.header === "string" ? cell.column.columnDef.header : cell.column.id}
+                          </span>
+                          <div className="min-w-0 flex-1 text-right lg:text-left">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </div>
+                        </div>
+                      ) : flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>

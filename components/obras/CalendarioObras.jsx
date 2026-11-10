@@ -26,16 +26,16 @@ import { normalizarFecha } from "@/lib/fechas-locales";
 // Colores según estado de obra
 const coloresEstado = {
   pendiente_inicio: {
-    bg: "bg-yellow-50",
-    border: "border-yellow-300",
-    text: "text-yellow-800",
-    badge: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    bg: "bg-amber-50/70",
+    border: "border-amber-200",
+    text: "text-amber-800",
+    badge: "bg-amber-50 text-amber-800 border-amber-200",
   },
   en_ejecucion: {
-    bg: "bg-blue-50",
-    border: "border-blue-300",
-    text: "text-blue-800",
-    badge: "bg-blue-100 text-blue-800 border-blue-200",
+    bg: "bg-sky-50/70",
+    border: "border-sky-200",
+    text: "text-sky-800",
+    badge: "bg-sky-50 text-sky-800 border-sky-200",
   },
   pausada: {
     bg: "bg-gray-50",
@@ -264,50 +264,46 @@ const CalendarioObras = ({
   }, []);
 
   return (
-    <Card className="rounded-2xl shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-      <CardHeader className="py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
-        <CardTitle className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-            <Calendar className="w-4 h-4 text-white" />
-          </div>
+    <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/30">
+      <CardHeader className="border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+        <CardTitle className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <div className="text-lg font-semibold text-gray-900">
-              Agenda de obras
-            </div>
-            <div className="text-xs font-medium text-gray-600">
-              {vista === "lista" ? "Lista diaria" : vista === "15dias" ? "15 días" : vista === "semana" ? "Semanal" : "Mensual"}
-            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-amber-700">Planificación</p>
+            <div className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Agenda de obras</div>
           </div>
+          <span className="text-xs font-medium text-slate-500">
+            {vista === "lista" ? "Lista diaria" : vista === "15dias" ? "15 días" : vista === "semana" ? "Semanal" : "Mensual"}
+          </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="p-3 sm:p-5">
         {/* Navegación */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
           <Button
             variant="outline"
             size="sm"
             onClick={goToPrevious}
-            className="flex items-center gap-2"
+            className="h-9 rounded-md border-slate-200 px-2.5 text-xs text-slate-700 sm:px-3"
           >
-            <ChevronLeft className="w-4 h-4" />
-            Anterior
+            <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Anterior</span>
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={goToToday}>
-              Hoy
-            </Button>
-            <span className="text-sm font-medium text-gray-700">
+          <div className="order-first flex w-full items-center justify-center gap-2 sm:order-none sm:w-auto">
+            <span className="text-sm font-semibold capitalize text-slate-900">
               {tituloCalendario}
             </span>
+            <Button variant="outline" size="sm" onClick={goToToday} className="h-8 rounded-md border-slate-200 px-2.5 text-[11px]">
+              Hoy
+            </Button>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={goToNext}
-            className="flex items-center gap-2"
+            className="h-9 rounded-md border-slate-200 px-2.5 text-xs text-slate-700 sm:px-3"
           >
-            Siguiente
-            <ChevronRight className="w-4 h-4" />
+            <span className="hidden sm:inline">Siguiente</span>
+            <ChevronRight className="h-4 w-4 sm:ml-1.5" />
           </Button>
         </div>
 
@@ -316,33 +312,33 @@ const CalendarioObras = ({
           const obrasDelDia = getObrasForDate(dateKey);
           const notasDelDia = getNotasForDate(dateKey);
           return (
-            <div className="max-w-4xl mx-auto space-y-2">
+            <div className="mx-auto max-w-4xl space-y-1 divide-y divide-slate-100">
               {obrasDelDia.length === 0 && notasDelDia.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-5 py-10 text-center text-sm text-gray-500">
+                <div className="rounded-lg border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500">
                   No hay actividad programada para este día.
                 </div>
               ) : (
                 <>
                   {obrasDelDia.map((obra) => {
                     const estado = coloresEstado[obra.estado] || coloresEstado.pendiente_inicio;
-                    return <button key={obra.id} type="button" onClick={() => onObraClick?.(obra)} className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-blue-200 hover:shadow-sm">
-                      <div className={`h-2.5 w-2.5 rounded-full ${estado.badge.split(" ")[0]}`} />
-                      <div className="min-w-0 flex-1"><div className="truncate font-semibold text-gray-900">{obra.numeroPedido || "Obra sin número"}</div><div className="truncate text-xs text-gray-500">{obra.cliente?.nombre || "Sin cliente"}</div></div>
-                      <Badge variant="outline" className={estado.badge}>{String(obra.estado || "pendiente").replaceAll("_", " ")}</Badge>
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    return <button key={obra.id} type="button" onClick={() => onObraClick?.(obra)} className="flex w-full items-center gap-3 px-2 py-3 text-left transition-colors hover:bg-slate-50">
+                      <div className={`h-2 w-2 shrink-0 rounded-full ${estado.badge.split(" ")[0]}`} />
+                      <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-900">{obra.numeroPedido || "Obra sin número"}</div><div className="truncate text-xs text-slate-500">{String(obra.cliente?.nombre || "Sin cliente").toLocaleUpperCase("es-AR")}</div></div>
+                      <Badge variant="outline" className={`${estado.badge} hidden rounded-full px-2 py-0.5 text-[10px] sm:inline-flex`}>{String(obra.estado || "pendiente").replaceAll("_", " ")}</Badge>
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
                     </button>;
                   })}
-                  {notasDelDia.map((nota) => <button key={nota.id} type="button" onClick={() => onNotaClick?.(nota)} className="flex w-full items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-left"><FileText className="h-4 w-4 text-amber-600" /><span className="flex-1 truncate text-sm font-medium text-gray-800">{nota.detalle || "Nota"}</span></button>)}
+                  {notasDelDia.map((nota) => <button key={nota.id} type="button" onClick={() => onNotaClick?.(nota)} className="flex w-full items-center gap-3 px-2 py-3 text-left hover:bg-amber-50/50"><FileText className="h-4 w-4 shrink-0 text-amber-700" /><span className="flex-1 truncate text-sm font-medium text-slate-800">{nota.detalle || "Nota"}</span></button>)}
                 </>
               )}
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => onAgregarNota?.(dateKey)}><Icon icon="heroicons:plus" className="mr-1 h-4 w-4" />Nueva nota</Button>
+              <Button variant="outline" size="sm" className="mt-3 h-8 rounded-md border-slate-200 text-xs" onClick={() => onAgregarNota?.(dateKey)}><Icon icon="heroicons:plus" className="mr-1 h-4 w-4" />Nueva nota</Button>
             </div>
           );
         })()}
 
         {/* Vista 15 días */}
         {vista === "15dias" && (
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {get15Days().map((day, index) => {
               const dateKey = formatDateKey(day);
               const isToday = day.toDateString() === new Date().toDateString();
@@ -353,10 +349,10 @@ const CalendarioObras = ({
               return (
                 <div
                   key={index}
-                  className={`border rounded-xl p-3 min-h-[180px] shadow-sm transition-all cursor-pointer hover:shadow-md hover:-translate-y-[1px] ${
+                  className={`rounded-lg border p-3 transition-colors sm:min-h-[180px] ${
                     isToday
-                      ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 ring-1 ring-blue-200"
-                      : "bg-white border-gray-200 hover:border-gray-300"
+                      ? "border-slate-300 bg-slate-50 ring-1 ring-slate-200"
+                      : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                   onClick={() => {
                     if (dayObras.length > 0 || dayNotas.length > 0) {
@@ -365,11 +361,11 @@ const CalendarioObras = ({
                   }}
                   title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
                 >
-                  <div className="text-center mb-2.5 pb-2 border-b border-gray-200/80">
-                    <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  <div className="mb-2.5 flex items-baseline justify-between border-b border-slate-200 pb-2 sm:block sm:text-center">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                       {weekday}
                     </div>
-                    <div className={`text-2xl leading-none font-extrabold ${isToday ? "text-blue-700" : "text-gray-900"}`}>
+                    <div className={`text-xl font-semibold leading-none tabular-nums ${isToday ? "text-slate-900" : "text-slate-800"}`}>
                       {day.getDate()}
                     </div>
                   </div>
@@ -377,7 +373,7 @@ const CalendarioObras = ({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="w-full mb-2 text-xs h-7 px-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 font-semibold"
+                    className="mb-2 h-7 w-full rounded-md border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                     onClick={(e) => {
                       e.stopPropagation();
                       onAgregarNota(dateKey);
@@ -526,7 +522,7 @@ const CalendarioObras = ({
 
         {/* Vista Semana */}
         {vista === "semana" && (
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-7">
             {getWeekDays().map((day, index) => {
               const dateKey = formatDateKey(day);
               const isToday =
@@ -537,10 +533,10 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border rounded-xl p-3 min-h-[190px] shadow-sm transition-all cursor-pointer hover:shadow-md hover:-translate-y-[1px] ${
+                    className={`rounded-lg border p-3 transition-colors lg:min-h-[190px] ${
                       isToday
-                        ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 ring-1 ring-blue-200"
-                        : "bg-white border-gray-200 hover:border-gray-300"
+                        ? "border-slate-300 bg-slate-50 ring-1 ring-slate-200"
+                        : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                     onClick={() => {
                       if (dayObras.length > 0 || dayNotas.length > 0) {
@@ -550,13 +546,13 @@ const CalendarioObras = ({
                     title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
                   >
                   {/* Header del día */}
-                  <div className="text-center mb-2.5 pb-2 border-b border-gray-200/80">
-                    <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  <div className="mb-2.5 flex items-baseline justify-between border-b border-slate-200 pb-2 sm:block sm:text-center">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                       {diasSemana[index]}
                     </div>
                     <div
-                      className={`text-2xl leading-none font-extrabold ${
-                        isToday ? "text-blue-700" : "text-gray-900"
+                      className={`text-xl font-semibold leading-none tabular-nums ${
+                        isToday ? "text-slate-900" : "text-slate-800"
                       }`}
                     >
                       {day.getDate()}
@@ -567,7 +563,7 @@ const CalendarioObras = ({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="w-full mb-2 text-xs h-7 px-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 font-semibold"
+                    className="mb-2 h-7 w-full rounded-md border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
                     onClick={(e) => {
                       e.stopPropagation();
                       onAgregarNota(dateKey);
@@ -903,11 +899,11 @@ const CalendarioObras = ({
         {vista === "mes" && (
           <div className="space-y-3">
             {/* Headers de días de la semana */}
-            <div className="grid grid-cols-7 gap-1.5 mb-2">
+            <div className="mb-2 hidden grid-cols-7 gap-px sm:grid">
               {diasSemana.map((dia) => (
                 <div
                   key={dia}
-                  className="text-center text-xs font-bold text-gray-700 uppercase py-2 bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                  className="py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500"
                 >
                   {dia}
                 </div>
@@ -915,7 +911,7 @@ const CalendarioObras = ({
             </div>
 
             {/* Grid de días del mes */}
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-7 sm:gap-px sm:overflow-hidden sm:rounded-lg sm:border sm:border-slate-200 sm:bg-slate-200">
               {getMonthDays().map((dayObj, index) => {
                 const day = dayObj.date;
                 const dateKey = formatDateKey(day);
@@ -928,12 +924,12 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border-2 rounded-xl p-2 min-h-[120px] transition-all duration-200 ${
+                    className={`rounded-lg border p-3 transition-colors sm:min-h-[120px] sm:rounded-none sm:border-0 sm:bg-white ${
                       !dayObj.isCurrentMonth
-                        ? "bg-gray-50/50 border-gray-100 opacity-40"
+                        ? "border-slate-200 bg-slate-50/50 opacity-60 sm:opacity-40"
                         : isToday
-                        ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-400 shadow-lg ring-2 ring-blue-200"
-                        : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-md"
+                        ? "border-slate-300 bg-slate-50 sm:bg-slate-50"
+                        : "border-slate-200 hover:border-slate-300 sm:hover:bg-slate-50/70"
                     } ${totalItems > 0 ? "cursor-pointer" : ""}`}
                     onClick={() => {
                       if (totalItems > 0 && dayObj.isCurrentMonth) {
@@ -943,14 +939,14 @@ const CalendarioObras = ({
                     title={totalItems > 0 && dayObj.isCurrentMonth ? "Clic para ver todos los eventos del día" : ""}
                   >
                     {/* Header del día */}
-                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200/80">
+                    <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
                       <div
                         className={`text-sm font-bold ${
                           isToday
-                            ? "text-blue-700"
-                            : dayObj.isCurrentMonth
-                            ? "text-gray-800"
-                            : "text-gray-400"
+                          ? "text-slate-900"
+                          : dayObj.isCurrentMonth
+                          ? "text-slate-800"
+                          : "text-slate-400"
                         }`}
                       >
                         {day.getDate()}
@@ -958,7 +954,7 @@ const CalendarioObras = ({
                       {totalItems > 0 && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 border-indigo-300 font-semibold"
+                          className="rounded-full border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
                         >
                           {totalItems}
                         </Badge>
@@ -1117,7 +1113,7 @@ const CalendarioObras = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="w-full mt-2 text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
+                        className="mt-2 h-7 w-full rounded-md border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAgregarNota(dateKey);

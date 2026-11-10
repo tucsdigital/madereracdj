@@ -1161,11 +1161,11 @@ export default function AsistenciaPage() {
   // --- Render ---
 
   return (
-    <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
+    <main className="mx-auto flex w-full max-w-[1700px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       {/* Header */}
-      <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-[0_28px_65px_-35px_rgba(15,23,42,0.35)]">
+      <section className="border-b border-slate-200 pb-5">
         {vistaActiva === "asistencia" ? (
-          <div className="space-y-4 px-5 py-5 md:px-6 md:py-6">
+          <div className="space-y-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
                 <div className="space-y-2">
@@ -1199,13 +1199,13 @@ export default function AsistenciaPage() {
                       placeholder="Buscar empleado"
                       value={filtroNombre}
                       onChange={(e) => setFiltroNombre(e.target.value)}
-                      className="h-11 rounded-2xl border-slate-200 bg-white pl-11 text-sm shadow-none"
+                       className="h-9 rounded-md border-slate-200 bg-white pl-10 text-xs shadow-sm"
                     />
                   </div>
                   <select
                     value={filtroEstado}
                     onChange={(e) => setFiltroEstado(e.target.value)}
-                    className="h-11 min-w-[170px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none"
+                    className="h-9 min-w-[150px] rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm"
                   >
                     <option value="activos">Activos</option>
                     <option value="inactivos">Inactivos</option>
@@ -1249,7 +1249,7 @@ export default function AsistenciaPage() {
                       setConfiguracionJornadaDraft(diasLaborables);
                       setConfiguracionJornadaOpen(true);
                     }}
-                    className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                     className="h-9 w-9 rounded-md border-slate-200 bg-white text-slate-600 shadow-none hover:bg-slate-50"
                   >
                     <Icon icon="lucide:settings-2" className="h-4 w-4" />
                   </Button>
@@ -1263,7 +1263,7 @@ export default function AsistenciaPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-10 min-w-[158px] justify-between rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                          className="h-9 min-w-[150px] justify-between rounded-md border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                         >
                           <span className="flex items-center gap-2">
                             <Icon
@@ -1401,7 +1401,7 @@ export default function AsistenciaPage() {
                         return prev === nextMonthKey ? prev : nextMonthKey;
                       });
                     }}
-                    className="h-10 rounded-xl border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-none hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                    className="h-9 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-none hover:bg-slate-50"
                   >
                     Ir al tramo actual
                   </Button>
@@ -1409,7 +1409,7 @@ export default function AsistenciaPage() {
                     variant="default"
                     onClick={cerrarSemana}
                     disabled={cerrada}
-                    className="h-10 rounded-xl bg-violet-600 px-3.5 text-sm font-semibold text-white shadow-[0_16px_28px_-18px_rgba(124,58,237,0.85)] hover:bg-violet-700"
+                    className="h-9 rounded-md px-3 text-xs font-medium shadow-none"
                   >
                     <Icon icon="lucide:lock" className="mr-2 h-4 w-4" />
                     Bloquear tramo
@@ -1419,7 +1419,7 @@ export default function AsistenciaPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4 px-5 py-5 md:px-6 md:py-6">
+          <div className="space-y-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
                 <div className="space-y-2">
@@ -1645,7 +1645,7 @@ export default function AsistenciaPage() {
             </div>
           </div>
         )}
-      </div>
+      </section>
 
       {/* Contenido Principal */}
       {vistaActiva === "asistencia" ? (
@@ -2098,11 +2098,11 @@ export default function AsistenciaPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <Card className="overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card to-muted/30 shadow-sm">
-            <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-4">
+          <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+            <CardHeader className="border-b border-slate-200 bg-white pb-4">
               <CardTitle className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm">
+                  <div className="hidden">
                     <Icon icon="lucide:wallet-cards" className="h-5 w-5" />
                   </div>
                   <div className="space-y-1">
@@ -2131,12 +2131,12 @@ export default function AsistenciaPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <div className="flex flex-wrap gap-x-6 gap-y-4 border-b border-slate-200 pb-4">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-slate-600">
                     Jornales del mes
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-slate-900">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
                     $
                     {estadisticasMensuales.totalTrabajado.toLocaleString(
                       "es-AR",
@@ -2146,74 +2146,74 @@ export default function AsistenciaPage() {
                     Suma de jornadas registradas
                   </div>
                 </div>
-                <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-indigo-700/80">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Adicionales cargados
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-indigo-700">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
                     $
                     {estadisticasMensuales.totalAdicionales.toLocaleString(
                       "es-AR",
                     )}
                   </div>
-                  <div className="mt-1 text-[11px] text-indigo-700/70">
+                  <div className="mt-1 text-[11px] text-slate-500">
                     Horas y jornadas adicionales
                   </div>
                 </div>
-                <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-emerald-700/80">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Cobrado acumulado
                   </div>
-                  <div className="text-2xl font-bold text-emerald-700 mt-1">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-emerald-700">
                     $
                     {estadisticasMensuales.totalCobrado.toLocaleString("es-AR")}
                   </div>
-                  <div className="text-[11px] text-emerald-700/70 mt-1">
+                  <div className="mt-1 text-[11px] text-slate-500">
                     Ingreso confirmado en el mes
                   </div>
                 </div>
-                <div className="rounded-xl border border-blue-200/70 bg-blue-50/60 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-blue-700/80">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Objetivo mensual
                   </div>
-                  <div className="text-2xl font-bold text-blue-700 mt-1">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
                     $
                     {estadisticasMensuales.totalObjetivo.toLocaleString(
                       "es-AR",
                     )}
                   </div>
-                  <div className="text-[11px] text-blue-700/70 mt-1">
+                  <div className="mt-1 text-[11px] text-slate-500">
                     Meta total definida
                   </div>
                 </div>
-                <div className="rounded-xl border border-violet-200/80 bg-violet-50/70 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-violet-700/80">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Adelantos del mes
                   </div>
-                  <div className="text-2xl font-bold text-violet-700 mt-1">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
                     $
                     {estadisticasMensuales.totalAdelantos.toLocaleString(
                       "es-AR",
                     )}
                   </div>
-                  <div className="text-[11px] text-violet-700/70 mt-1">
+                  <div className="mt-1 text-[11px] text-slate-500">
                     Total adelantado a empleados
                   </div>
                 </div>
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/70 p-4">
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
+                <div className="min-w-[130px] border-l border-slate-200 pl-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Reconocimientos por asistencia
                   </div>
-                  <div className="text-2xl font-bold text-amber-700 mt-1">
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-amber-700">
                     $
                     {estadisticasMensuales.totalPremios.toLocaleString("es-AR")}
                   </div>
-                  <div className="text-[11px] text-amber-700/70 mt-1">
+                  <div className="mt-1 text-[11px] text-slate-500">
                     Total definido segun el cumplimiento de cada empleado
                   </div>
                 </div>
               </div>
-              <div className="overflow-auto rounded-xl border border-border/60 bg-card">
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 lg:block">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50 border-b border-border/60">
                     <tr>
@@ -2394,6 +2394,40 @@ export default function AsistenciaPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+              <div className="divide-y divide-slate-200 lg:hidden">
+                {empleadosGestionFiltrados.length === 0 ? (
+                  <p className="px-4 py-10 text-center text-sm text-slate-500">No hay empleados para mostrar.</p>
+                ) : empleadosGestionFiltrados.map((emp) => {
+                  const item = estadisticasMensualesPorEmpleado[String(emp.id)] || {};
+                  return (
+                    <article key={`mobile-${emp.id}`} className="space-y-3 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold text-slate-900">{emp.nombre || "Sin nombre"}</h3>
+                          <p className="mt-1 text-xs text-slate-500">{emp.sector || "Sin sector"} · {emp.activo !== false ? "Activo" : "Inactivo"}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">A pagar</p>
+                          <p className="text-base font-semibold tabular-nums text-slate-900">{formatCurrencyAR(Number(item.saldoConPremio || 0))}</p>
+                        </div>
+                      </div>
+                      {item.premioAsistencia?.config?.activo ? <p className="text-xs text-slate-500">{item.premioAsistencia.estadoLabel}{item.premioAsistencia.motivos?.length ? ` · ${item.premioAsistencia.motivos.join(" · ")}` : ""}</p> : null}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-y border-slate-100 py-3 text-xs sm:grid-cols-3">
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Trabajado</span><span className="font-medium tabular-nums text-slate-800">{formatCurrencyAR(Number(item.trabajado || 0))}</span></div>
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Adicionales</span><span className="font-medium tabular-nums text-slate-800">{formatCurrencyAR(Number(item.adicionales || 0))}</span></div>
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Subtotal</span><span className="font-medium tabular-nums text-slate-800">{formatCurrencyAR(Number(item.cobrado || 0))}</span></div>
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Adelantos</span><span className="font-medium tabular-nums text-slate-800">{formatCurrencyAR(Number(item.adelanto || 0))}</span></div>
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Asistencia</span><span className="font-medium tabular-nums text-slate-800">{Number(item.premioAsistencia?.porcentaje || 0).toLocaleString("es-AR")}%</span></div>
+                        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Premio</span><span className="font-medium tabular-nums text-slate-800">{formatCurrencyAR(Number(item.premioAsistencia?.premio || 0))}</span></div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" className="h-8 rounded-md border-slate-200 px-3 text-xs" onClick={() => abrirEditarEmp(emp)}><Icon icon="lucide:pencil" className="mr-1.5 h-3.5 w-3.5" />Editar</Button>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-md px-3 text-xs text-rose-700 hover:bg-rose-50" onClick={() => eliminarEmp(emp)}><Icon icon="lucide:trash-2" className="mr-1.5 h-3.5 w-3.5" />Eliminar</Button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -2870,6 +2904,6 @@ export default function AsistenciaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 }

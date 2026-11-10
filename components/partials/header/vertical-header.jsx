@@ -1,132 +1,55 @@
-import React from "react";
-import { useSidebar, useThemeStore } from "@/store";
-import { cn, useLocalizedPath } from "@/lib/utils";
-import { Icon } from "@iconify/react";
+import { useThemeStore } from "@/store";
+import { useLocalizedPath } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
-const MenuBar = ({ collapsed, setCollapsed }) => {
-  return (
-    <button
-      className="relative group  disabled:cursor-not-allowed opacity-50"
-      onClick={() => setCollapsed(!collapsed)}
-    >
-      <div>
-        <div
-          className={cn(
-            "flex flex-col justify-between w-[20px] h-[16px] transform transition-all duration-300 origin-center overflow-hidden",
-            {
-              "-translate-x-1.5 rotate-180": collapsed,
-            }
-          )}
-        >
-          <div
-            className={cn(
-              "bg-card-foreground h-[2px] transform transition-all duration-300 origin-left delay-150",
-              {
-                "rotate-[42deg] w-[11px]": collapsed,
-                "w-7": !collapsed,
-              }
-            )}
-          ></div>
-          <div
-            className={cn(
-              "bg-card-foreground h-[2px] w-7 rounded transform transition-all duration-300",
-              {
-                "translate-x-10": collapsed,
-              }
-            )}
-          ></div>
-          <div
-            className={cn(
-              "bg-card-foreground h-[2px] transform transition-all duration-300 origin-left delay-150",
-              {
-                "-rotate-[43deg] w-[11px]": collapsed,
-                "w-7": !collapsed,
-              }
-            )}
-          ></div>
-        </div>
-      </div>
-    </button>
-  );
-};
-
-const VerticalHeader = ({ handleOpenSearch }) => {
-  const { collapsed, setCollapsed, subMenu, sidebarType } = useSidebar();
+const VerticalHeader = () => {
   const { layout } = useThemeStore();
   const isDesktop = useMediaQuery("(min-width: 1280px)");
-  const isMobile = useMediaQuery("(min-width: 768px)");
   const localize = useLocalizedPath();
-  let LogoContent = null;
-  let menuBarContent = null;
-  // let searchButtonContent = null;
+  const showLogo = layout === "semibox" && !isDesktop;
 
-  const MainLogo = (
-    <Link href={localize("/dashboard")} className="inline-flex h-8 shrink-0 items-center text-primary">
-      <SiteLogo width={672} height={507} className="block h-7 w-auto shrink-0 object-contain" />
-    </Link>
-  );
-  // const SearchButton = (
-  //   <div>
-  //     <button
-  //       className=" inline-flex  gap-2 items-center text-default-600 text-sm cursor-pointer"
-  //       onClick={handleOpenSearch}
-  //     >
-  //       <span>
-  //         <Search className=" h-4 w-4" />
-  //       </span>
-  //       <span className=" md:block hidden"> Search...</span>
-  //     </button>
-  //   </div>
-  // );
-  if (layout === "semibox" && !isDesktop) {
-    LogoContent = MainLogo;
-  }
-  if (
-    layout === "vertical" &&
-    !isDesktop &&
-    isMobile &&
-    sidebarType === "module"
-  ) {
-    LogoContent = MainLogo;
-  }
-  if (layout === "vertical" && !isDesktop && sidebarType !== "module") {
-    LogoContent = MainLogo;
-  }
-
-  // menu bar content condition
-  if (isDesktop && sidebarType !== "module") {
-    menuBarContent = (
-      <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
-    );
-  }
-  if (sidebarType === "module") {
-    menuBarContent = (
-      <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
-    );
-  }
-  if (sidebarType === "classic") {
-    menuBarContent = null;
-  }
-  if (subMenu && isDesktop) {
-    menuBarContent = null;
-  }
-  // if (sidebarType === "module" && isMobile) {
-  //   searchButtonContent = SearchButton;
-  // }
-  // if (sidebarType === "classic" || sidebarType === "popover") {
-  //   searchButtonContent = SearchButton;
-  // }
   return (
-    <>
-      <div className="flex items-center md:gap-6 gap-3">
-        {LogoContent}
-        {menuBarContent}
-      </div>
-    </>
+    <div className="flex min-w-0 flex-1 items-center gap-4">
+      {showLogo && (
+        <Link
+          href={localize("/dashboard")}
+          aria-label="Ir al panel principal"
+          className="inline-flex h-8 shrink-0 items-center"
+        >
+          <SiteLogo
+            width={672}
+            height={507}
+            alt="Maderas Caballero"
+            className="block h-7 w-auto shrink-0 object-contain"
+          />
+        </Link>
+      )}
+      {isDesktop ? (
+        <button
+          type="button"
+          disabled
+          aria-label="Búsqueda temporalmente desactivada"
+          title="Búsqueda temporalmente desactivada"
+          className="flex h-10 w-full max-w-[552px] cursor-not-allowed items-center gap-3 rounded-full border border-border/70 bg-background px-4 text-sm text-muted-foreground opacity-60 shadow-sm transition-colors disabled:hover:bg-background"
+        >
+          <Search aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span className="truncate text-left">Búsqueda temporalmente desactivada</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled
+          aria-label="Búsqueda temporalmente desactivada"
+          title="Búsqueda temporalmente desactivada"
+          className="inline-flex h-10 w-10 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-muted-foreground opacity-60 transition-colors disabled:hover:bg-transparent"
+        >
+          <Search aria-hidden="true" className="h-5 w-5" />
+        </button>
+      )}
+    </div>
   );
 };
 

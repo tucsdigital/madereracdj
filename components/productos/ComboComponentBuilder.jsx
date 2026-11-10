@@ -367,14 +367,12 @@ export default function ComboComponentBuilder({
     const medida = getMedidaPorUnidadComponente(producto);
     if (!medida) return null;
     if (!medida.cantidadPorUnidad) {
-      return <span className="text-amber-600 dark:text-amber-400">Falta {medida.faltantes.join(" y ")} para calcular {medida.simbolo}</span>;
+      return <span className="text-warning">Falta {medida.faltantes.join(" y ")} para calcular {medida.simbolo}</span>;
     }
     return <span className="font-medium text-foreground/80">{medida.formula} por unidad</span>;
   };
 
-  const stockTone = stockAnalysis.stock > 0
-    ? "text-emerald-700 dark:text-emerald-300"
-    : "text-amber-700 dark:text-amber-300";
+  const stockTone = stockAnalysis.stock > 0 ? "text-success" : "text-warning";
 
   return (
     <section
@@ -390,7 +388,7 @@ export default function ComboComponentBuilder({
           <div className="mt-1 text-xl font-semibold leading-none tabular-nums">{componentes.length}</div>
           <div className="mt-1 text-[11px] text-muted-foreground">{componentes.length === 1 ? "producto" : "productos"}</div>
         </div>
-        <div className={`rounded-2xl border px-3.5 py-3 shadow-sm transition-colors ${stockAnalysis.stock > 0 ? "border-emerald-200/80 bg-emerald-50/70 dark:border-emerald-900/70 dark:bg-emerald-950/25" : "border-amber-200/80 bg-amber-50/70 dark:border-amber-900/70 dark:bg-amber-950/25"}`}>
+        <div className={`rounded-2xl border px-3.5 py-3 shadow-sm transition-colors ${stockAnalysis.stock > 0 ? "border-success/20 bg-success/5" : "border-warning/20 bg-warning/5"}`}>
           <div className="text-[10px] font-medium uppercase tracking-[0.13em] text-muted-foreground">Disponibles</div>
           <div className={`mt-1 text-xl font-semibold leading-none tabular-nums ${stockTone}`}>{stockAnalysis.stock}</div>
           <div className="mt-1 text-[11px] text-muted-foreground">combos armables</div>
@@ -407,7 +405,7 @@ export default function ComboComponentBuilder({
         {showCosts && (
           <div className="rounded-2xl border border-border/70 bg-background/80 px-3.5 py-3 shadow-sm">
             <div className="text-[10px] font-medium uppercase tracking-[0.13em] text-muted-foreground">Margen bruto</div>
-            <div className={`mt-1 text-xl font-semibold leading-none tabular-nums ${margin >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-destructive"}`}>
+            <div className={`mt-1 text-xl font-semibold leading-none tabular-nums ${margin >= 0 ? "text-success" : "text-destructive"}`}>
               {marginPercentage === null ? "—" : `${marginPercentage.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`}
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground">
@@ -475,7 +473,7 @@ export default function ComboComponentBuilder({
                   type="button"
                   onClick={() => setCategory("")}
                   disabled={disabled}
-                  className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-all motion-safe:duration-150 ${!category ? "bg-foreground text-background shadow-sm" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-all motion-safe:duration-150 ${!category ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                 >
                   Todo
                 </button>
@@ -485,7 +483,7 @@ export default function ComboComponentBuilder({
                     type="button"
                     onClick={() => setCategory(category === item ? "" : item)}
                     disabled={disabled}
-                    className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-all motion-safe:duration-150 ${category === item ? "bg-foreground text-background shadow-sm" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                    className={`rounded-full px-3 py-1.5 text-[11px] font-medium transition-all motion-safe:duration-150 ${category === item ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                   >
                     {item}
                   </button>
@@ -533,7 +531,7 @@ export default function ComboComponentBuilder({
                 const measuredAmount = getMeasuredAmountPerItem(producto);
                 return (
                   <div key={producto.id} className={`group flex flex-wrap items-center gap-3 border-l-2 px-3 py-3 transition-colors sm:px-3.5 motion-safe:duration-150 ${selectedComponent ? "border-l-primary bg-primary/[0.04]" : "border-l-transparent hover:bg-background"}`}>
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${producto.categoria === "Maderas" ? "bg-orange-500/10 text-orange-700 dark:text-orange-300" : "bg-primary/10 text-primary"}`}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                       {producto.categoria === "Maderas" ? <Ruler className="h-4 w-4" /> : <Package className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0 flex-1 basis-[45%]">
@@ -568,7 +566,7 @@ export default function ComboComponentBuilder({
                       onClick={() => addComponent(producto)}
                       disabled={disabled}
                       aria-label={`Agregar ${producto.nombre || "producto"}`}
-                      className="h-8 w-8 shrink-0 rounded-lg border-border/70 text-muted-foreground shadow-none transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary group-hover:scale-[1.03] motion-safe:duration-150"
+                      className="h-8 w-8 shrink-0 rounded-lg border-border/70 text-muted-foreground shadow-none transition-all hover:border-primary/30 hover:bg-muted hover:text-foreground group-hover:scale-[1.03] motion-safe:duration-150"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>}
@@ -587,7 +585,7 @@ export default function ComboComponentBuilder({
                   type="button"
                   onClick={() => setResultLimit((limit) => limit + 20)}
                   disabled={disabled}
-                  className="w-full px-3 py-2.5 text-center text-[11px] font-medium text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
+                  className="w-full px-3 py-2.5 text-center text-[11px] font-medium text-primary transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   Ver más resultados
                 </button>
@@ -664,7 +662,7 @@ export default function ComboComponentBuilder({
 
                     <div className="ml-10 mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-medium tabular-nums ${stock > 0 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-medium tabular-nums ${stock > 0 ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
                           {stock} disponibles
                         </span>
                         {stockReservado > 0 && <span className="text-[10px] text-muted-foreground">{stockReservado} reservados de {stockTotal}</span>}
@@ -697,7 +695,7 @@ export default function ComboComponentBuilder({
           )}
 
           {hasInvalidDraft && (
-            <div className="border-t border-amber-200/60 bg-amber-50/50 px-4 py-2.5 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+            <div className="border-t border-warning/20 bg-warning/10 px-4 py-2.5 text-[11px] text-warning">
               Corregí las cantidades para guardar el combo.
             </div>
           )}

@@ -30,10 +30,10 @@ const ThemeChange = () => {
       }}
     >
       <div className="mb-2 relative inline-block px-3 py-[3px] rounded-md before:bg-(--theme-primary) before:absolute before:top-0 before:left-0 before:w-full  before:h-full before:rounded before:opacity-10 before:z-[-1]  text-(--theme-primary)  text-xs font-medium">
-        Theme
+        Color
       </div>
       <div className="text-muted-foreground font-normal text-xs mb-4">
-        Choose a Theme
+        Elegí el color de acento
       </div>
       <div className=" flex flex-wrap gap-1">
         {[

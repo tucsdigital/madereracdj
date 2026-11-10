@@ -20,7 +20,7 @@ const MultiMenuHandler = ({
         {
           " text-primary  before:bg-primary   before:h-full ":
             activeMultiMenu === subIndex,
-          " text-default-700 hover:text-primary": activeMultiMenu !== subIndex,
+          "text-default-700 hover:text-foreground": activeMultiMenu !== subIndex,
         }
       )}
     >

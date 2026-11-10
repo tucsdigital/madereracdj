@@ -144,5 +144,9 @@ service cloud.firestore {
         allow update, delete: if isAgencyAdmin();
       }
     }
+
+    match /responsablesObra/{responsableId} {
+      allow read, write: if isAgencyMember();
+    }
   }
 }

@@ -1303,6 +1303,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   ? [
                       {
                         fecha: cleanData.fecha || fechaLocalActual(),
+                        fechaHora: new Date().toISOString(),
                         monto: paymentIntentMonto,
                         metodo: cleanData.formaPago || "-",
                         usuario: user?.email || "Usuario no identificado",

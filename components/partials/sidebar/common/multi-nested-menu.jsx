@@ -21,7 +21,7 @@ const MultiNestedMenu = ({ subItem, subIndex, activeMultiMenu, trans }) => {
               <Link href={localize(item.href)}>
                 <span
                   className={cn(
-                    "text-sm flex gap-3  items-center transition-all duration-150 hover:text-primary capitalize",
+                    "text-sm flex gap-3 items-center transition-all duration-150 hover:text-foreground capitalize",
                     {
                       " text-primary  ": isLocationMatch(
                         item.href,

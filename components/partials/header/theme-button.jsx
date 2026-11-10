@@ -12,14 +12,11 @@ import {
 import { Device, Moon, Sun } from "@/components/svg";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useThemeStore } from "@/store";
 
 const ThemeButton = () => {
   const { theme, setTheme } = useTheme();
-  const { setTheme: setColorTheme } = useThemeStore();
   const handleModeChange = (mode) => {
     setTheme(mode);
-    setColorTheme("zinc");
   };
   return (
     <DropdownMenu>

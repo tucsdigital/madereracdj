@@ -35,14 +35,14 @@ const DragDropImageModal = ({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
-              <ImageIcon className="w-5 h-5 text-white" />
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <ImageIcon className="h-5 w-5" />
             </div>
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <span className="text-foreground">
               {imagenes.length === 1 ? 'Confirmar Subida de Imagen' : `Confirmar Subida de ${imagenes.length} Imágenes`}
             </span>
           </DialogTitle>
-          <DialogDescription className="text-gray-600">
+          <DialogDescription className="text-muted-foreground">
             {imagenes.length === 1 
               ? 'Estás a punto de agregar una imagen a este producto'
               : `Estás a punto de agregar ${imagenes.length} imágenes a este producto`
@@ -52,23 +52,23 @@ const DragDropImageModal = ({
 
         <div className="space-y-4 py-4">
           {/* Información del producto con diseño mejorado */}
-          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-4 border-2 border-blue-200 shadow-sm">
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 bg-white rounded-lg shadow-sm">
-                <Package className="w-5 h-5 text-blue-600" />
+              <div className="rounded-lg bg-background p-2.5 shadow-sm">
+                <Package className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
                   Producto de destino
                 </div>
-                <div className="font-bold text-gray-900 text-lg">
+                <div className="text-lg font-bold text-foreground">
                   {producto.nombre}
                 </div>
-                <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
-                  <span className="bg-white px-2 py-1 rounded-md border border-gray-200">
+                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="rounded-md border border-border bg-background px-2 py-1">
                     <span className="font-medium">Código:</span> {producto.codigo}
                   </span>
-                  <span className="bg-white px-2 py-1 rounded-md border border-gray-200">
+                  <span className="rounded-md border border-border bg-background px-2 py-1">
                     <span className="font-medium">Categoría:</span> {producto.categoria}
                   </span>
                 </div>
@@ -77,27 +77,27 @@ const DragDropImageModal = ({
           </div>
 
           {/* Contador de imágenes con barra de progreso visual */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+          <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-gray-900">Estado de la galería</span>
+                <Layers className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-foreground">Estado de la galería</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-2xl font-bold text-green-600">{totalDespuesDeSubir}</span>
-                <span className="text-gray-400">/</span>
-                <span className="text-lg font-semibold text-gray-600">3</span>
+                <span className="text-2xl font-bold text-foreground">{totalDespuesDeSubir}</span>
+                <span className="text-muted-foreground">/</span>
+                <span className="text-lg font-semibold text-muted-foreground">3</span>
               </div>
             </div>
             
             {/* Barra de progreso visual */}
-            <div className="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
               <div 
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+                className="absolute left-0 top-0 h-full rounded-full bg-primary transition-all duration-500 ease-out motion-reduce:transition-none"
                 style={{ width: `${(totalDespuesDeSubir / 3) * 100}%` }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-white drop-shadow-md">
+                <span className="text-[10px] font-bold text-primary-foreground drop-shadow-md">
                   {totalDespuesDeSubir === 3 ? '¡COMPLETO!' : `${espacioDisponible - imagenes.length} espacio${espacioDisponible - imagenes.length !== 1 ? 's' : ''} restante${espacioDisponible - imagenes.length !== 1 ? 's' : ''}`}
                 </span>
               </div>
@@ -105,32 +105,32 @@ const DragDropImageModal = ({
             
             <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
               <div className="text-center">
-                <div className="font-semibold text-gray-700">{imagenesActuales}</div>
-                <div className="text-gray-500">Actuales</div>
+                <div className="font-semibold text-foreground">{imagenesActuales}</div>
+                <div className="text-muted-foreground">Actuales</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold text-blue-600">+{imagenes.length}</div>
-                <div className="text-gray-500">Nuevas</div>
+                <div className="font-semibold text-primary">+{imagenes.length}</div>
+                <div className="text-muted-foreground">Nuevas</div>
               </div>
               <div className="text-center">
-                <div className={`font-semibold ${totalDespuesDeSubir === 3 ? 'text-green-600' : 'text-gray-700'}`}>
+                <div className={`font-semibold ${totalDespuesDeSubir === 3 ? 'text-success' : 'text-foreground'}`}>
                   {totalDespuesDeSubir}
                 </div>
-                <div className="text-gray-500">Total</div>
+                <div className="text-muted-foreground">Total</div>
               </div>
             </div>
           </div>
 
           {/* Preview de las imágenes - Grid responsive */}
           {imagenes.length > 0 && (
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-blue-600" />
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <ImageIcon className="h-4 w-4 text-primary" />
                   Vista previa {imagenes.length > 1 && `(${imagenes.length} imágenes)`}
                 </div>
                 {totalDespuesDeSubir === 3 && (
-                  <div className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
+                  <div className="flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-1 text-xs font-medium text-success">
                     <CheckCircle2 className="w-3 h-3" />
                     Galería completa
                   </div>
@@ -147,18 +147,18 @@ const DragDropImageModal = ({
                 {imagenes.map((img, idx) => (
                   <div 
                     key={idx} 
-                    className="group relative bg-white rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-300 animate-fadeIn"
+                    className="group relative overflow-hidden rounded-lg border-2 border-border bg-background shadow-sm transition-all duration-300 hover:border-primary/50 hover:shadow-lg motion-reduce:transition-none animate-fadeIn"
                     style={{ animationDelay: `${idx * 100}ms` }}
                   >
                     {/* Número de imagen */}
                     <div className="absolute top-2 left-2 z-10">
-                      <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow-lg">
                         {idx + 1}
                       </div>
                     </div>
                     
                     {/* Preview de la imagen */}
-                    <div className="aspect-square relative overflow-hidden bg-gray-100">
+                    <div className="relative aspect-square overflow-hidden bg-muted">
                       <img 
                         src={img.preview} 
                         alt={`Preview ${idx + 1}`} 
@@ -169,8 +169,8 @@ const DragDropImageModal = ({
                     </div>
                     
                     {/* Nombre del archivo */}
-                    <div className="p-2 bg-white border-t border-gray-200">
-                      <div className="text-xs text-gray-600 truncate" title={img.name}>
+                    <div className="border-t border-border bg-background p-2">
+                      <div className="truncate text-xs text-muted-foreground" title={img.name}>
                         <span className="font-medium">📎</span> {img.name}
                       </div>
                     </div>
@@ -183,15 +183,15 @@ const DragDropImageModal = ({
           {/* Alerta informativa mejorada */}
           <div className={`rounded-xl p-4 border-2 flex items-start gap-3 transition-all duration-300 ${
             totalDespuesDeSubir === 3 
-              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
-              : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300'
+              ? 'border-success/30 bg-success/10'
+              : 'border-warning/30 bg-warning/10'
           }`}>
             {totalDespuesDeSubir === 3 ? (
-              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
             )}
-            <div className={`text-sm ${totalDespuesDeSubir === 3 ? 'text-green-800' : 'text-amber-800'}`}>
+            <div className={`text-sm ${totalDespuesDeSubir === 3 ? 'text-success' : 'text-warning'}`}>
               <p className="font-semibold mb-1">
                 {totalDespuesDeSubir === 3 ? '¡Perfecto!' : 'Información:'}
               </p>
@@ -208,48 +208,48 @@ const DragDropImageModal = ({
         {/* Barra de progreso durante la subida */}
         {uploading && (
           <div className="px-4 pb-4">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-blue-800">
+                <span className="text-sm font-semibold text-foreground">
                   Subiendo {imagenes.length > 1 ? 'imágenes' : 'imagen'}...
                 </span>
-                <span className="text-xs font-medium text-blue-600">
+                <span className="text-xs font-medium text-primary">
                   {uploadProgress}%
                 </span>
               </div>
-              <div className="relative w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div 
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300 ease-out"
+                  className="absolute left-0 top-0 h-full rounded-full bg-primary transition-all duration-300 ease-out motion-reduce:transition-none"
                   style={{ width: `${uploadProgress}%` }}
                 >
-                  <div className="absolute inset-0 bg-white/30 animate-pulse" />
+                  <div className="absolute inset-0 animate-pulse bg-primary-foreground/30" />
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-2 text-xs text-blue-700">
-                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none"></div>
                 <span>Por favor espera, no cierres esta ventana...</span>
               </div>
             </div>
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+        <DialogFooter className="gap-2 border-t border-border pt-4 sm:gap-0">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={uploading}
-            className="flex-1 sm:flex-initial border-2 hover:border-gray-400 transition-all"
+            className="flex-1 border-border transition-colors hover:bg-muted sm:flex-initial"
           >
             Cancelar
           </Button>
           <Button
             onClick={onConfirm}
             disabled={uploading}
-            className="flex-1 sm:flex-initial bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-primary text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-initial disabled:cursor-not-allowed"
           >
             {uploading ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-primary-foreground motion-reduce:animate-none"></div>
                 <span>Subiendo {imagenes.length > 1 ? `${imagenes.length} imágenes` : 'imagen'}...</span>
               </>
             ) : (

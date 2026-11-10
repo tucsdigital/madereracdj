@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import {
   Eye,
   FileText,
   MapPin,
+  MoreHorizontal,
   Phone,
   Plus,
   Save,
@@ -549,21 +550,25 @@ const ClientesPage = () => {
   };
 
   return (
-    <div className="mx-auto w-full space-y-6 pb-16">
-      <header className="flex items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 pb-16 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold">Clientes</h1>
-          <p className="text-sm text-default-500">Gestión de clientes de la maderera.</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Relaciones · Directorio</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Clientes</h1>
+            <span className="text-xs tabular-nums text-slate-500">{clientes.length} en esta página</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">Datos de contacto y actividad comercial.</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="h-9 shrink-0 rounded-lg">
+        <Button onClick={() => setOpen(true)} className="h-9 self-start shrink-0 rounded-md px-3 text-xs sm:self-auto">
           <Plus className="mr-1.5 h-4 w-4" />
           <span className="hidden sm:inline">Agregar cliente</span>
           <span className="sm:hidden">Agregar</span>
         </Button>
       </header>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <div className="relative min-w-0 flex-1 sm:max-w-xl">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-default-500" />
             <Input
@@ -571,7 +576,7 @@ const ClientesPage = () => {
               onChange={(event) => setFiltro(event.target.value)}
               placeholder="Buscar por nombre, documento, teléfono, email o ubicación..."
               aria-label="Buscar clientes"
-              className="h-9 rounded-lg pl-9 pr-9"
+              className="h-9 rounded-md border-slate-200 bg-white pl-9 pr-9 text-xs shadow-none placeholder:text-slate-500"
             />
             {filtro && (
               <button
@@ -584,7 +589,7 @@ const ClientesPage = () => {
               </button>
             )}
           </div>
-          <p className="shrink-0 text-sm text-default-500" aria-live="polite">
+          <p className="shrink-0 text-xs text-slate-500" aria-live="polite">
             {loading
               ? busquedaActiva ? `Buscando… ${searchScanned.toLocaleString("es-AR")} revisados` : "Cargando clientes…"
               : busquedaActiva
@@ -599,84 +604,53 @@ const ClientesPage = () => {
             <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>Reintentar</Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-          <Table className="min-w-[1260px] uppercase">
-            <TableHeader>
-              <TableRow className="bg-muted/40">
-                <TableHead className="whitespace-nowrap text-xs">NOMBRE</TableHead>
-                <TableHead className="whitespace-nowrap text-xs">DNI</TableHead>
-                <TableHead className="whitespace-nowrap text-xs">CUIT</TableHead>
-                <TableHead className="whitespace-nowrap text-xs">DIRECCIÓN</TableHead>
-                <TableHead className="whitespace-nowrap text-xs">TELÉFONO</TableHead>
-                <TableHead className="whitespace-nowrap text-xs">EMAIL</TableHead>
-                <TableHead className="whitespace-nowrap text-center text-xs">PRESUPUESTOS</TableHead>
-                <TableHead className="whitespace-nowrap text-center text-xs">VENTAS</TableHead>
-                <TableHead className="whitespace-nowrap text-center text-xs">OBRAS</TableHead>
-                <TableHead className="whitespace-nowrap text-right text-xs">ACCIONES</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={10} className="h-24 text-center text-sm text-default-500">Cargando clientes…</TableCell></TableRow>
-              ) : clientes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="h-28 text-center">
-                    <p className="text-sm font-medium">{busquedaActiva ? "No se encontraron clientes" : "Todavía no hay clientes"}</p>
-                    <p className="mt-1 text-sm text-default-500">
-                      {busquedaActiva ? "Probá con otro nombre, documento, teléfono o dato de contacto." : "Los clientes que agregues aparecerán acá."}
-                    </p>
-                  </TableCell>
-                </TableRow>
-              ) : clientes.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="max-w-[220px] truncate font-medium">{c.nombre || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{dniFor(c) || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{cuitFor(c) || "—"}</TableCell>
-                  <TableCell className="max-w-[220px] truncate">{c.direccion || c.localidad || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{c.telefono || c.celular || "—"}</TableCell>
-                  <TableCell className="max-w-[220px] truncate">{c.email || "—"}</TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {countsLoading ? "…" : countsError ? "—" : (clienteCounts[c.id]?.presupuestos ?? 0)}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {countsLoading ? "…" : countsError ? "—" : (clienteCounts[c.id]?.ventas ?? 0)}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {countsLoading ? "…" : countsError ? "—" : (clienteCounts[c.id]?.obras ?? 0)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1.5">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        color="secondary"
-                        aria-label={`Ver detalle de ${c.nombre || "cliente"}`}
-                        title="Ver detalle"
-                        className="h-8 w-8 rounded-lg p-0"
-                        onClick={() => handleVerDetalle(c)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        color="destructive"
-                        aria-label={`Eliminar ficha de ${c.nombre || "cliente"}`}
-                        title="Eliminar cliente"
-                        className="h-8 w-8 rounded-lg p-0"
-                        onClick={() => requestDeleteCliente(c)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+          <>
+            {loading ? (
+              <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-slate-500"><span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />Cargando clientes…</div>
+            ) : clientes.length === 0 ? (
+              <div className="px-4 py-14 text-center">
+                <p className="text-sm font-medium text-slate-800">{busquedaActiva ? "No se encontraron clientes" : "Todavía no hay clientes"}</p>
+                <p className="mt-1 text-sm text-slate-500">{busquedaActiva ? "Probá con otro nombre, documento, teléfono o dato de contacto." : "Los clientes que agregues aparecerán acá."}</p>
+              </div>
+            ) : (
+              <div role="table" aria-label="Clientes">
+                <div role="row" className="hidden gap-5 border-b border-slate-200 bg-slate-50/70 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500 lg:grid lg:grid-cols-[minmax(210px,1.3fr)_minmax(220px,1.4fr)_minmax(205px,1fr)_auto]">
+                  <span role="columnheader">Cliente</span><span role="columnheader">Contacto</span><span role="columnheader">Actividad</span><span role="columnheader" className="text-right">Acciones</span>
+                </div>
+                {clientes.map((cliente) => (
+                  <article key={cliente.id} role="row" className="grid grid-cols-1 gap-x-5 gap-y-3 border-b border-slate-200 px-4 py-4 last:border-0 sm:px-5 lg:grid-cols-[minmax(210px,1.3fr)_minmax(220px,1.4fr)_minmax(205px,1fr)_auto] lg:items-center">
+                    <div role="cell" className="min-w-0 border-b border-slate-100 pb-3 lg:border-0 lg:pb-0">
+                      <h2 className="truncate text-sm font-semibold uppercase text-slate-900">{cliente.nombre || "Sin nombre"}</h2>
+                      <p className="mt-1 truncate font-mono text-[11px] text-slate-500">DNI {dniFor(cliente) || "—"}<span className="mx-1.5 text-slate-300">·</span>CUIT {cuitFor(cliente) || "—"}</p>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          </div>
+                    <div role="cell" className="grid min-w-0 gap-1 text-xs text-slate-600">
+                      <span className="flex min-w-0 justify-between gap-3 lg:block"><span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Tel.</span><span className="truncate">{cliente.telefono || cliente.celular || "Sin informar"}</span></span>
+                      <span className="flex min-w-0 justify-between gap-3 lg:block"><span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Email</span><span className="truncate">{cliente.email || "Sin informar"}</span></span>
+                      <span className="flex min-w-0 justify-between gap-3 text-slate-500 lg:block"><span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:hidden">Dirección</span><span className="truncate">{cliente.direccion || cliente.localidad || "Sin informar"}</span></span>
+                    </div>
+                    <div role="cell" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-[11px] text-slate-500 lg:border-0 lg:pt-0">
+                      <span>Presupuestos <strong className="tabular-nums text-slate-800">{countsLoading ? "…" : countsError ? "—" : (clienteCounts[cliente.id]?.presupuestos ?? 0)}</strong></span>
+                      <span>Ventas <strong className="tabular-nums text-slate-800">{countsLoading ? "…" : countsError ? "—" : (clienteCounts[cliente.id]?.ventas ?? 0)}</strong></span>
+                      <span>Obras <strong className="tabular-nums text-slate-800">{countsLoading ? "…" : countsError ? "—" : (clienteCounts[cliente.id]?.obras ?? 0)}</strong></span>
+                    </div>
+                    <div role="cell" className="flex items-center justify-end gap-1 border-t border-slate-100 pt-2 lg:border-0 lg:pt-0">
+                      <Button type="button" variant="outline" size="sm" aria-label={`Ver detalle de ${cliente.nombre || "cliente"}`} onClick={() => handleVerDetalle(cliente)} className="h-8 rounded-md border-slate-200 px-2.5 text-[11px]">
+                        <Eye className="mr-1.5 h-3.5 w-3.5" />Ver ficha
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={`Más acciones para ${cliente.nombre || "cliente"}`} className="h-8 w-8 rounded-md"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="text-rose-700 focus:text-rose-700" onSelect={() => requestDeleteCliente(cliente)}><Trash2 className="mr-2 h-4 w-4" />Eliminar ficha</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
         )}
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-default-500">
             <label htmlFor="clientes-page-size">Filas por página</label>
             <select
@@ -1182,7 +1156,7 @@ const ClientesPage = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 };
 

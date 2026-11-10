@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
-import { Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw, Download, Printer, User, Loader2 } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Search, RefreshCw, Download, Printer, User, Loader2 } from "lucide-react";
 
 // Estados de envío con colores y descripciones
 const estadosEnvio = {
@@ -32,6 +31,16 @@ const estadosEnvio = {
     icon: AlertCircle,
     description: "Envío cancelado"
   },
+};
+
+const formatearMonedaEnvio = (value) => {
+  const amount = Math.round((Number(value) || 0) * 100) / 100;
+  return amount.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 // Componente para ver detalles del envío
@@ -494,25 +503,13 @@ const EnviosPage = () => {
   const enviosColumns = [
     {
       accessorKey: "numeroPedido",
-      header: "N° Pedido",
+      header: "Cliente / pedido",
       cell: ({ row }) => {
         const numero = row.getValue("numeroPedido");
         return (
-          <div className="font-medium text-primary cursor-pointer hover:underline">
-            {numero || "Sin número"}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "cliente",
-      header: "Cliente",
-      cell: ({ row }) => {
-        const cliente = row.original.cliente;
-        return (
-          <div>
-            <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
-            <div className="text-xs text-muted-foreground">{cliente?.cuit || "Sin CUIT"}</div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-slate-900">{String(row.original.cliente?.nombre || "Sin nombre").toLocaleUpperCase("es-AR")}</div>
+            <div className="mt-0.5 font-mono text-[10px] text-slate-500">{numero || "Sin número"}</div>
           </div>
         );
       },
@@ -555,11 +552,10 @@ const EnviosPage = () => {
           label: estado, 
           color: "bg-muted/50 text-foreground border-border/60" 
         };
-        const Icon = estadoInfo.icon || Clock;
         return (
           <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4" />
-            <Badge variant="outline" className={estadoInfo.color}>
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${estado === "entregado" ? "bg-emerald-500" : estado === "cancelado" ? "bg-rose-500" : "bg-amber-500"}`} aria-hidden="true" />
+            <Badge variant="outline" className={`${estadoInfo.color} rounded-full px-2 py-0.5 text-[10px]`}>
               {estadoInfo.label}
             </Badge>
           </div>
@@ -586,12 +582,11 @@ const EnviosPage = () => {
       cell: ({ row }) => {
         const total = row.getValue("totalVenta");
         const costoEnvio = row.original.costoEnvio || 0;
-        const totalConEnvio = parseFloat(total) + parseFloat(costoEnvio);
         return (
-          <div>
-            <div className="font-medium">${parseFloat(total).toFixed(2)}</div>
+          <div className="tabular-nums text-slate-800">
+            <div className="font-medium">{formatearMonedaEnvio(total)}</div>
             {costoEnvio > 0 && (
-              <div className="text-xs text-muted-foreground">+ ${costoEnvio.toFixed(2)} envío</div>
+              <div className="text-[10px] text-slate-500">+ {formatearMonedaEnvio(costoEnvio)} envío</div>
             )}
           </div>
         );
@@ -674,123 +669,71 @@ const EnviosPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando envíos...</p>
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-[1600px] items-center justify-center px-4">
+        <div className="flex items-center gap-3 text-sm text-slate-500">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <p>Cargando envíos...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 py-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestión de Envíos</h1>
-          <p className="text-muted-foreground mt-1">Administra y da seguimiento a todos los envíos</p>
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Logística · Seguimiento</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Envíos</h1>
+            <span className="text-xs tabular-nums text-slate-500">{enviosFiltrados.length} resultados</span>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">Administrá entregas, estados y comprobantes de envío.</p>
         </div>
-        <Button variant="outline" onClick={cargarEnvios}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Actualizar
+        <Button variant="outline" onClick={cargarEnvios} className="h-9 self-start rounded-md border-slate-200 bg-white px-3 text-xs font-medium shadow-sm hover:bg-slate-50 sm:self-auto">
+          <RefreshCw className="mr-2 h-4 w-4" />Actualizar
+        </Button>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-slate-200 pb-4" aria-label="Resumen de envíos">
+        {[
+          ["Total", estadisticas.total, "text-slate-900"],
+          ["Pendientes", estadisticas.pendientes, "text-amber-700"],
+          ["Entregados", estadisticas.entregados, "text-emerald-700"],
+          ["Cancelados", estadisticas.cancelados, "text-rose-700"],
+        ].map(([label, count, color]) => (
+          <div key={label} className="flex items-baseline gap-2">
+            <span className={`text-lg font-semibold tabular-nums ${color}`}>{count}</span>
+            <span className="text-xs text-slate-500">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center" aria-label="Buscar y filtrar envíos">
+        <label className="relative min-w-0 flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Input
+            placeholder="Pedido, cliente o vendedor..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            aria-label="Buscar envíos"
+            className="h-9 rounded-md border-slate-200 bg-white pl-9 text-xs shadow-sm placeholder:text-slate-500 focus-visible:ring-slate-200"
+          />
+        </label>
+        <Select value={filtroEstado || "todos"} onValueChange={(value) => setFiltroEstado(value === "todos" ? "" : value)}>
+          <SelectTrigger className="h-9 w-full rounded-md border-slate-200 bg-white text-xs shadow-sm sm:w-48"><SelectValue placeholder="Todos los estados" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            {Object.entries(estadosEnvio).map(([key, value]) => <SelectItem key={key} value={key}>{value.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button type="button" variant="ghost" onClick={() => { setFiltroEstado(""); setBusqueda(""); }} className="h-9 justify-start px-3 text-xs text-slate-600 hover:bg-slate-100 sm:justify-center">
+          Limpiar filtros
         </Button>
       </div>
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
-            <div className="text-sm text-muted-foreground">Total Envíos</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</div>
-            <div className="text-sm text-muted-foreground">Pendientes</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">{estadisticas.entregados}</div>
-            <div className="text-sm text-muted-foreground">Entregados</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">{estadisticas.cancelados}</div>
-            <div className="text-sm text-muted-foreground">Cancelados</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filtros y Búsqueda
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium">Buscar</label>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pedido, cliente, vendedor..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Estado</label>
-              <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los estados</SelectItem>
-                  {Object.entries(estadosEnvio).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>
-                      {value.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setFiltroEstado("");
-                  setBusqueda("");
-                }}
-                className="w-full"
-              >
-                Limpiar Filtros
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabla de envíos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Envíos ({enviosFiltrados.length} de {enviosData.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable data={enviosFiltrados} columns={enviosColumns} />
-        </CardContent>
-      </Card>
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40" aria-label="Listado de envíos">
+        <DataTable data={enviosFiltrados} columns={enviosColumns} responsive />
+      </section>
 
       {/* Modales */}
 
@@ -810,7 +753,7 @@ const EnviosPage = () => {
           onUpdate={handleActualizarEnvio}
         />
       )}
-    </div>
+    </main>
   );
 };
 

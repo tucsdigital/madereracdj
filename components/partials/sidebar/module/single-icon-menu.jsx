@@ -28,8 +28,8 @@ const SingleIconMenu = ({ index, activeIndex, item, locationName, trans }) => {
                 className={cn(
                   "h-12 w-12 mx-auto rounded-md  transition-all duration-300 flex flex-col items-center justify-center cursor-pointer relative",
                   {
-                    "bg-primary/10  text-primary": active,
-                    "text-default-500 dark:text-default-400 hover:bg-primary/10  hover:text-primary ":
+                    "bg-primary text-primary-foreground": active,
+                    "text-default-500 dark:text-default-400 hover:bg-muted hover:text-foreground":
                       !active,
                   }
                 )}
@@ -44,9 +44,9 @@ const SingleIconMenu = ({ index, activeIndex, item, locationName, trans }) => {
                 className={cn(
                   "h-12 w-12 mx-auto rounded-md transition-all duration-300 flex flex-col items-center justify-center cursor-pointer relative  ",
                   {
-                    "bg-primary/10 dark:bg-primary dark:text-primary-foreground  text-primary data-[state=delayed-open]:bg-primary/10 ":
+                    "bg-primary text-primary-foreground data-[state=delayed-open]:bg-primary/90 data-[state=delayed-open]:text-primary-foreground":
                       activeIndex === index,
-                    " text-default-500 dark:text-default-400 data-[state=delayed-open]:bg-primary/10  data-[state=delayed-open]:text-primary":
+                    "text-default-500 dark:text-default-400 data-[state=delayed-open]:bg-muted data-[state=delayed-open]:text-foreground":
                       activeIndex !== index,
                   }
                 )}

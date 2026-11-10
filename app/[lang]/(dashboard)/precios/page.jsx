@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -694,102 +693,28 @@ const PreciosPage = () => {
     productosSeleccionados.size === productosPaginados.length;
 
   return (
-    <div className="py-8 px-2 mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Gestión de Precios</h1>
-        <p className="text-lg text-gray-600">
-          Sistema profesional de actualización de precios por categorías
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="border-b border-slate-200 pb-5">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Catálogo · Actualización</p>
+        <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Precios</h1>
+        <p className="mt-2 text-sm text-slate-500">Actualizá valores por categoría o producto.</p>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="border-2 border-orange-200 hover:border-orange-300 transition-colors">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Icon
-                  icon="mdi:pine-tree"
-                  className="w-6 h-6 text-orange-600"
-                />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Maderas</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Actualización por tipo de madera
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => handleActualizacionGlobal("maderas")}
-              className="w-full bg-orange-600 hover:bg-orange-700"
-            >
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Actualizar Maderas
-            </Button>
-          </CardContent>
-        </Card>
+      <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:flex-wrap sm:items-center" aria-label="Acciones de actualización de precios">
+        <span className="mr-2 text-xs font-medium text-slate-500">Actualización rápida</span>
+        <Button variant="outline" onClick={() => handleActualizacionGlobal("maderas")} className="h-9 rounded-md border-slate-200 bg-white px-3 text-xs shadow-sm hover:bg-slate-50"><TrendingUp className="mr-2 h-4 w-4" />Actualizar maderas</Button>
+        <Button variant="outline" onClick={() => handleActualizacionGlobal("proveedor")} className="h-9 rounded-md border-slate-200 bg-white px-3 text-xs shadow-sm hover:bg-slate-50"><Package className="mr-2 h-4 w-4" />Actualizar proveedores</Button>
+        <Button onClick={() => setCategoriaSeleccionada("")} className="h-9 rounded-md px-3 text-xs"><Settings className="mr-2 h-4 w-4" />Edición individual</Button>
+      </section>
 
-        <Card className="border-2 border-blue-200 hover:border-blue-300 transition-colors">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Icon
-                  icon="mdi:package-variant"
-                  className="w-6 h-6 text-blue-600"
-                />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Proveedores</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Actualización por proveedor
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => handleActualizacionGlobal("proveedor")}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Actualizar Proveedores
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-green-200 hover:border-green-300 transition-colors">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Icon icon="mdi:tools" className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Individual</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Edición producto por producto
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => setCategoriaSeleccionada("")}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Ver Todos
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mb-6">
-        <CardHeader>
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+        <div className="border-b border-slate-200 p-3 sm:p-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <CardTitle>Listado de Productos</CardTitle>
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 self-start">
+                <h2 className="text-sm font-semibold text-slate-900">Listado de productos</h2>
+                <span className="text-xs tabular-nums text-slate-500">{productosFiltrados.length} resultados</span>
+              </div>
               <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                 <select
                   value={categoriaSeleccionada}
@@ -799,7 +724,7 @@ const PreciosPage = () => {
                     setFiltroTipoMadera("");
                     setFiltroSubCategoria("");
                   }}
-                  className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 md:w-48"
                 >
                   <option value="">Todas las categorías</option>
                   {categorias.map((cat) => (
@@ -812,7 +737,7 @@ const PreciosPage = () => {
                   value={filtroSubCategoria}
                   onChange={(e) => setFiltroSubCategoria(e.target.value)}
                   disabled={subCategoriasParaListado.length === 0}
-                  className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-50 disabled:text-slate-400 md:w-48"
                 >
                   <option value="">Todas las subcategorías</option>
                   {subCategoriasParaListado.map((sub) => (
@@ -825,23 +750,23 @@ const PreciosPage = () => {
                   placeholder="Buscar por nombre, categoría o precio..."
                   value={filtro}
                   onChange={(e) => setFiltro(e.target.value)}
-                  className="w-full md:w-64"
+                  className="h-9 w-full rounded-md border-slate-200 bg-white text-xs shadow-sm md:w-64"
                 />
               </div>
             </div>
 
             {/* Filtros específicos por categoría */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               {/* Filtro de tipo de madera */}
               {categoriaSeleccionada === "Maderas" && tiposMadera.length > 0 && (
                 <div className="flex-1">
-                  <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                  <div className="flex max-w-full flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-50 p-1">
                     <button
                       type="button"
-                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      className={`rounded-md px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                         filtroTipoMadera === ""
-                          ? "bg-orange-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-600 hover:bg-white hover:text-slate-900"
                       }`}
                       onClick={() => setFiltroTipoMadera("")}
                     >
@@ -851,10 +776,10 @@ const PreciosPage = () => {
                       <button
                         key={tipo}
                         type="button"
-                        className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        className={`rounded-md px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                           filtroTipoMadera === tipo
-                            ? "bg-orange-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-600 hover:bg-white hover:text-slate-900"
                         }`}
                         onClick={() => setFiltroTipoMadera(tipo)}
                       >
@@ -869,13 +794,13 @@ const PreciosPage = () => {
               {categoriaSeleccionada === "Ferretería" &&
                 subCategoriasFerreteria.length > 0 && (
                   <div className="flex-1">
-                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                    <div className="flex max-w-full flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-50 p-1">
                       <button
                         type="button"
-                        className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        className={`rounded-md px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                           filtroSubCategoria === ""
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-600 hover:bg-white hover:text-slate-900"
                         }`}
                         onClick={() => setFiltroSubCategoria("")}
                       >
@@ -885,10 +810,10 @@ const PreciosPage = () => {
                         <button
                           key={subCategoria}
                           type="button"
-                          className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                          className={`rounded-md px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                             filtroSubCategoria === subCategoria
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              ? "bg-slate-900 text-white"
+                              : "text-slate-600 hover:bg-white hover:text-slate-900"
                           }`}
                           onClick={() => setFiltroSubCategoria(subCategoria)}
                         >
@@ -906,7 +831,7 @@ const PreciosPage = () => {
                 {productosSeleccionados.size > 0 && (
                   <Button
                     onClick={abrirModalSeleccionMultiple}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    className="h-8 rounded-md px-3 text-xs"
                     size="sm"
                   >
                     <TrendingUp className="w-4 h-4 mr-2" />
@@ -931,16 +856,16 @@ const PreciosPage = () => {
               </div>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+        </div>
+        <div className="p-0">
           {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <div className="flex min-h-36 items-center justify-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />Cargando precios...
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
+            <Table className="block w-full min-w-0 lg:table">
+              <TableHeader className="hidden lg:table-header-group">
+                <TableRow className="border-slate-200 bg-slate-50/70 hover:bg-slate-50/70">
                   <TableHead className="w-12">
                     <div className="flex items-center justify-center">
                       <button
@@ -964,7 +889,7 @@ const PreciosPage = () => {
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="relative">
+              <TableBody className="relative block lg:table-row-group">
                 {/* Overlay de carga durante la paginación */}
                 {isLoadingPagination && (
                   <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
@@ -978,8 +903,8 @@ const PreciosPage = () => {
                 )}
                 
                 {productosPaginados.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-gray-50">
-                    <TableCell>
+                  <TableRow key={p.id} className="block border-b border-slate-200 py-2 hover:bg-slate-50/70 lg:table-row lg:py-0">
+                    <TableCell data-label="Seleccionar" className="flex items-center justify-end border-0 px-3 py-1 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:hidden">
                       <div className="flex items-center justify-center">
                         <Checkbox
                           checked={productosSeleccionados.has(p.id)}
@@ -988,7 +913,7 @@ const PreciosPage = () => {
                         />
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Producto" className="flex items-start justify-between gap-3 border-0 px-3 py-1.5 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:pt-0.5 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <div>
                         <div className="font-medium">{p.nombre}</div>
                         {p.tipoMadera && (
@@ -1006,19 +931,19 @@ const PreciosPage = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Categoría" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <Badge className={getColorCategoria(p.categoria)}>
                         {getIconoCategoria(p.categoria)} {p.categoria}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Unidad" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       {p.unidadMedida ||
                         p.unidadVenta ||
                         p.unidadVentaHerraje ||
                         p.unidadVentaQuimico ||
                         p.unidadVentaHerramienta}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Stock" className="flex items-center justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <span
                         className={`font-medium ${
                           p.stock > 10
@@ -1031,17 +956,17 @@ const PreciosPage = () => {
                         {p.stock || 0}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
+                    <TableCell data-label="Precio actual" className="flex items-start justify-between gap-3 border-0 px-3 py-1.5 text-right lg:table-cell lg:border-b lg:px-4 lg:py-3 lg:text-left before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:pt-0.5 before:text-left before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
+                      <div className="flex-1 text-xs tabular-nums lg:flex-none lg:text-sm">
                         {p.valorVenta && (
-                          <div>Venta: ${redondearDecimal(p.valorVenta).toFixed(2)}</div>
+                          <div>Venta: ${redondearDecimal(p.valorVenta).toLocaleString("es-AR")}</div>
                         )}
                         {p.precioPorPie && (
-                          <div>$/pie: ${redondearDecimal(p.precioPorPie).toFixed(2)}</div>
+                          <div>$/pie: ${redondearDecimal(p.precioPorPie).toLocaleString("es-AR")}</div>
                         )}
                         {p.costo && (
                           <div className="text-gray-500">
-                            Costo: ${redondearDecimal(p.costo).toFixed(2)}
+                            Costo: ${redondearDecimal(p.costo).toLocaleString("es-AR")}
                           </div>
                         )}
                         {!p.valorVenta && !p.precioPorPie && !p.costo && (
@@ -1049,12 +974,12 @@ const PreciosPage = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Acciones" className="flex items-center justify-between gap-3 border-0 px-3 py-2 lg:table-cell lg:border-b lg:px-4 lg:py-3 before:shrink-0 before:content-[attr(data-label)] before:w-[34%] before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-slate-400 lg:before:hidden">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleEditarIndividual(p)}
-                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                        className="h-8 rounded-md border-slate-200 px-3 text-xs"
                       >
                         <Pencil className="w-4 h-4 mr-1" />
                         Editar
@@ -1062,15 +987,20 @@ const PreciosPage = () => {
                     </TableCell>
                   </TableRow>
                 ))}
+                {productosPaginados.length === 0 && !loading ? (
+                  <TableRow className="block lg:table-row">
+                    <TableCell colSpan={7} className="block py-12 text-center text-sm text-slate-500 lg:table-cell">No hay productos para los filtros seleccionados.</TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
           )}
           
           {/* Paginación profesional */}
           {productosFiltrados.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-600">
+            <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="text-xs text-slate-500">
                   Mostrando <span className="font-semibold">
                     {((paginaActual - 1) * productosPorPagina) + 1}
                   </span> a <span className="font-semibold">
@@ -1078,14 +1008,14 @@ const PreciosPage = () => {
                   </span> de <span className="font-semibold">{totalProductos}</span> productos
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Productos por página:</span>
+                  <span className="text-xs text-slate-500">Por página:</span>
                   <select
                     value={productosPorPagina}
                     onChange={(e) => {
                       setProductosPorPagina(Number(e.target.value));
                       setPaginaActual(1);
                     }}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-200"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -1095,7 +1025,7 @@ const PreciosPage = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 self-end sm:self-auto">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1212,8 +1142,8 @@ const PreciosPage = () => {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Modal para actualización de selección múltiple */}
       <Dialog open={modalSeleccionMultiple} onOpenChange={setModalSeleccionMultiple}>
@@ -1860,7 +1790,7 @@ const PreciosPage = () => {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </main>
   );
 };
 

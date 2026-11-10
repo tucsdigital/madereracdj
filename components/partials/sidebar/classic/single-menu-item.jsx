@@ -12,31 +12,30 @@ const SingleMenuItem = ({ item, collapsed, hovered, trans }) => {
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
   const localize = useLocalizedPath();
+  const active = isLocationMatch(href, locationName);
 
   // Verificación de seguridad para el icono
   const IconComponent = item.icon;
   const hasValidIcon = IconComponent && typeof IconComponent === 'function';
 
   return (
-    <Link href={localize(href)}>
+    <Link href={localize(href)} aria-current={active ? "page" : undefined} className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
       <div
         className={cn(
-          "flex gap-3  text-default-700 text-sm capitalize px-[10px] font-medium py-3 rounded cursor-pointer hover:bg-primary hover:text-primary-foreground",
+          "flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium capitalize text-default-700 transition-colors hover:bg-muted/70 hover:text-foreground",
           {
-            "bg-primary text-primary-foreground": isLocationMatch(
-              href, locationName
-            ),
+            "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground": active,
           }
         )}
       >
-        <span className="grow-0">
+        <span className="inline-flex shrink-0 items-center justify-center">
           {hasValidIcon ? (
-            <IconComponent className="w-5 h-5" />
+            <IconComponent className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden="true" />
           ) : (
-            <div className="w-5 h-5 bg-gray-300 rounded" />
+            <div className="h-[18px] w-[18px] rounded bg-muted" aria-hidden="true" />
           )}
         </span>
-        <div className="text-box grow ">{translate(title, trans)}</div>
+        <span className="text-box min-w-0 flex-1 truncate">{translate(title, trans)}</span>
         {badge && <Badge className=" rounded">{item.badge}</Badge>}
       </div>
     </Link>

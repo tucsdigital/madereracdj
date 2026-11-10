@@ -1,9 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@iconify/react";
-import { Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle, Pencil } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ExternalLink, MapPin, MoreHorizontal, Pencil, Phone, Trash2 } from "lucide-react";
 
 // Función para formatear fecha
 const formatDate = (dateString) => {
@@ -30,50 +29,61 @@ const formatDate = (dateString) => {
   }
 };
 
-// Función para obtener el color del estado
-const getStatusColor = (status) => {
-  switch (status?.toLowerCase()) {
-    case "pagado":
-    case "paid":
-    case "confirmed":
-      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
-    case "pendiente":
-    case "pending":
-    case "closed":
-      return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
-    case "parcial":
-      return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20";
-    default:
-      return "bg-muted/50 text-muted-foreground border-border/60";
-  }
-};
+const getStatusInfo = (value) => {
+  const raw = String(value || "Sin estado").trim();
+  const normalized = raw.toLocaleLowerCase("es-AR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const labels = {
+    pagado: "Pagado",
+    paid: "Pagado",
+    confirmed: "Confirmado",
+    parcial: "Pago parcial",
+    partial: "Pago parcial",
+    pendiente: "Pendiente",
+    pending: "Pendiente",
+    anulada: "Anulada",
+    anulado: "Anulado",
+    cancelada: "Anulada",
+    cancelado: "Anulado",
+    canceled: "Anulado",
+    cancelled: "Anulado",
+    vigente: "Vigente",
+    activo: "Vigente",
+    activa: "Vigente",
+    active: "Vigente",
+    borrador: "Borrador",
+    draft: "Borrador",
+    enviado: "Enviado",
+    sent: "Enviado",
+    vencido: "Vencido",
+    expired: "Vencido",
+  };
+  const rose = ["pendiente", "pending", "anulada", "anulado", "cancelada", "cancelado", "canceled", "cancelled", "vencido", "expired"].includes(normalized);
+  const amber = ["parcial", "partial", "enviado", "sent"].includes(normalized);
+  const green = ["pagado", "paid", "confirmed", "vigente", "activo", "activa", "active"].includes(normalized);
 
-// Función para obtener el icono del estado
-const getStatusIcon = (status) => {
-  switch (status?.toLowerCase()) {
-    case "pagado":
-    case "paid":
-    case "confirmed":
-      return <CheckCircle className="w-4 h-4" />;
-    case "pendiente":
-    case "pending":
-    case "closed":
-      return <Clock className="w-4 h-4" />;
-    case "parcial":
-      return <AlertCircle className="w-4 h-4" />;
-    default:
-      return <XCircle className="w-4 h-4" />;
-  }
+  return {
+    label: labels[normalized] || raw.charAt(0).toLocaleUpperCase("es-AR") + raw.slice(1),
+    tone: rose
+      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      : amber
+        ? "bg-amber-50 text-amber-800 ring-amber-200"
+        : green
+          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+          : "bg-slate-50 text-slate-700 ring-slate-200",
+    dot: rose ? "bg-rose-500" : amber ? "bg-amber-500" : green ? "bg-emerald-500" : "bg-slate-500",
+  };
 };
 
 // Función para formatear moneda
 const formatCurrency = (amount) => {
-  if (!amount || isNaN(amount)) return "0";
-  return new Intl.NumberFormat("es-AR", {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return "0";
+  const roundedAmount = Math.round(numericAmount * 100) / 100;
+  return "$" + new Intl.NumberFormat("es-AR", {
     style: "decimal",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+    minimumFractionDigits: Number.isInteger(roundedAmount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(roundedAmount);
 };
 
 const formatVendedorName = (value) => {
@@ -92,19 +102,37 @@ const formatVendedorName = (value) => {
   return formatted || local;
 };
 
-const getClienteSecondaryLabel = (cliente) => {
-  if (!cliente) return "-";
+const getClienteNombre = (registro) =>
+  registro?.cliente?.nombre || registro?.nombreCliente || "Sin nombre";
+
+const getClienteSecondaryLabel = (cliente, registro) => {
+  const datosCliente = cliente || {};
 
   return (
-    cliente.telefono ||
-    cliente.celular ||
-    cliente.whatsapp ||
-    cliente.cuil ||
-    cliente.dni ||
-    cliente.cuit ||
-    cliente.email ||
+    datosCliente.telefono ||
+    datosCliente.celular ||
+    datosCliente.whatsapp ||
+    datosCliente.email ||
+    registro?.telefonoCliente ||
     "-"
   );
+};
+
+const getDireccionRegistro = (registro) => {
+  if (registro?.usarDireccionCliente === false) {
+    const direccionEnvio = [registro.direccionEnvio, registro.localidadEnvio].filter(Boolean).join(", ");
+    if (direccionEnvio) return direccionEnvio;
+  }
+  return registro?.cliente?.direccion || registro?.direccion || "";
+};
+
+const getClienteExportLabel = (registro) => {
+  const contacto = getClienteSecondaryLabel(registro?.cliente, registro);
+  return [
+    String(getClienteNombre(registro)).toLocaleUpperCase("es-AR"),
+    contacto === "-" ? "" : contacto,
+    getDireccionRegistro(registro),
+  ].filter(Boolean).join(" · ");
 };
 
 const isVentaAnulada = (venta) => {
@@ -117,166 +145,119 @@ const isPresupuestoAnulado = (presupuesto) => {
   return String(presupuesto.estado || "").toLowerCase() === "anulada" || presupuesto.anulada === true;
 };
 
+const getEstadoPresupuesto = (presupuesto) => {
+  if (isPresupuestoAnulado(presupuesto)) return "anulado";
+  return presupuesto?.estado || "vigente";
+};
+
+const getMontoAbonado = (venta) => {
+  const pagos = venta?.pagos || [];
+  return Array.isArray(pagos) && pagos.length > 0
+    ? pagos.reduce((total, pago) => total + Number(pago.monto || 0), 0)
+    : Number(venta?.montoAbonado || 0);
+};
+
 // Columnas para la tabla de presupuestos
 export const columnsPresupuestos = [
   {
     accessorKey: "numeroPedido",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <FileText className="w-4 h-4 text-blue-700 dark:text-blue-300" />
-        <span className="font-semibold">N° Pedido</span>
-      </div>
-    ),
+    header: "N° presupuesto",
+    exportValue: (presupuesto) => presupuesto.numeroPedido || presupuesto.id?.slice(-8) || "",
     cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
-          <FileText className="w-5 h-5 text-blue-700 dark:text-blue-300" />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-mono text-sm font-semibold text-foreground">
-            {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
-          </span>
-        </div>
+      <div className="min-w-0">
+        <span className="block truncate font-mono text-xs font-semibold tracking-wide text-slate-900">
+          {row.getValue("numeroPedido") || row.original.id?.slice(-8)}
+        </span>
       </div>
     ),
     enableSorting: true,
   },
   {
     accessorKey: "cliente",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
-        <span className="font-semibold">Cliente</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
-          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-            {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
+    header: "Cliente",
+    exportHeader: "Cliente / contacto / dirección",
+    exportValue: getClienteExportLabel,
+    cell: ({ row }) => {
+      const presupuesto = row.original;
+      const contacto = getClienteSecondaryLabel(presupuesto.cliente, presupuesto);
+      const direccion = getDireccionRegistro(presupuesto);
+      return (
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-slate-900">
+            {String(getClienteNombre(presupuesto)).toLocaleUpperCase("es-AR")}
           </span>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            {contacto !== "-" ? <span className="inline-flex min-w-0 items-center gap-1.5"><Phone aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{contacto}</span></span> : null}
+            {direccion ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{direccion}</span></span> : null}
+          </div>
         </div>
-        <div className="flex flex-col">
-        <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
-        </span>
-      </div>
-      </div>
-    ),
+      );
+    },
+    sortingFn: (rowA, rowB) => String(getClienteNombre(rowA.original)).localeCompare(String(getClienteNombre(rowB.original)), "es-AR", { sensitivity: "base" }),
+    enableSorting: true,
+  },
+  {
+    id: "estadoPresupuesto",
+    accessorFn: getEstadoPresupuesto,
+    header: "Estado",
+    exportValue: (presupuesto) => getStatusInfo(getEstadoPresupuesto(presupuesto)).label,
+    cell: ({ row }) => <StatusText status={getEstadoPresupuesto(row.original)} />,
     enableSorting: true,
   },
   {
     accessorKey: "fechaCreacion",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        <span className="font-semibold">Fecha</span>
-      </div>
-    ),
+    header: "Fecha",
+    exportValue: (presupuesto) => formatDate(presupuesto.fechaCreacion),
     cell: ({ row }) => {
       const fecha = row.getValue("fechaCreacion");
       return (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-          </div>
-          <span className="text-sm font-medium text-foreground">
-            {formatDate(fecha)}
-          </span>
-        </div>
+        <span className="text-xs tabular-nums text-slate-600">{formatDate(fecha)}</span>
       );
     },
     enableSorting: true,
   },
   {
     accessorKey: "total",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        <span className="font-semibold">Total</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-1">
-        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        </div>
-        <span className="font-bold text-sm text-foreground">
-          {formatCurrency(row.getValue("total") || 0)}
-        </span>
-      </div>
-    ),
+    header: "Total",
+    exportValue: (presupuesto) => formatCurrency(presupuesto.total || 0),
+    cell: ({ row }) => <span className="font-semibold tabular-nums text-slate-950">{formatCurrency(row.getValue("total") || 0)}</span>,
     enableSorting: true,
   },
   {
     accessorKey: "vendedor",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
-        <span className="font-semibold">Vendedor</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
-          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
-          </span>
-        </div>
-        <span className="text-sm font-medium text-foreground">
-          {formatVendedorName(row?.original?.vendedor)}
-        </span>
-      </div>
-    ),
+    header: "Vendedor",
+    exportValue: (presupuesto) => formatVendedorName(presupuesto.vendedor),
+    cell: ({ row }) => <span className="text-xs text-slate-600">{formatVendedorName(row.original.vendedor)}</span>,
   },
   {
     id: "actions",
     header: "Acciones",
     cell: ({ row }) => {
-      if (isPresupuestoAnulado(row.original)) {
-        return (
-          <div className="flex items-center gap-2">
-            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
-              Anulado
-            </Badge>
-          </div>
-        );
-      }
-
+      const anulado = isPresupuestoAnulado(row.original);
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-1">
           <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Editar"
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-md border-slate-200 px-2.5 text-[11px] font-medium"
+            title="Abrir presupuesto"
             onClick={(e) => {
               e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("editPresupuesto", {
-                  detail: { id: row.original.id },
-                })
-              );
+              window.dispatchEvent(new CustomEvent("openPresupuesto", { detail: { id: row.original.id } }));
             }}
           >
-            <Pencil className="w-4 h-4" />
+            Abrir<ExternalLink className="ml-1.5 h-3 w-3" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:text-red-800 dark:hover:text-red-200 transition-all duration-200"
-            title="Eliminar"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("deletePresupuesto", {
-                  detail: { id: row.original.id },
-                })
-              );
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {!anulado ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" aria-label="Más acciones para el presupuesto" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent("editPresupuesto", { detail: { id: row.original.id } }))}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-rose-700 focus:text-rose-700" onSelect={() => window.dispatchEvent(new CustomEvent("deletePresupuesto", { detail: { id: row.original.id } }))}><Trash2 className="mr-2 h-4 w-4" />Anular</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       );
     },
@@ -288,254 +269,136 @@ export const columnsPresupuestos = [
 export const columnsVentas = [
   {
     accessorKey: "numeroPedido",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <ShoppingCart className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        <span className="font-semibold">N° Pedido</span>
-      </div>
-    ),
+    header: "N° venta",
+    exportValue: (venta) => venta.numeroPedido || venta.id?.slice(-8) || "",
     cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-          <ShoppingCart className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-mono text-sm font-semibold text-foreground">
-            {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
-          </span>
-        </div>
+      <div className="min-w-0">
+        <span className="block truncate font-mono text-xs font-semibold tracking-wide text-slate-900">
+          {row.getValue("numeroPedido") || row.original.id?.slice(-8)}
+        </span>
       </div>
     ),
     enableSorting: true,
   },
   {
     accessorKey: "cliente",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
-        <span className="font-semibold">Cliente</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
-          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-            {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
+    header: "Cliente",
+    exportHeader: "Cliente / contacto / dirección",
+    exportValue: getClienteExportLabel,
+    cell: ({ row }) => {
+      const venta = row.original;
+      const contacto = getClienteSecondaryLabel(venta.cliente, venta);
+      const direccion = getDireccionRegistro(venta);
+      return (
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-slate-900">
+            {String(getClienteNombre(venta)).toLocaleUpperCase("es-AR")}
           </span>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            {contacto !== "-" ? <span className="inline-flex min-w-0 items-center gap-1.5"><Phone aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{contacto}</span></span> : null}
+            {direccion ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="h-3 w-3 shrink-0 text-slate-500" /><span className="truncate">{direccion}</span></span> : null}
+          </div>
         </div>
-        <div className="flex flex-col">
-        <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
-        </span>
-      </div>
-      </div>
-    ),
+      );
+    },
+    sortingFn: (rowA, rowB) => String(getClienteNombre(rowA.original)).localeCompare(String(getClienteNombre(rowB.original)), "es-AR", { sensitivity: "base" }),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "estadoPago",
+    header: "Estado",
+    exportValue: (venta) => isVentaAnulada(venta) ? "Anulada" : venta.estadoPago || venta.status || "Sin estado",
+    cell: ({ row }) => {
+      if (isVentaAnulada(row.original)) {
+        return <StatusText status="Anulada" />;
+      }
+
+      const status = row.getValue("estadoPago") || row.getValue("status");
+      return <StatusText status={status || "Sin estado"} />;
+    },
     enableSorting: true,
   },
   {
     accessorKey: "fechaCreacion",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        <span className="font-semibold">Fecha</span>
-      </div>
-    ),
+    header: "Fecha",
+    exportValue: (venta) => formatDate(venta.fechaCreacion),
     cell: ({ row }) => {
       const fecha = row.getValue("fechaCreacion");
       return (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-          </div>
-          <span className="text-sm font-medium text-foreground">
-            {formatDate(fecha)}
-          </span>
-        </div>
+        <span className="text-xs tabular-nums text-slate-600">{formatDate(fecha)}</span>
       );
     },
     enableSorting: true,
   },
   {
     accessorKey: "total",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        <span className="font-semibold">Total</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
-        </div>
-        <span className="font-bold text-sm text-foreground">
-          {formatCurrency(row.getValue("total") || 0)}
-        </span>
-      </div>
-    ),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "estadoPago",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <CheckCircle className="w-4 h-4 text-violet-700 dark:text-violet-300" />
-        <span className="font-semibold">Estado</span>
-      </div>
-    ),
-    cell: ({ row }) => {
-      if (isVentaAnulada(row.original)) {
-        return (
-          <div
-            className="flex items-center justify-center"
-            title="Anulada"
-          >
-            <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center text-red-700 dark:text-red-300">
-              <XCircle className="w-4 h-4" />
-            </div>
-          </div>
-        );
-      }
-
-      const status = row.getValue("estadoPago") || row.getValue("status");
-      return (
-        <div
-          className="flex items-center justify-center"
-          title={status || "No especificado"}
-        >
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getStatusColor(status)}`}>
-            {getStatusIcon(status)}
-          </div>
-        </div>
-      );
-    },
+    header: "Total",
+    exportValue: (venta) => formatCurrency(venta.total || 0),
+    cell: ({ row }) => <span className="font-semibold tabular-nums text-slate-950">{formatCurrency(row.getValue("total") || 0)}</span>,
     enableSorting: true,
   },
   {
     accessorKey: "montoAbonado",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-blue-600" />
-        <span className="font-semibold">Abonado</span>
-      </div>
-    ),
+    header: "Abonado",
+    exportValue: (venta) => formatCurrency(getMontoAbonado(venta)),
     cell: ({ row }) => {
-      // Calcular monto abonado desde el array pagos
-      const pagos = row.original.pagos || [];
-      const montoAbonado = Array.isArray(pagos) && pagos.length > 0 
-        ? pagos.reduce((acc, pago) => acc + Number(pago.monto || 0), 0)
-        : Number(row.original.montoAbonado || 0); // Fallback al campo antiguo
-      
-      const total = row.getValue("total") || 0;
-      const porcentaje = total > 0 ? (montoAbonado / total) * 100 : 0;
-      
-      // Determinar el color basado en el estado de pago
+      const montoAbonado = getMontoAbonado(row.original);
       const estadoPago = row.original.estadoPago;
-      let colorClase = "text-foreground";
-      let porcentajeColor = "text-muted-foreground";
-      
-      if (estadoPago === "pagado") {
-        colorClase = "text-emerald-700 dark:text-emerald-300";
-        porcentajeColor = "text-emerald-700/90 dark:text-emerald-300/90";
-      } else if (estadoPago === "parcial") {
-        colorClase = "text-sky-700 dark:text-sky-300";
-        porcentajeColor = "text-sky-700/90 dark:text-sky-300/90";
-      } else if (estadoPago === "pendiente") {
-        colorClase = "text-red-700 dark:text-red-300";
-        porcentajeColor = "text-red-700/90 dark:text-red-300/90";
-      }
-      
       return (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-sky-500/10 rounded-lg flex items-center justify-center">
-            <DollarSign className="w-4 h-4 text-sky-700 dark:text-sky-300" />
-          </div>
-          <div className="flex flex-col">
-            <span className={`font-semibold text-sm ${colorClase}`}>
-              {formatCurrency(montoAbonado)}
-            </span>
-            {/* <span className={`text-xs ${porcentajeColor}`}>
-              {porcentaje.toFixed(0)}% del total
-            </span> */}
-          </div>
-        </div>
+        <span className={`font-medium tabular-nums ${estadoPago === "pagado" ? "text-emerald-700" : estadoPago === "parcial" ? "text-amber-800" : "text-slate-700"}`}>{formatCurrency(montoAbonado)}</span>
       );
     },
     enableSorting: true,
   },
   {
     accessorKey: "vendedor",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
-        <span className="font-semibold">Vendedor</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
-          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
-          </span>
-        </div>
-        <span className="text-sm font-medium text-foreground">
-          {formatVendedorName(row?.original?.vendedor)}
-        </span>
-      </div>
-    ),
+    header: "Vendedor",
+    exportValue: (venta) => formatVendedorName(venta.vendedor),
+    cell: ({ row }) => <span className="text-xs text-slate-600">{formatVendedorName(row.original.vendedor)}</span>,
     enableSorting: true,
   },
   {
     id: "actions",
     header: "Acciones",
     cell: ({ row }) => {
-      if (isVentaAnulada(row.original)) {
-        return (
-          <div className="flex items-center gap-2">
-            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
-              Anulada
-            </Badge>
-          </div>
-        );
-      }
-
+      const anulado = isVentaAnulada(row.original);
       return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-1">
           <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Editar"
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-md border-slate-200 px-2.5 text-[11px] font-medium"
+            title="Abrir venta"
             onClick={(e) => {
               e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("editVenta", {
-                  detail: { id: row.original.id },
-                })
-              );
+              window.dispatchEvent(new CustomEvent("openVenta", { detail: { id: row.original.id } }));
             }}
           >
-            <Pencil className="w-4 h-4" />
+            Abrir<ExternalLink className="ml-1.5 h-3 w-3" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:text-red-800 dark:hover:text-red-200 transition-all duration-200"
-            title="Anular"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.dispatchEvent(
-                new CustomEvent("anularVenta", {
-                  detail: { id: row.original.id },
-                })
-              );
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {!anulado ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" aria-label="Más acciones para la venta" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent("editVenta", { detail: { id: row.original.id } }))}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-rose-700 focus:text-rose-700" onSelect={() => window.dispatchEvent(new CustomEvent("anularVenta", { detail: { id: row.original.id } }))}><Trash2 className="mr-2 h-4 w-4" />Anular</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       );
     },
     enableSorting: false,
   },
 ];
+
+function StatusText({ status }) {
+  const statusInfo = getStatusInfo(status);
+  return (
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${statusInfo.tone}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} aria-hidden="true" />
+      {statusInfo.label}
+    </span>
+  );
+}

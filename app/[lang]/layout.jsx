@@ -67,7 +67,6 @@ export default function RootLayout({ children, params: { lang } }) {
         <meta name="twitter:description" content={siteConfig.description} />
         <meta name="twitter:image" content="/og-image.jpg" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="index, follow" />
       </head>
       <body className={inter.className}>
         <AuthProvider>

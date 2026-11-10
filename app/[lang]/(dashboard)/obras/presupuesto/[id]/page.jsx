@@ -278,7 +278,7 @@ const PresupuestoPage = () => {
   }
 
   return (
-    <div className="">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-3 py-5 font-sans sm:px-6 sm:py-7">
       <ObraHeader
         obra={obra}
         editando={editando}
@@ -294,12 +294,12 @@ const PresupuestoPage = () => {
         backUrl={`/${lang}/obras`}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Columna principal */}
         <div className="lg:col-span-2 space-y-6">
           {/* Sección Cliente Editable - PRIMERA SECCIÓN */}
-          <Card>
-            <CardHeader>
+          <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+            <CardHeader className="border-b border-slate-100 pb-3">
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5" />

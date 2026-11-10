@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateInput } from "@/components/ui/date-input";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { Calendar, DollarSign, FolderOpen, Image as ImageIcon, Receipt, Briefcase, Wallet, Filter, RefreshCw } from "lucide-react";
+import { Calendar, DollarSign, FolderOpen, Image as ImageIcon, Receipt, Briefcase, Wallet, RefreshCw, Search, Loader2 } from "lucide-react";
 
 const ORIGEN_META = {
   ventas: { label: "Ventas", icon: Receipt, color: "bg-blue-100 text-blue-700 border-blue-200" },
@@ -244,38 +244,32 @@ export default function DolaresPage() {
   }, [itemsFiltrados]);
 
   return (
-    <div className="py-8 px-2 mx-auto space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <DollarSign className="w-9 h-9 text-amber-600" />
-          <div>
-            <h1 className="text-3xl font-bold">Dólares</h1>
-            <p className="text-muted-foreground">Comprobantes de pagos en dólares de ventas, obras, gastos y presupuestos</p>
-          </div>
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Finanzas · Comprobantes</p>
+          <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Pagos en dólares</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-500">Comprobantes de ventas, obras, gastos y presupuestos.</p>
         </div>
-        <Button variant="outline" onClick={cargarDatos} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Actualizar
+        <Button variant="outline" onClick={cargarDatos} disabled={loading} className="h-9 self-start rounded-md border-slate-200 bg-white px-3 text-xs font-medium shadow-sm hover:bg-slate-50 sm:self-auto">
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Actualizar
         </Button>
-      </div>
+      </header>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-          <div className="lg:col-span-2">
+      <section className="flex flex-col gap-3 border-b border-slate-200 pb-4" aria-label="Filtros de comprobantes">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(250px,2fr)_repeat(4,minmax(145px,1fr))]">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <Input
               placeholder="Buscar por pedido, obra, gasto, proveedor, cliente..."
               value={filtroTexto}
               onChange={(e) => setFiltroTexto(e.target.value)}
+              aria-label="Buscar comprobantes"
+              className="h-9 rounded-md border-slate-200 bg-white pl-9 text-xs shadow-sm placeholder:text-slate-500 focus-visible:ring-slate-200"
             />
           </div>
           <Select value={filtroOrigen} onValueChange={setFiltroOrigen}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9 rounded-md border-slate-200 bg-white text-xs shadow-sm">
               <SelectValue placeholder="Origen" />
             </SelectTrigger>
             <SelectContent>
@@ -287,7 +281,7 @@ export default function DolaresPage() {
             </SelectContent>
           </Select>
           <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9 rounded-md border-slate-200 bg-white text-xs shadow-sm">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -299,19 +293,21 @@ export default function DolaresPage() {
           <DateInput
             value={fechaDesde}
             onChange={(v) => setFechaDesde(v)}
-            buttonClassName="w-full justify-start"
+            buttonClassName="h-9 w-full justify-start rounded-md border-slate-200 bg-white text-xs shadow-sm"
           />
           <DateInput
             value={fechaHasta}
             min={fechaDesde || undefined}
             onChange={(v) => setFechaHasta(v)}
-            buttonClassName="w-full justify-start"
+            buttonClassName="h-9 w-full justify-start rounded-md border-slate-200 bg-white text-xs shadow-sm"
           />
-          <div className="lg:col-span-6 flex flex-wrap items-center gap-2">
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={modoVista === "imagenes" ? "default" : "outline"}
               size="sm"
               onClick={() => setModoVista("imagenes")}
+              className="h-8 rounded-md px-3 text-xs"
             >
               <ImageIcon className="w-4 h-4 mr-1" />
               Solo imágenes
@@ -320,6 +316,7 @@ export default function DolaresPage() {
               variant={modoVista === "carpetas" ? "default" : "outline"}
               size="sm"
               onClick={() => setModoVista("carpetas")}
+              className="h-8 rounded-md px-3 text-xs"
             >
               <FolderOpen className="w-4 h-4 mr-1" />
               Vista por carpetas
@@ -334,40 +331,32 @@ export default function DolaresPage() {
                 setFechaDesde("");
                 setFechaHasta("");
               }}
+              className="h-8 px-3 text-xs text-slate-600"
             >
               Limpiar filtros
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="flex flex-wrap gap-x-7 gap-y-3 border-b border-slate-200 pb-4" aria-label="Cantidad de comprobantes por origen">
         {Object.entries(ORIGEN_META).map(([key, meta]) => {
-          const IconComp = meta.icon;
           return (
-            <Card key={key}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{meta.label}</p>
-                  <p className="text-2xl font-bold">{totalPorOrigen[key] || 0}</p>
-                </div>
-                <IconComp className="w-6 h-6 text-muted-foreground" />
-              </CardContent>
-            </Card>
+            <div key={key} className="flex items-baseline gap-2">
+              <span className="text-lg font-semibold tabular-nums text-slate-900">{totalPorOrigen[key] || 0}</span>
+              <span className="text-xs text-slate-500">{meta.label}</span>
+            </div>
           );
         })}
       </div>
 
       {loading ? (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">Cargando comprobantes...</CardContent>
-        </Card>
+        <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Cargando comprobantes...</div>
       ) : modoVista === "carpetas" ? (
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {carpetas.map((folder) => {
             const meta = ORIGEN_META[folder.origen] || ORIGEN_META.ventas;
             return (
-              <Card key={folder.key} className="break-inside-avoid overflow-hidden">
+              <Card key={folder.key} className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-none transition-colors hover:border-slate-300">
                 <CardContent className="p-0">
                   {folder.cover ? (
                     <a href={folder.cover} target="_blank" rel="noopener noreferrer">
@@ -376,7 +365,7 @@ export default function DolaresPage() {
                   ) : (
                     <div className="h-48 flex items-center justify-center bg-muted/50 text-muted-foreground">Sin preview</div>
                   )}
-                  <div className="p-3 space-y-2">
+                    <div className="space-y-2 p-3">
                     <div className="flex items-center justify-between">
                       <Badge className={meta.color}>{meta.label}</Badge>
                       <span className="text-xs text-muted-foreground">{folder.total} archivo{folder.total !== 1 ? "s" : ""}</span>
@@ -386,7 +375,7 @@ export default function DolaresPage() {
                       <Calendar className="w-3 h-3" />
                       {formatDate(folder.fecha)}
                     </div>
-                    {!!folder.proveedor && <div className="text-xs text-muted-foreground">Proveedor: {folder.proveedor}</div>}
+                    {!!folder.proveedor && <div className="text-xs text-muted-foreground">Proveedor: <span className="uppercase">{folder.proveedor}</span></div>}
                     {!!folder.cliente && <div className="text-xs text-muted-foreground">Cliente: {folder.cliente}</div>}
                   </div>
                 </CardContent>
@@ -395,11 +384,11 @@ export default function DolaresPage() {
           })}
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 lg:columns-4 gap-4 space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {itemsFiltrados.map((item) => {
             const meta = ORIGEN_META[item.origen] || ORIGEN_META.ventas;
             return (
-              <Card key={item.id} className="break-inside-avoid overflow-hidden">
+              <Card key={item.id} className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-none transition-colors hover:border-slate-300">
                 <CardContent className="p-0">
                   {item.tipo === "pdf" ? (
                     <a href={item.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -423,7 +412,7 @@ export default function DolaresPage() {
                       <Calendar className="w-3 h-3" />
                       {formatDate(item.fecha)}
                     </div>
-                    {!!item.proveedor && <div className="text-xs text-muted-foreground">Proveedor: {item.proveedor}</div>}
+                    {!!item.proveedor && <div className="text-xs text-muted-foreground">Proveedor: <span className="uppercase">{item.proveedor}</span></div>}
                     {!!item.cliente && <div className="text-xs text-muted-foreground">Cliente: {item.cliente}</div>}
                     {!!item.gastoConcepto && <div className="text-xs text-muted-foreground">Gasto: {item.gastoConcepto}</div>}
                     {!!item.metodo && <div className="text-xs text-muted-foreground">Método: {item.metodo}</div>}
@@ -436,12 +425,11 @@ export default function DolaresPage() {
       )}
 
       {!loading && itemsFiltrados.length === 0 && (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            No se encontraron comprobantes para los filtros seleccionados.
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border border-dashed border-slate-300 px-4 py-12 text-center">
+          <p className="text-sm font-medium text-slate-800">No hay comprobantes para mostrar</p>
+          <p className="mt-1 text-xs text-slate-500">Ajustá los filtros o probá otra búsqueda.</p>
+        </div>
       )}
-    </div>
+    </main>
   );
 }

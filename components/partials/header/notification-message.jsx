@@ -61,21 +61,15 @@ const NotificationMessage = () => {
         <Button
           variant="ghost"
           size="icon"
+          aria-label={`Notificaciones: ${notifications.length}`}
           className="relative md:h-9 md:w-9 h-8 w-8 hover:bg-default-100 dark:hover:bg-default-200 
           data-[state=open]:bg-default-100  dark:data-[state=open]:bg-default-200 
            hover:text-primary text-default-500 dark:text-default-800  rounded-full transition-all duration-200"
         >
           <Bell className="h-5 w-5 transition-transform duration-200 data-[state=open]:scale-110" />
           {notifications.length > 0 && (
-            <Badge className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold leading-none bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-background shadow-lg rounded-full animate-pulse hover:animate-none transition-all duration-200 hover:scale-110">
-              {notifications.length > 99 ? (
-                <span className="flex items-baseline gap-0.5">
-                  <span>99</span>
-                  <span className="text-[9px] leading-none">+</span>
-                </span>
-              ) : (
-                <span>{notifications.length}</span>
-              )}
+            <Badge className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 min-w-0 rounded-full border-2 border-background bg-red-500 p-0 shadow-none">
+              <span className="sr-only">{notifications.length} notificaciones</span>
             </Badge>
           )}
         </Button>

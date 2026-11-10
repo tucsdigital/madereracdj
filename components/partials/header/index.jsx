@@ -1,25 +1,22 @@
 "use client";
-import React from "react";
 import { cn } from "@/lib/utils";
 import ThemeButton from "./theme-button";
 import { useSidebar, useThemeStore } from "@/store";
 import ProfileInfo from "./profile-info";
 import VerticalHeader from "./vertical-header";
 import HorizontalHeader from "./horizontal-header";
-import Inbox from "./inbox";
 import HorizontalMenu from "./horizontal-menu";
 import NotificationMessage from "./notification-message";
 
-import Language from "./language";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import MobileMenuHandler from "./mobile-menu-handler";
 import ClassicHeader from "./layout/classic-header";
 import FullScreen from "./full-screen";
 
-const NavTools = ({ isDesktop, isMobile, sidebarType }) => {
+const NavTools = ({ isDesktop, isMobile, sidebarType, showFullscreen = true }) => {
   return (
     <div className="nav-tools flex items-center  gap-2">
-      {isDesktop && <FullScreen />}
+      {isDesktop && showFullscreen && <FullScreen />}
 
       <ThemeButton />
       {/* <Inbox /> */}
@@ -32,21 +29,13 @@ const NavTools = ({ isDesktop, isMobile, sidebarType }) => {
     </div>
   );
 };
-const Header = ({ handleOpenSearch, trans }) => {
-  const { collapsed, sidebarType, setCollapsed, subMenu, setSidebarType } =
-    useSidebar();
-  const { layout, navbarType, setLayout } = useThemeStore();
+const Header = ({ trans }) => {
+  const { collapsed, sidebarType } = useSidebar();
+  const { layout, navbarType } = useThemeStore();
 
   const isDesktop = useMediaQuery("(min-width: 1280px)");
 
   const isMobile = useMediaQuery("(min-width: 768px)");
-
-  // set header style to classic if isDesktop
-  React.useEffect(() => {
-    if (!isDesktop && layout === "horizontal") {
-      setSidebarType("classic");
-    }
-  }, [isDesktop]);
 
   // if horizontal layout
   if (layout === "horizontal" && navbarType !== "hidden") {
@@ -58,7 +47,7 @@ const Header = ({ handleOpenSearch, trans }) => {
       >
         <div className="w-full bg-card/90 backdrop-blur-lg md:px-6 px-[15px] py-3 border-b border-solid border-border!">
           <div className="flex justify-between items-center h-full">
-            <HorizontalHeader handleOpenSearch={handleOpenSearch} />
+            <HorizontalHeader />
             <NavTools
               isDesktop={isDesktop}
               isMobile={isMobile}
@@ -77,24 +66,22 @@ const Header = ({ handleOpenSearch, trans }) => {
   if (layout === "semibox" && navbarType !== "hidden") {
     return (
       <ClassicHeader
-        className={cn("has-sticky-header rounded-md   ", {
-          "xl:ltr:ml-[72px] xl:rtl:mr-[72px] ": collapsed,
-          "xl:ltr:ml-[272px] xl:rtl:mr-[272px] ": !collapsed,
-
-          "sticky top-6": navbarType === "sticky",
-        })}
+        className={cn(
+          "has-sticky-header xl:ltr:ml-[226px] xl:rtl:mr-[226px]",
+          navbarType === "sticky" && "sticky top-0"
+        )}
       >
-        <div className="xl:mx-20 mx-4">
-          <div className="w-full bg-card/90 backdrop-blur-lg md:px-6 px-[15px] py-3 rounded-md my-6 shadow-md border-border border-b">
-            <div className="flex justify-between items-center h-full">
+        <div className="w-full">
+          <div className="flex h-[70px] w-full items-center border-b border-border/70 bg-card/95 px-5 backdrop-blur-lg md:px-8">
+            <div className="flex h-full w-full items-center justify-between gap-6">
               <VerticalHeader
                 sidebarType={sidebarType}
-                handleOpenSearch={handleOpenSearch}
               />
               <NavTools
                 isDesktop={isDesktop}
                 isMobile={isMobile}
                 sidebarType={sidebarType}
+                showFullscreen={false}
               />
             </div>
           </div>
@@ -110,17 +97,16 @@ const Header = ({ handleOpenSearch, trans }) => {
     return (
       <ClassicHeader
         className={cn("", {
-          "xl:ltr:ml-[248px] xl:rtl:mr-[248px]": !collapsed,
+          "xl:ltr:ml-[226px] xl:rtl:mr-[226px]": !collapsed,
           "xl:ltr:ml-[72px] xl:rtl:mr-[72px]": collapsed,
           "sticky top-0": navbarType === "sticky",
         })}
       >
         <div className="w-full bg-card/90 backdrop-blur-lg md:px-6 px-[15px] py-3 border-b border-solid border-border!">
           <div className="flex justify-between items-center h-full">
-            <VerticalHeader
-              sidebarType={sidebarType}
-              handleOpenSearch={handleOpenSearch}
-            />
+              <VerticalHeader
+                sidebarType={sidebarType}
+              />
             <NavTools
               isDesktop={isDesktop}
               isMobile={isMobile}
@@ -141,7 +127,7 @@ const Header = ({ handleOpenSearch, trans }) => {
           "ltr:ml-[72px] rtl:mr-[72px]": collapsed,
           "xl:ltr:ml-[300px] xl:rtl:mr-[300px]  ":
             !collapsed && sidebarType === "module",
-          "xl:ltr:ml-[248px] xl:rtl:mr-[248px] ":
+          "xl:ltr:ml-[226px] xl:rtl:mr-[226px] ":
             !collapsed && sidebarType !== "module",
         })}
       >
@@ -149,7 +135,6 @@ const Header = ({ handleOpenSearch, trans }) => {
           <div className="flex justify-between items-center h-full">
             <VerticalHeader
               sidebarType={sidebarType}
-              handleOpenSearch={handleOpenSearch}
             />
             <NavTools
               isDesktop={isDesktop}
@@ -175,7 +160,6 @@ const Header = ({ handleOpenSearch, trans }) => {
         <div className="flex justify-between items-center h-full">
           <VerticalHeader
             sidebarType={sidebarType}
-            handleOpenSearch={handleOpenSearch}
           />
           <NavTools
             isDesktop={isDesktop}

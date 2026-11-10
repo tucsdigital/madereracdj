@@ -22,47 +22,48 @@ const ToastNotification = ({
   if (!isVisible) return null;
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-600" />,
-    error: <XCircle className="w-5 h-5 text-red-600" />,
-    loading: <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />,
-    warning: <AlertCircle className="w-5 h-5 text-amber-600" />,
+    success: <CheckCircle className="h-5 w-5 text-success" />,
+    error: <XCircle className="h-5 w-5 text-destructive" />,
+    loading: <Loader2 className="h-5 w-5 animate-spin text-primary motion-reduce:animate-none" />,
+    warning: <AlertCircle className="h-5 w-5 text-warning" />,
+    info: <AlertCircle className="h-5 w-5 text-info" />,
   };
 
   const backgrounds = {
-    success: "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200",
-    error: "bg-gradient-to-r from-red-50 to-pink-50 border-red-200",
-    loading: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200",
-    warning: "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200",
+    success: "bg-success/10 border-success/25",
+    error: "bg-destructive/10 border-destructive/25",
+    loading: "bg-primary/10 border-primary/25",
+    warning: "bg-warning/10 border-warning/25",
+    info: "bg-info/10 border-info/25",
   };
 
   const textColors = {
-    success: "text-green-800",
-    error: "text-red-800",
-    loading: "text-blue-800",
-    warning: "text-amber-800",
+    success: "text-success",
+    error: "text-destructive",
+    loading: "text-foreground",
+    warning: "text-warning",
+    info: "text-info",
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5 duration-300">
+    <div className="fixed inset-x-4 top-4 z-[100] animate-in slide-in-from-top-5 duration-300 sm:left-auto sm:right-4 sm:inset-x-auto">
       <div 
         className={`
           ${backgrounds[type]} 
-          border-2 rounded-xl shadow-2xl 
-          min-w-[320px] max-w-md 
-          p-4 
-          flex items-start gap-3
+          flex w-full max-w-md items-start gap-3 rounded-xl border shadow-xl
+          p-4 sm:min-w-[320px]
           backdrop-blur-sm
         `}
       >
-        <div className={`p-2 rounded-full ${
-          type === 'success' ? 'bg-green-100' : 
-          type === 'error' ? 'bg-red-100' : 
-          type === 'loading' ? 'bg-blue-100' : 
-          'bg-amber-100'
+        <div className={`rounded-full p-2 ${
+          type === 'success' ? 'bg-success/10' :
+          type === 'error' ? 'bg-destructive/10' :
+          type === 'loading' ? 'bg-primary/10' :
+          type === 'warning' ? 'bg-warning/10' : 'bg-info/10'
         }`}>
           {icons[type]}
         </div>
-        <div className={`flex-1 ${textColors[type]}`}>
+        <div className={`min-w-0 flex-1 ${textColors[type]}`}>
           <div className="font-semibold mb-1">
             {type === 'success' ? '¡Éxito!' : 
              type === 'error' ? 'Error' : 
@@ -73,8 +74,10 @@ const ToastNotification = ({
         </div>
         {type !== "loading" && (
           <button 
+            type="button"
             onClick={onClose}
-            className="p-1 hover:bg-black/5 rounded-lg transition-colors"
+            className="rounded-lg p-1 text-current transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Cerrar notificación"
           >
             <X className="w-4 h-4" />
           </button>
