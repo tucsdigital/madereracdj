@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Info,
   Landmark,
   Layers,
   Percent,
@@ -26,18 +27,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDateRange } from "../context/date-range-context";
 import { useDashboardData } from "../context/dashboard-data-context";
 import CajaDelDia from "./caja-del-dia";
-import { getObraReferenceDate } from "@/lib/obras-fechas";
+import { calcularTotalObra, esObraComisionable, getFechaComisionObra, OBRAS_COMMISSION_RATE } from "@/lib/obras-comisiones";
+import { esVentaPagada, getVentaFechaConfirmacion } from "@/lib/ventas-pagos";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 const COMMISSION_RATE = 2.5;
-const OBRAS_COMMISSION_RATE = 2.5;
 const nf = new Intl.NumberFormat("es-AR");
 
 const currency = (amount) => `$${nf.format(Math.round(Number(amount) || 0))}`;
-const calcularTotalObra = (obra) => Number(obra?.total) || Number(obra?.subtotal) || (Number(obra?.productosTotal) || 0) + (Number(obra?.materialesTotal) || 0) + (Number(obra?.gastoObraManual) || 0) + (Number(obra?.costoEnvio) || 0) - (Number(obra?.descuentoTotal) || 0);
 const getPrimaryTonalPalette = (primary, isDark) => {
   const [hue, saturation] = String(primary || "").split(/[\s,]+/).map((value) => Number.parseFloat(value));
   if (!Number.isFinite(hue) || !Number.isFinite(saturation)) {
@@ -46,13 +47,6 @@ const getPrimaryTonalPalette = (primary, isDark) => {
   const lightness = isDark ? [92, 80, 68, 56, 44] : [84, 69, 54, 39, 24];
   return lightness.map((value) => `hsl(${hue} ${saturation}% ${value}%)`);
 };
-const obraPagada = (obra) => {
-  const cobranza = obra?.cobranzas || {};
-  const abonado = (Number(cobranza.senia) || 0) + (Number(cobranza.monto) || 0) + (Array.isArray(cobranza.historialPagos) ? cobranza.historialPagos.reduce((sum, pago) => sum + (Number(pago?.monto) || 0), 0) : 0);
-  return calcularTotalObra(obra) > 0 && abonado >= calcularTotalObra(obra);
-};
-const fechaUltimoPagoObra = (obra) => (obra?.cobranzas?.historialPagos || []).map((pago) => pago?.fecha).filter(Boolean).sort().at(-1) || "";
-
 const buildDonutOptions = (segments, total, isDark, chartTokens) => ({
   chart: { type: "donut", toolbar: { show: false }, animations: { enabled: false }, foreColor: `hsl(${chartTokens.foreground})` },
   labels: segments.map((segment) => segment.label),
@@ -111,11 +105,29 @@ const StatisticsDonut = ({ title, segments, isDark, chartTokens, chartThemeKey }
   );
 };
 
-const Metric = ({ icon: Icon, label, value, detail, href, emphasis = false }) => {
+const Metric = ({ icon: Icon, label, value, detail, helpText, href, emphasis = false }) => {
   const content = (
     <div className={`flex min-h-[82px] items-start justify-between gap-3 px-4 py-3 sm:px-5 ${emphasis ? "bg-muted/35" : ""}`}>
       <div className="min-w-0">
-        <div className="text-xs font-medium text-muted-foreground sm:text-[13px]">{label}</div>
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:text-[13px]">
+          <span>{label}</span>
+          {helpText ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Información sobre ${label}`}
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs whitespace-normal text-left leading-relaxed">
+                {helpText}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
         <div className="mt-1 truncate text-lg font-semibold tracking-tight text-foreground tabular-nums sm:text-[22px]">{value}</div>
         {detail ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{detail}</div> : null}
       </div>
@@ -126,9 +138,11 @@ const Metric = ({ icon: Icon, label, value, detail, href, emphasis = false }) =>
 };
 
 const MetricRow = ({ metrics }) => (
-  <div className="grid grid-cols-1 divide-y divide-border/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-    {metrics.map((metric) => <Metric key={metric.label} {...metric} />)}
-  </div>
+  <TooltipProvider delayDuration={200}>
+    <div className="grid grid-cols-1 divide-y divide-border/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+      {metrics.map((metric) => <Metric key={metric.label} {...metric} />)}
+    </div>
+  </TooltipProvider>
 );
 
 const SalesStats = () => {
@@ -143,7 +157,7 @@ const SalesStats = () => {
     [chartTokens.primary, isDark]
   );
   const { mesSeleccionado, setMesSeleccionado, isInRange } = useDateRange();
-  const { ventas: ventasFiltradas = [], presupuestos: presupuestosFiltrados = [], obras: obrasFromContext = [], allObras = [], loading } = useDashboardData();
+  const { ventas: ventasFiltradas = [], allVentas = [], presupuestos: presupuestosFiltrados = [], obras: obrasFromContext = [], allObras = [], loading } = useDashboardData();
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const now = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -153,18 +167,18 @@ const SalesStats = () => {
     if (mesSeleccionado) setMesSeleccionado(new Date(mesSeleccionado.getFullYear(), mesSeleccionado.getMonth() + amount, 1));
   };
 
-  const obrasFiltradas = useMemo(() => obrasFromContext.filter((obra) => obra.tipo === "obra"), [obrasFromContext]);
-  const obrasConfirmadas = useMemo(() => allObras.filter((obra) => {
-    const estado = String(obra?.estado || "").toLowerCase();
-    const enEjecucion = estado === "en_ejecucion" && isInRange(getObraReferenceDate(obra));
-    const finalizadaOPagada = (estado === "completada" || obraPagada(obra)) && isInRange(fechaUltimoPagoObra(obra) || obra?.fechaCompletada || obra?.fechaFinalizacion || obra?.fechaModificacion);
-    return enEjecucion || finalizadaOPagada;
-  }), [allObras, isInRange]);
+  const obrasFiltradas = useMemo(() => obrasFromContext.filter((obra) => String(obra?.tipo || "").toLowerCase() === "obra"), [obrasFromContext]);
+  const obrasConfirmadas = useMemo(() => allObras.filter((obra) =>
+    esObraComisionable(obra) && isInRange(getFechaComisionObra(obra))
+  ), [allObras, isInRange]);
+  const ventasConfirmadas = useMemo(() => allVentas.filter((venta) =>
+    esVentaPagada(venta) && isInRange(getVentaFechaConfirmacion(venta))
+  ), [allVentas, isInRange]);
 
   const kpis = useMemo(() => {
     const ventasCount = ventasFiltradas.length;
     const ventasMonto = ventasFiltradas.reduce((sum, venta) => sum + (Number(venta.total) || 0), 0);
-    let cobranzasPagadoTotal = 0;
+    const cobranzasPagadoTotal = ventasConfirmadas.reduce((sum, venta) => sum + (Number(venta.total) || 0), 0);
     let cobranzasIngresadoPeriodo = 0;
     let pendienteParcialTotal = 0;
     ventasFiltradas.forEach((venta) => {
@@ -175,8 +189,7 @@ const SalesStats = () => {
       pagos.forEach((pago) => { if (pago.fecha && isInRange(pago.fecha)) cobranzasIngresadoPeriodo += Number(pago.monto) || 0; });
       let estado = String(venta.estadoPago || "").toLowerCase();
       if (!estado) estado = abonado >= total && total > 0 ? "pagado" : abonado > 0 && abonado < total ? "parcial" : "pendiente";
-      if (estado === "pagado") cobranzasPagadoTotal += total;
-      else if (estado === "pendiente") pendienteParcialTotal += total;
+      if (estado === "pendiente") pendienteParcialTotal += total;
       else if (estado === "parcial") pendienteParcialTotal += Math.max(total - abonado, 0);
     });
     const estados = ventasFiltradas.reduce((acc, venta) => {
@@ -197,7 +210,7 @@ const SalesStats = () => {
       ventasCount, ventasMonto, cobranzasPagadoTotal, pendienteParcialTotal, cobranzasIngresadoPeriodo, estados, formasPago,
       obrasMonto, obrasCount: obrasFiltradas.length, obrasComision: obrasMontoComisionable * (OBRAS_COMMISSION_RATE / 100),
     };
-  }, [ventasFiltradas, obrasFiltradas, obrasConfirmadas, isInRange]);
+  }, [ventasFiltradas, ventasConfirmadas, obrasFiltradas, obrasConfirmadas, isInRange]);
 
   const fpSegments = useMemo(() => {
     const labels = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", cheque: "Cheque", otro: "Otro", mercadopago: "Mercado Pago", mercado_pago: "Mercado Pago" };
@@ -235,9 +248,28 @@ const SalesStats = () => {
     { label: "Pendiente + Parcial", value: currency(kpis.pendienteParcialTotal), icon: Clock },
   ];
   const secondRow = [
-    { label: "Comisión Ventas", value: currency(commissionSales), detail: "2,5% sobre ventas pagadas", icon: Percent },
-    { label: "Comisión Obras", value: currency(kpis.obrasComision), detail: "2,5% sobre obras confirmadas", icon: Percent },
-    { label: "Total Comisiones", value: currency(commissionTotal), detail: "Ventas + Obras", icon: Award, emphasis: true },
+    {
+      label: "Comisión Ventas",
+      value: currency(commissionSales),
+      detail: "2,5% sobre ventas confirmadas en el período",
+      helpText: "Es el 2,5% del importe total de las ventas que quedaron totalmente pagadas durante el mes seleccionado. Incluye ventas creadas en meses anteriores; se toma la fecha del pago que completó el total.",
+      icon: Percent,
+    },
+    {
+      label: "Comisión Obras",
+      value: currency(kpis.obrasComision),
+      detail: "2,5% sobre obras confirmadas",
+      helpText: "Es el 2,5% del importe de las obras en ejecución o completadas cuya fecha de referencia corresponde al mes seleccionado.",
+      icon: Percent,
+    },
+    {
+      label: "Total Comisiones",
+      value: currency(commissionTotal),
+      detail: "Ventas + Obras",
+      helpText: "Es la suma de la comisión de ventas y la comisión de obras correspondientes al mes seleccionado.",
+      icon: Award,
+      emphasis: true,
+    },
     { label: "Total Obras", value: currency(kpis.obrasMonto), detail: `${kpis.obrasCount} ${kpis.obrasCount === 1 ? "obra" : "obras"}`, icon: Landmark },
   ];
 

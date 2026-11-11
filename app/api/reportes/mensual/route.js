@@ -2,6 +2,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import { getObraReferenceDate } from "@/lib/obras-fechas";
+import { calcularTotalObra as calcObraTotal, esObraComisionable, esObraPendienteDeConfirmacion, OBRAS_COMMISSION_RATE } from "@/lib/obras-comisiones";
+import { esVentaPagada, getVentaFechaConfirmacion } from "@/lib/ventas-pagos";
 import { nowIso } from "@/lib/documentacion-server";
 import { Resend } from "resend";
 import { generatePdfFromHtml } from "@/src/lib/pdf/generate-documento-firmado";
@@ -253,7 +255,7 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
 
   const obrasCount = Number(obras.count || 0);
   const obrasConfirmadasCount = Number(obras.countConfirmadas || 0);
-  const obrasPendientesCount = Math.max(obrasCount - obrasConfirmadasCount, 0);
+  const obrasPendientesCountPeriodo = Math.max(obrasCount - obrasConfirmadasCount, 0);
   const obrasMontoPendiente = Math.max((Number(obras.monto || 0) - Number(obras.montoConfirmadas || 0)) || 0, 0);
 
   const comisionesTotal = (Number(comisiones.ventasConfirmadas) || 0) + (Number(comisiones.obrasConfirmadas) || 0);
@@ -332,7 +334,7 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
           <div>${escapeHtml(`Total: ${ventasCount} | Pagadas: ${pagadasCount} | Parciales: ${parcialesCount} | Pendientes: ${pendientesCount}`)}</div>
           <div class="metrics">
             <div class="metric">
-              <div class="metric-label">Total pagado</div>
+              <div class="metric-label">Ventas confirmadas en el período</div>
               <div class="metric-value">${escapeHtml(formatArs(cobranzas.pagadoTotal))}</div>
             </div>
             <div class="metric">
@@ -347,14 +349,14 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
         <div class="card-title">Obras</div>
         <div class="card-value">${escapeHtml(formatArs(obras.montoConfirmadas))}</div>
         <div class="card-lines">
-          <div>${escapeHtml(`Total: ${obrasCount} | Confirmadas: ${obrasConfirmadasCount} | Pendientes: ${obrasPendientesCount}`)}</div>
+          <div>${escapeHtml(`En el período: ${obrasCount} | Confirmadas: ${obrasConfirmadasCount} | Pendientes del período: ${obrasPendientesCountPeriodo}`)}</div>
           <div class="metrics">
             <div class="metric">
               <div class="metric-label">Total pagado</div>
               <div class="metric-value">${escapeHtml(formatArs(obras.montoConfirmadas))}</div>
             </div>
             <div class="metric">
-              <div class="metric-label">Total pendiente</div>
+              <div class="metric-label">Total pendiente en el período</div>
               <div class="metric-value">${escapeHtml(formatArs(obrasMontoPendiente))}</div>
             </div>
           </div>
@@ -406,9 +408,9 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
     </div>
 
     <div class="section">
-      <h2>Obras pendientes a confirmar</h2>
+      <h2>Obras pendientes a confirmar (todas las fechas)</h2>
       <div class="small">
-        Total: <b>${escapeHtml(String(Array.isArray(obrasPendientes) ? obrasPendientes.length : 0))}</b>
+        Total: <b>${escapeHtml(String(Array.isArray(obrasPendientes) ? obrasPendientes.length : 0))}</b> · Importe: <b>${escapeHtml(formatArs((Array.isArray(obrasPendientes) ? obrasPendientes : []).reduce((sum, obra) => sum + (Number(obra?.total) || 0), 0)))}</b>
         ${obrasTruncated ? ` · Mostrando primeros <b>${obrasRowsLimit}</b> por seguridad` : ""}
       </div>
       <div class="divider"></div>
@@ -424,7 +426,7 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
           </tr>
         </thead>
         <tbody>
-          ${obrasRowsHtml || `<tr><td colspan="6" class="td-muted">Sin obras pendientes a confirmar en el periodo.</td></tr>`}
+          ${obrasRowsHtml || `<tr><td colspan="6" class="td-muted">No hay obras pendientes a confirmar.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -437,15 +439,6 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
 </html>
 `;
 };
-
-const calcObraTotal = (o) =>
-  Number(o?.total) ||
-  Number(o?.subtotal) ||
-  (Number(o?.productosTotal) || 0) +
-    (Number(o?.materialesTotal) || 0) +
-    (Number(o?.gastoObraManual) || 0) +
-    (Number(o?.costoEnvio) || 0) -
-    (Number(o?.descuentoTotal) || 0);
 
 const parseMonthKey = (value) => {
   const v = String(value || "").trim();
@@ -496,9 +489,8 @@ const deriveEstadoPago = ({ estadoPago, total, abonado }) => {
   return "pendiente";
 };
 
-const computeKpis = ({ ventas = [], obras = [], startMs, endMs }) => {
+const computeKpis = ({ ventas = [], ventasConfirmadas = [], obras = [], startMs, endMs }) => {
   const COMMISSION_RATE = 2.5;
-  const OBRAS_COMMISSION_RATE = 2.5;
 
   const ventasCount = ventas.length;
   const ventasMonto = ventas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
@@ -508,7 +500,7 @@ const computeKpis = ({ ventas = [], obras = [], startMs, endMs }) => {
   let cobranzasPendiente = 0;
   let cobranzasParcialPendiente = 0;
   let cobranzasAbonadoParcial = 0;
-  let cobranzasPagadoTotal = 0;
+  const cobranzasPagadoTotal = ventasConfirmadas.reduce((acc, v) => acc + (Number(v?.total) || 0), 0);
   let cobranzasIngresadoPeriodo = 0;
 
   ventas.forEach((v) => {
@@ -521,8 +513,7 @@ const computeKpis = ({ ventas = [], obras = [], startMs, endMs }) => {
     });
     cobranzasIngresado += abonado;
     const estado = deriveEstadoPago({ estadoPago: v.estadoPago, total, abonado });
-    if (estado === "pagado") cobranzasPagadoTotal += total;
-    else if (estado === "pendiente") cobranzasPendiente += total;
+    if (estado === "pendiente") cobranzasPendiente += total;
     else if (estado === "parcial") {
       const saldo = Math.max(total - abonado, 0);
       cobranzasParcialPendiente += saldo;
@@ -532,18 +523,9 @@ const computeKpis = ({ ventas = [], obras = [], startMs, endMs }) => {
 
   const pendienteParcialTotal = cobranzasPendiente + cobranzasParcialPendiente;
 
-  const obrasFiltradas = (obras || []).filter((o) => o.tipo === "obra");
-  const obrasConfirmadas = obrasFiltradas.filter((o) => o.estado === "en_ejecucion" || o.estado === "completada");
+  const obrasFiltradas = (obras || []).filter((o) => String(o?.tipo || "").toLowerCase() === "obra");
+  const obrasConfirmadas = obrasFiltradas.filter(esObraComisionable);
   const obrasCount = obrasFiltradas.length;
-
-  const calcObraTotal = (o) =>
-    Number(o.total) ||
-    Number(o.subtotal) ||
-    (Number(o.productosTotal) || 0) +
-      (Number(o.materialesTotal) || 0) +
-      (Number(o.gastoObraManual) || 0) +
-      (Number(o.costoEnvio) || 0) -
-      (Number(o.descuentoTotal) || 0);
 
   const obrasMonto = obrasFiltradas.reduce((acc, o) => acc + (Number(calcObraTotal(o)) || 0), 0);
   const obrasMontoConfirmadas = obrasConfirmadas.reduce((acc, o) => acc + (Number(calcObraTotal(o)) || 0), 0);
@@ -666,14 +648,13 @@ export async function POST(request) {
       const obrasAll = obrasSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
 
       const ventasPeriodo = ventasAll.filter((v) => isInRange(v.fechaCreacion || v.fecha, startMs, endMs));
+      const ventasConfirmadasPeriodo = ventasAll.filter((v) =>
+        esVentaPagada(v) && isInRange(getVentaFechaConfirmacion(v), startMs, endMs)
+      );
       const obrasPeriodo = obrasAll.filter((o) => isInRange(getObraReferenceDate(o), startMs, endMs));
 
-      const obrasPendientes = obrasPeriodo
-        .filter((o) => String(o?.tipo || "").toLowerCase() === "obra")
-        .filter((o) => {
-          const e = String(o?.estado || "").toLowerCase();
-          return !(e === "en_ejecucion" || e === "completada");
-        })
+      const obrasPendientes = obrasAll
+        .filter(esObraPendienteDeConfirmacion)
         .map((o) => ({
           id: String(o?.id || ""),
           numero: String(o?.numero || o?.numeroPedido || (o?.id ? String(o.id).slice(-8) : "")),
@@ -705,7 +686,7 @@ export async function POST(request) {
         .filter((v) => v.estadoPago === "pendiente" || v.estadoPago === "parcial")
         .sort((a, b) => toMs(a.fechaCreacion) - toMs(b.fechaCreacion));
 
-      const kpis = computeKpis({ ventas: ventasPeriodo, obras: obrasPeriodo, startMs, endMs });
+      const kpis = computeKpis({ ventas: ventasPeriodo, ventasConfirmadas: ventasConfirmadasPeriodo, obras: obrasPeriodo, startMs, endMs });
       const now = nowIso();
 
       reportDoc = {
