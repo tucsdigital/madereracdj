@@ -41,6 +41,7 @@ test("las distancias se muestran en km legibles", () => {
   assert.equal(ui.metersToKm(2500), 2.5);
   assert.equal(ui.kmToMeters("2,5".replace(",", ".")), 2500);
   assert.equal(ui.moneyAr(25000), "$25.000");
+  assert.equal(ui.moneyAr(900.5), "$900,50");
 });
 
 test("las tarifas se resumen en una frase y se ordenan", () => {
@@ -51,6 +52,8 @@ test("las tarifas se resumen en una frase y se ordenan", () => {
   assert.deepEqual(ui.tierRanges([{ km: "20", price: "2" }, { km: "10", price: "1" }, { km: "", price: "9" }]), [
     { fromKm: 0, toKm: 10, price: 1 }, { fromKm: 10, toKm: 20, price: 2 },
   ]);
+  assert.equal(ui.tarifasResumen([], { pricingMode: "per_km", pricePerKm: 900 }), "Precio proporcional · $900 por km");
+  assert.equal(ui.tarifasResumen([], { pricingMode: "per_km", pricePerKm: 900.5 }), "Precio proporcional · $900,50 por km");
 });
 
 test("el mapa explica la cobertura de una dirección con palabras simples", () => {
@@ -84,6 +87,15 @@ test("el desglose del probador se explica línea por línea", () => {
   assert.equal(free.title, "Envío gratis");
   assert.match(free.note, /sin la gratuidad costaría \$10\.000/);
   assert.equal(ui.describeQuote(null, {}), null);
+});
+
+test("el probador explica el cálculo lineal por kilómetro", () => {
+  const rules = { pricingMode: "per_km", pricePerKm: 900 };
+  const result = shipping.priceForDistance({ distanceKm: 12.5, tiers: [], rules, weightKg: 1 });
+  const quote = ui.describeQuote(result, rules);
+  assert.equal(quote.total, 11250);
+  assert.equal(quote.lines[0].label, "Tarifa por km ($900/km · 12,5 km)");
+  assert.equal(quote.lines[0].value, "$11.250");
 });
 
 test("los problemas se ubican por sucursal, tramo y regla", () => {

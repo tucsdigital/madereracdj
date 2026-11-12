@@ -18,7 +18,9 @@ function Callout({ tone = "warn", children }) {
 
 /* ───────────────────────────── Tarifas ───────────────────────────── */
 
-export function TarifasPanel({ tiers, warnings, issues, onChange }) {
+export function TarifasPanel({ tiers, rules, warnings, issues, onChange, onRulesChange }) {
+  const pricingMode = rules?.pricingMode || "tiers";
+  const pricingErrors = inlineIssues(issues, "tarifas", null);
   const update = (index, patch) => onChange(tiers.map((t, i) => (i === index ? { ...t, ...patch } : t)));
   const add = () => {
     const last = sortTiers(tiers).filter((t) => toNum(t.km) !== null).pop();
@@ -36,7 +38,33 @@ export function TarifasPanel({ tiers, warnings, issues, onChange }) {
     <div className="space-y-4">
       <div>
         <h3 className="text-base font-semibold">Cuánto cuesta el envío según la distancia</h3>
-        <p className="mt-0.5 text-sm text-default-500">{tarifasResumen(tiers)}</p>
+        <p className="mt-0.5 text-sm text-default-500">{tarifasResumen(tiers, rules)}</p>
+      </div>
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Modalidad de cálculo</p>
+        <Segmented
+          value={pricingMode}
+          onChange={(value) => onRulesChange({ pricingMode: value })}
+          options={[{ value: "tiers", label: "Por tramos" }, { value: "per_km", label: "Por km" }]}
+        />
+        {pricingMode === "per_km" ? (
+          <div className="max-w-sm">
+            <Field
+              label="Precio por kilómetro"
+              error={pricingErrors.pricePerKm}
+              hint="Se multiplica por la distancia estimada desde la sucursal que cubre la dirección."
+            >
+              <UnitInput
+                prefix="$"
+                suffix="/km"
+                aria-label="Precio por kilómetro"
+                invalid={Boolean(pricingErrors.pricePerKm)}
+                value={rules.pricePerKm ?? ""}
+                onChange={(e) => onRulesChange({ pricePerKm: e.target.value })}
+              />
+            </Field>
+          </div>
+        ) : null}
       </div>
       {warnings.length > 0 && (
         <Callout>
@@ -44,7 +72,7 @@ export function TarifasPanel({ tiers, warnings, issues, onChange }) {
         </Callout>
       )}
 
-      {tiers.length === 0 ? (
+      {pricingMode === "per_km" ? null : tiers.length === 0 ? (
         <div className="rounded-xl border border-dashed border-default-300 px-6 py-10 text-center">
           <p className="font-medium">Todavía no hay tarifas</p>
           <p className="mt-1 text-sm text-default-500">Mientras tanto, todos los envíos se cotizan aparte.</p>

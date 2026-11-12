@@ -499,6 +499,25 @@ test("el peso faltante calcula el envío si es opcional y pide cotización si se
   }
 });
 
+test("la cotización definitiva usa el precio por km configurado en el sistema", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
+  globalThis.__shippingRules = { pricingMode: "per_km", pricePerKm: 900 };
+  try {
+    const result = await quote({
+      items: [{ id: "pino", quantity: 1 }],
+      paymentMethod: "mercadopago",
+      deliveryInfo: { metodoEntrega: "envio", lat: -33.99, lng: -58 },
+    });
+    const expectedShipping = Math.round(result.deliveryInfo.distanciaKm * 900 * 100) / 100;
+    assert.ok(result.deliveryInfo.distanciaKm > 0);
+    assert.equal(result.pricing.shipping, expectedShipping);
+    assert.equal(result.deliveryInfo.shippingPrice, expectedShipping);
+  } finally {
+    globalThis.__shippingRules = null;
+  }
+});
+
 test("cotización m² redondea el total como ventas y respeta reservas", async () => {
   const { data, quote } = fixture();
   data.set("productos/pino", { nombre: "Machimbre", categoria: "Maderas", unidadMedida: "M2", alto: 0.14, largo: 3.05, precioPorPie: 2510, stock: 12, estadoTienda: "Activo" });

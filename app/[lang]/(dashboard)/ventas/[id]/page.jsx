@@ -2218,7 +2218,7 @@ const VentaDetalle = () => {
   };
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] px-3 py-4 font-sans text-foreground sm:px-6 sm:py-7">
+    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full px-3 py-4 font-sans text-foreground sm:px-6 sm:py-7">
       <style>{`
     @keyframes fade-in {
       from { opacity: 0; transform: translateY(10px); }

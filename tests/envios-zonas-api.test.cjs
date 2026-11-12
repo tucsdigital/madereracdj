@@ -69,11 +69,13 @@ test("sin nada guardado devuelve listas vacías, versión 0 y avisos en simple",
 
 test("guarda sucursales, tarifas y reglas juntas, con historial y versión", async () => {
   const { state, route } = setup();
-  const res = await route.PUT(req({ locations: [{ ...store, lat: "-34.6", radio: "5000" }], shippingTiers: [{ km: "20", price: "20000" }, { km: "10", price: "10000" }], shippingRules: { freeShippingMin: "100000" }, baseVersion: 0 }));
+  const res = await route.PUT(req({ locations: [{ ...store, lat: "-34.6", radio: "5000" }], shippingTiers: [{ km: "20", price: "20000" }, { km: "10", price: "10000" }], shippingRules: { pricingMode: "per_km", pricePerKm: "900", freeShippingMin: "100000" }, baseVersion: 0 }));
   assert.equal(res.status, 200);
   assert.equal(res.body.version, 1);
   assert.deepEqual(res.body.shippingTiers.map((t) => t.km), [10, 20], "las tarifas se guardan ordenadas por km");
   assert.equal(res.body.shippingRules.freeShippingMin, 100000);
+  assert.equal(res.body.shippingRules.pricingMode, "per_km");
+  assert.equal(res.body.shippingRules.pricePerKm, 900);
   assert.equal(state.doc.locations[0].lat, -34.6);
   assert.equal(state.history.length, 1);
   assert.equal(state.history[0].item.tipo, "envios");

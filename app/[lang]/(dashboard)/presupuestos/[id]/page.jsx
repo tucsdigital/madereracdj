@@ -1866,7 +1866,7 @@ const PresupuestoDetalle = () => {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] items-center justify-center px-4 py-12 text-foreground">
+      <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-12 text-foreground">
         <div className="text-center" role="status" aria-live="polite">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">Cargando presupuesto…</p>
@@ -1878,7 +1878,7 @@ const PresupuestoDetalle = () => {
 
   if (error || !presupuesto) {
     return (
-      <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] items-center justify-center px-4 py-12 text-foreground">
+      <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-12 text-foreground">
         <div className="max-w-md text-center">
           <h2 className="text-2xl font-semibold tracking-tight">Presupuesto no encontrado</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -2015,7 +2015,7 @@ const PresupuestoDetalle = () => {
   );
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] px-3 py-4 font-sans text-foreground sm:px-6 sm:py-7">
+    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full px-3 py-4 font-sans text-foreground sm:px-6 sm:py-7">
       <style>{`
         @keyframes presupuesto-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .presupuesto-fade-in { animation: presupuesto-fade-in .24s ease-out; }

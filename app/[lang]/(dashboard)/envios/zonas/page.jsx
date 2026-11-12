@@ -36,6 +36,8 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString("es-AR", { day: "2-dig
 const rulesToForm = (raw) => {
   const r = normalizeShippingRules(raw);
   return {
+    pricingMode: r.pricingMode,
+    pricePerKm: String(r.pricePerKm),
     maxWeightKg: String(r.maxWeightKg),
     freeShippingMin: String(r.freeShippingMin),
     minFee: String(r.minFee),
@@ -333,7 +335,14 @@ export default function ZonasEnvioPage() {
           })}
         </nav>
         <div className="mt-5 rounded-xl border border-border bg-card p-5 sm:p-6">
-          {tab === "tarifas" && <TarifasPanel tiers={config.tiers} warnings={warnings} issues={issues} onChange={(tiers) => patch("tiers", tiers)} />}
+          {tab === "tarifas" && <TarifasPanel
+            tiers={config.tiers}
+            rules={config.rules}
+            warnings={warnings}
+            issues={issues}
+            onChange={(tiers) => patch("tiers", tiers)}
+            onRulesChange={(changes) => patch("rules", (rules) => ({ ...rules, ...changes }))}
+          />}
           {tab === "reglas" && <ReglasPanel rules={config.rules} issues={issues} onChange={(changes) => patch("rules", (rules) => ({ ...rules, ...changes }))} />}
           {tab === "probar" && (
             <ProbadorPanel pin={pin} locations={config.locations} tiers={config.tiers} rules={config.rules} probe={probe}
