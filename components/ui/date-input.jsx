@@ -74,6 +74,11 @@ function dateToIso(dt) {
   return `${y}-${m}-${d}`;
 }
 
+function getToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+}
+
 export function DateInput({
   value,
   onChange,
@@ -84,20 +89,37 @@ export function DateInput({
   min,
   max,
   disabled,
+  id,
+  ariaLabel,
+  ariaDescribedBy,
+  ariaInvalid,
 }) {
   const selected = React.useMemo(() => toDateSafe(value), [value]);
   const minDate = React.useMemo(() => toDateSafe(min), [min]);
   const maxDate = React.useMemo(() => toDateSafe(max), [max]);
+  const [open, setOpen] = React.useState(false);
+  const [today, setToday] = React.useState(getToday);
+  const [calendarMonth, setCalendarMonth] = React.useState(getToday);
 
   const disabledDays = React.useMemo(() => {
     if (!minDate && !maxDate) return undefined;
     return (d) => {
       if (!(d instanceof Date) || Number.isNaN(d.getTime())) return false;
-      if (minDate && d < minDate) return true;
-      if (maxDate && d > maxDate) return true;
+      const dateKey = dateToIso(d);
+      if (minDate && dateKey < dateToIso(minDate)) return true;
+      if (maxDate && dateKey > dateToIso(maxDate)) return true;
       return false;
     };
   }, [minDate, maxDate]);
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      const currentDate = getToday();
+      setToday(currentDate);
+      setCalendarMonth(currentDate);
+    }
+    setOpen(nextOpen);
+  };
 
   const handleSelect = (dt) => {
     if (!dt) return;
@@ -108,12 +130,16 @@ export function DateInput({
 
   return (
     <div className={cn("w-full", className)}>
-      <Popover>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="outline"
             disabled={disabled}
+            id={id}
+            aria-label={ariaLabel}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
             className={cn(
               "w-full justify-start font-normal",
               buttonClassName
@@ -127,6 +153,9 @@ export function DateInput({
             mode="single"
             selected={selected || undefined}
             onSelect={handleSelect}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            today={today}
             initialFocus
             disabled={disabledDays}
           />

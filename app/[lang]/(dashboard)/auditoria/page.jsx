@@ -78,6 +78,8 @@ const AuditoriaPage = () => {
 
   const tituloRegistro = (registro) => {
     switch (registro?.accion) {
+      case 'ELIMINACION_PAGO_VENTA':
+        return 'Pago de venta eliminado';
       case 'ELIMINACION_PAGO_PROVEEDOR':
         return 'Movimiento de proveedor eliminado';
       case 'ELIMINACION_PAGO_MANUAL_CUENTA_PROVEEDOR':
@@ -120,7 +122,7 @@ const AuditoriaPage = () => {
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Control · Trazabilidad</p>
           <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Auditoría</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Registro de eliminaciones de presupuestos, ventas y pagos de proveedores
+            Registro de eliminaciones de presupuestos, ventas y pagos
           </p>
         </div>
         
@@ -255,7 +257,11 @@ const AuditoriaPage = () => {
                       <div className="text-right">
                         <Badge variant="destructive" className="mb-2">
                           <Trash2 className="w-3 h-3 mr-1" />
-                          {registro.accion === 'ANULACION_PAGO_PROVEEDOR' ? 'Anulado' : 'Eliminado'}
+                          {registro.accion === 'ANULACION_PAGO_PROVEEDOR'
+                            ? 'Anulado'
+                            : registro.accion === 'ELIMINACION_PAGO_VENTA'
+                              ? 'Pago eliminado'
+                              : 'Eliminado'}
                         </Badge>
                         <div className="text-xs text-muted-foreground">
                           {formatearFecha(registro.fechaEliminacion)}
@@ -340,7 +346,34 @@ const AuditoriaPage = () => {
                       </div>
                     ) : null}
 
-                                         {registro.coleccion === 'ventas' && (
+                    {registro.accion === 'ELIMINACION_PAGO_VENTA' ? (
+                      <div className="mt-4 border-t border-border/60 pt-3">
+                        <h5 className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                          <Icon icon="heroicons:banknotes" className="h-4 w-4" />
+                          Detalle del pago eliminado
+                        </h5>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                          <p>
+                            <span className="text-muted-foreground">Venta:</span>{' '}
+                            <span className="font-medium">{registro.numeroPedido || `#${String(registro.documentoId || '').slice(-8)}`}</span>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Método:</span>{' '}
+                            {registro.metodo || registro.datosEliminados?.pago?.metodo || 'N/A'}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Importe:</span>{' '}
+                            <span className="font-semibold tabular-nums">{formatearImporte(registro.monto)}</span>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Fecha del pago:</span>{' '}
+                            {formatearFecha(registro.fechaPago || registro.datosEliminados?.pago?.fechaHora || registro.datosEliminados?.pago?.fecha)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {registro.coleccion === 'ventas' && registro.accion === 'ELIMINACION' && (
                        <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                          <div className="flex items-start gap-2 text-emerald-800 dark:text-emerald-200">
                            <CheckCircle className="w-4 h-4 mt-0.5" />

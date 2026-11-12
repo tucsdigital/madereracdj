@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildMapsUrlFallback } from "../lib/maps-location.mjs";
-import { createMapsQrDataUrl } from "../lib/pdf/maps-qr.mjs";
+import { buildPhoneTelUri, createMapsQrDataUrl, createPhoneQrDataUrl } from "../lib/pdf/maps-qr.mjs";
 import { mergeVentaClientLocation } from "../lib/pdf/venta-location.mjs";
 
 test("prioriza dirección y localidad sobre enlaces guardados o coordenadas", () => {
@@ -54,4 +54,14 @@ test("QR de Maps se genera como PNG inline, sin cargar un servicio remoto al imp
   assert.match(qr, /^data:image\/png;base64,/);
   assert.deepEqual(Buffer.from(qr.split(",")[1], "base64").subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   assert.equal(await createMapsQrDataUrl(""), "");
+});
+
+test("QR de teléfono prepara un enlace tel: y no se genera si falta el número", async () => {
+  assert.equal(buildPhoneTelUri("+54 9 (11) 1234-5678"), "tel:+5491112345678");
+  assert.equal(buildPhoneTelUri("11 1234-5678"), "tel:1112345678");
+  assert.equal(buildPhoneTelUri("sin teléfono"), "");
+
+  const qr = await createPhoneQrDataUrl("+54 9 (11) 1234-5678");
+  assert.match(qr, /^data:image\/png;base64,/);
+  assert.equal(await createPhoneQrDataUrl(""), "");
 });

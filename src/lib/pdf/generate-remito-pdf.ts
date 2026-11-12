@@ -8,7 +8,7 @@ import { formatCurrency, formatNumber, formatFechaLocal, escapeHtml, safeText } 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { getBrowser } from "./browser-pool";
-import { createMapsQrDataUrl } from "../../../lib/pdf/maps-qr.mjs";
+import { createMapsQrDataUrl, createPhoneQrDataUrl } from "../../../lib/pdf/maps-qr.mjs";
 import { buildMapsUrlFallback } from "../../../lib/maps-location.mjs";
 
 /**
@@ -241,9 +241,17 @@ export async function buildRemitoHtml(
     direccion: envio?.direccion || lugarEntrega,
     localidad: envio?.localidad || cliente.localidad,
   }) || "";
-  const qrDataUrl = esEnvioDoc ? await createMapsQrDataUrl(mapsUrlForQr) : "";
-  const qrHtml = esEnvioDoc && qrDataUrl
-    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrDataUrl}" alt="Ubicación en Google Maps" style="width:52px; height:52px;" /><span style="font-size:7px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
+  const [qrDataUrl, phoneQrDataUrl] = esEnvioDoc
+    ? await Promise.all([
+        createMapsQrDataUrl(mapsUrlForQr),
+        createPhoneQrDataUrl(telEnvio),
+      ])
+    : ["", ""];
+  const phoneQrHtml = phoneQrDataUrl
+    ? `<div class="envio-qr"><span class="envio-qr-image-frame"><img src="${phoneQrDataUrl}" alt="QR para llamar al teléfono de contacto" width="88" height="88" class="envio-qr-image" /><span class="envio-qr-center-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.24.2 2.45.57 3.57a1 1 0 01-.25 1.02l-2.2 2.2z" /></svg></span></span><span class="envio-qr-caption">LLAMAR</span></div>`
+    : "";
+  const mapsQrHtml = qrDataUrl
+    ? `<div class="envio-qr"><span class="envio-qr-image-frame"><img src="${qrDataUrl}" alt="QR de ubicación en Google Maps" width="88" height="88" class="envio-qr-image" /><span class="envio-qr-center-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z" /></svg></span></span><span class="envio-qr-caption">UBICACIÓN</span></div>`
     : "";
 
   // Combinar localidad y provincia
@@ -390,7 +398,7 @@ export async function buildRemitoHtml(
   const envioHeaderHtml = esEnvioDoc
     ? `
       <div class="header header-envio">
-        ${qrHtml ? `<div class="header-envio-qr">${qrHtml}</div>` : ""}
+        ${phoneQrHtml ? `<div class="header-envio-phone-qr">${phoneQrHtml}</div>` : ""}
         <div class="header-envio-inner">
           <div class="doc-icon doc-icon-envio" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -403,6 +411,7 @@ export async function buildRemitoHtml(
           </div>
           <div class="remito-title remito-title-envio">${documentoLabel}</div>
         </div>
+        ${mapsQrHtml ? `<div class="header-envio-location-qr">${mapsQrHtml}</div>` : ""}
       </div>
     `
     : "";
@@ -515,19 +524,25 @@ export async function buildRemitoHtml(
       border-bottom: 1px solid #000000;
     }
     .header-envio {
-      justify-content: center;
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 120px;
+      column-gap: 12px;
       align-items: center;
+      min-height: 146px;
       padding-bottom: 5px;
       margin-bottom: 6px;
       position: relative;
     }
-    .header-envio-qr {
-      position: absolute;
-      top: 0;
-      right: 0;
-      margin: 0;
+    .header-envio-phone-qr {
+      grid-column: 1;
+      justify-self: start;
+    }
+    .header-envio-location-qr {
+      grid-column: 3;
+      justify-self: end;
     }
     .header-envio-inner {
+      grid-column: 2;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -536,7 +551,59 @@ export async function buildRemitoHtml(
       width: 100%;
     }
     .header-envio .envio-qr {
+      display: flex;
+      flex: 0 0 120px;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      width: 120px;
       margin-left: 0 !important;
+    }
+    .envio-qr-image-frame {
+      position: relative;
+      display: block;
+      flex: 0 0 120px;
+      width: 120px;
+      height: 120px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .envio-qr-image {
+      display: block;
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 88px;
+      height: 88px;
+    }
+    .envio-qr-center-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      width: 26px;
+      height: 26px;
+      align-items: center;
+      justify-content: center;
+      transform: translate(-50%, -50%);
+      border: 1px solid #000000;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+    .envio-qr-center-icon svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+      fill: #000000;
+    }
+    .envio-qr-caption {
+      display: block;
+      width: 100%;
+      font-size: 7px;
+      font-weight: 700;
+      line-height: 1.1;
+      text-align: center;
+      white-space: nowrap;
     }
     .doc-icon-envio {
       margin: 0;

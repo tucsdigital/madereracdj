@@ -108,7 +108,7 @@ test("estadísticas: vendido solo de pagados, ticket, por cobrar, anuladas, a re
   assert.deepEqual(r.topProductos.map((p) => [p.nombre, p.unidades]), [["Deck", 3], ["Machimbre", 4]].sort((a, b) => b[1] - a[1]));
   assert.equal(r.serie.length, 3);
   assert.deepEqual(r.serie.map((d) => d.total), [0, 4000, 0]);
-  assert.deepEqual(r.pagos.map((p) => [p.value, p.pedidos]), [["mercadopago", 0], ["transferencia", 3]]);
+  assert.deepEqual(r.pagos.map((p) => [p.value, p.pedidos]), [["mercadopago", 0], ["transferencia", 3], ["efectivo", 0], ["coordinacion", 0]]);
   const vacio = P.computeResumen({ rows: [], from: null, to: null });
   assert.deepEqual([vacio.vendido, vacio.ticket, vacio.serie.length, vacio.variacion], [0, 0, 0, null]);
 });

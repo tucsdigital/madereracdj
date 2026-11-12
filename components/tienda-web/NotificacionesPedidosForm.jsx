@@ -11,6 +11,9 @@ const EVENT_OPTIONS = [
   ["cancelled", "Pedido cancelado"],
   ["paymentFailed", "Pago rechazado"],
   ["review", "Requiere revisión"],
+  ["preparingForPickup", "Pedido en preparación"],
+  ["readyForPickup", "Pedido listo para retirar"],
+  ["paymentProofRejected", "Comprobante requiere corrección"],
 ];
 
 const STATUS = {

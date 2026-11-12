@@ -16,6 +16,8 @@ const toShippingType = (method) => {
 function saleDataFromOrder(order, payment) {
   const pricing = order.pricing || {};
   const delivery = order.deliveryInfo || {};
+  const isPickup = toShippingType(delivery.metodoEntrega) === "retiro_local";
+  const deliveryAddress = isPickup ? "" : String(delivery.direccion || "");
   const items = Array.isArray(order.items) ? order.items : [];
   const total = Number(pricing.total ?? order.total) || 0;
   const subtotal = Number(pricing.subtotal) || items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
@@ -48,9 +50,9 @@ function saleDataFromOrder(order, payment) {
       apellido: order.customerInfo?.apellido || "",
       telefono: order.customerInfo?.telefono || "",
       dni: String(order.customerInfo?.dni || "").replace(/\D/g, ""),
-      direccion: delivery.direccion || "",
-      ciudad: delivery.ciudad || delivery.localidad || "",
-      codigoPostal: delivery.codigoPostal || "",
+      direccion: deliveryAddress,
+      ciudad: isPickup ? "" : delivery.ciudad || delivery.localidad || "",
+      codigoPostal: isPickup ? "" : delivery.codigoPostal || "",
     },
     productos: items.map((item) => ({
       id: item.id || "",
@@ -74,10 +76,10 @@ function saleDataFromOrder(order, payment) {
     })),
     tipoEnvio: toShippingType(delivery.metodoEntrega),
     estadoEnvio: "pendiente",
-    direccionEnvio: delivery.direccion || "",
-    localidadEnvio: delivery.localidad || delivery.ciudad || "",
-    codigoPostal: delivery.codigoPostal || "",
-    coordenadasEnvio: { lat: delivery.lat ?? null, lng: delivery.lng ?? null },
+    direccionEnvio: deliveryAddress,
+    localidadEnvio: isPickup ? "" : delivery.localidad || delivery.ciudad || "",
+    codigoPostal: isPickup ? "" : delivery.codigoPostal || "",
+    coordenadasEnvio: isPickup ? null : { lat: delivery.lat ?? null, lng: delivery.lng ?? null },
     sucursal: delivery.sucursal || null,
     storeId: delivery.storeId || null,
     costoEnvio: shipping,

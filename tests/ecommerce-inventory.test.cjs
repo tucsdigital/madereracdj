@@ -77,14 +77,123 @@ test("pedido pendiente reserva sin descontar; pago descuenta una sola vez", asyn
   const duplicate = await engine.createVentaEngine({ actor, ventaData: sale() });
   assert.equal(duplicate.id, created.id);
   let venta = data.get(`ventas/${created.id}`);
-  await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: { ...venta, montoAbonado: 2000 } });
+  await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: {
+    ...venta,
+    montoAbonado: 2000,
+    fechaEntrega: "2026-11-20",
+    rangoHorario: "08:00 - 12:00",
+  } });
   assert.equal(data.get("productos/pino").stock, 8);
   assert.equal(data.get(`reservasStock/${created.id}_pino`).estado, "consumida");
   venta = data.get(`ventas/${created.id}`);
   await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: venta });
   assert.equal(data.get("productos/pino").stock, 8);
   assert.equal(data.get("orders/pedido-test").status, "success");
+  assert.equal(data.get("orders/pedido-test").deliveryInfo.fechaEntrega, "2026-11-20");
+  assert.equal(data.get("orders/pedido-test").deliveryInfo.rangoHorario, "08:00 - 12:00");
 });
+
+test("eliminar un pago recalcula el saldo y registra el movimiento de auditoría", async () => {
+  const { data, engine } = fixture();
+  data.set("ventas/venta-pagos-1", {
+    numeroPedido: "VENTA-1001",
+    version: 3,
+    total: 1000,
+    estadoPago: "pagado",
+    montoAbonado: 1000,
+    tipoEnvio: "retiro_local",
+    productos: [],
+    pagos: [
+      { fecha: "2026-11-11", fechaHora: "2026-11-11T13:30:00.000Z", monto: 400, metodo: "efectivo", usuario: actor.email },
+      { fecha: "2026-11-12", fechaHora: "2026-11-12T14:00:00.000Z", monto: 600, metodo: "transferencia", usuario: actor.email },
+    ],
+  });
+
+  await engine.updateVentaEngine({
+    actor,
+    ventaId: "venta-pagos-1",
+    deletePaymentIndex: 0,
+    expectedVersion: 3,
+    origen: "ui_ventas_delete_pago",
+  });
+
+  const updatedSale = data.get("ventas/venta-pagos-1");
+  assert.equal(updatedSale.pagos.length, 1);
+  assert.equal(updatedSale.pagos[0].metodo, "transferencia");
+  assert.equal(updatedSale.montoAbonado, 600);
+  assert.equal(updatedSale.estadoPago, "parcial");
+  assert.equal(updatedSale.version, 4);
+
+  const auditEntries = [...data.entries()]
+    .filter(([key]) => key.startsWith("auditoria/"))
+    .map(([, value]) => value);
+  assert.equal(auditEntries.length, 1, "el movimiento específico reemplaza el registro genérico de edición");
+  assert.equal(auditEntries[0].accion, "ELIMINACION_PAGO_VENTA");
+  assert.equal(auditEntries[0].coleccion, "ventas");
+  assert.equal(auditEntries[0].documentoId, "venta-pagos-1");
+  assert.equal(auditEntries[0].numeroPedido, "VENTA-1001");
+  assert.equal(auditEntries[0].usuarioEmail, actor.email);
+  assert.equal(auditEntries[0].monto, 400);
+  assert.equal(auditEntries[0].metodo, "efectivo");
+  assert.equal(auditEntries[0].datosEliminados.pago.fechaHora, "2026-11-11T13:30:00.000Z");
+  assert.ok(auditEntries[0].fechaEliminacion);
+});
+
+test("eliminar el último pago deja la venta pendiente sin regenerar el pago automático", async () => {
+  const { data, engine } = fixture();
+  data.set("ventas/venta-pagos-2", {
+    version: 1,
+    total: 500,
+    estadoPago: "pagado",
+    montoAbonado: 500,
+    tipoEnvio: "retiro_local",
+    productos: [],
+    pagos: [{ fecha: "2026-11-12", monto: 500, metodo: "efectivo" }],
+  });
+
+  await engine.updateVentaEngine({
+    actor,
+    ventaId: "venta-pagos-2",
+    deletePaymentIndex: 0,
+    expectedVersion: 1,
+    origen: "ui_ventas_delete_pago",
+  });
+
+  const updatedSale = data.get("ventas/venta-pagos-2");
+  assert.deepEqual(updatedSale.pagos, []);
+  assert.equal(updatedSale.montoAbonado, 0);
+  assert.equal(updatedSale.estadoPago, "pendiente");
+  assert.equal(data.get("auditoria/auto1").accion, "ELIMINACION_PAGO_VENTA");
+});
+
+test("eliminar pago con una versión desactualizada no modifica venta ni auditoría", async () => {
+  const { data, engine } = fixture();
+  const original = {
+    version: 2,
+    total: 500,
+    estadoPago: "pagado",
+    montoAbonado: 500,
+    tipoEnvio: "retiro_local",
+    productos: [],
+    pagos: [{ fecha: "2026-11-12", monto: 500, metodo: "efectivo" }],
+  };
+  data.set("ventas/venta-pagos-3", structuredClone(original));
+
+  await assert.rejects(
+    engine.updateVentaEngine({
+      actor,
+      ventaId: "venta-pagos-3",
+      deletePaymentIndex: 0,
+      expectedVersion: 1,
+      origen: "ui_ventas_delete_pago",
+    }),
+    /Conflicto de edición/,
+  );
+
+  assert.deepEqual(data.get("ventas/venta-pagos-3"), original);
+  assert.equal([...data.keys()].some((key) => key.startsWith("auditoria/")), false);
+});
+
 test("Mercado Pago reserva sobre el pedido y crea la venta recién al aprobar el pago", async () => {
   const { data, engine } = fixture();
   const orderId = "mp-order-123456789";
@@ -244,6 +353,60 @@ test("un combo reserva sus componentes y los consume al confirmar", async () => 
   await engine.updateVentaEngine({ actor, ventaId: created.id, ventaData: { ...data.get(`ventas/${created.id}`), montoAbonado: 2000 } });
   assert.equal(data.get("productos/pino").stock, 4);
 });
+
+test("editar una venta ecommerce conserva el descuento en el medio de pago confirmado", async () => {
+  for (const paymentMethod of ["efectivo", "transferencia"]) {
+    const { data, engine } = fixture();
+    const orderId = `discount-${paymentMethod}`;
+    const discount = 10620;
+    const checkoutTotal = 42480;
+    const created = await engine.createVentaEngine({
+      actor,
+      ventaData: sale({
+        idExterno: orderId,
+        idempotencyKey: orderId,
+        formaPago: paymentMethod,
+        subtotal: 53100,
+        descuentoTotal: 0,
+        descuentoEfectivo: discount,
+        totalSinEfectivo: 53100,
+        totalConEfectivo: checkoutTotal,
+        total: checkoutTotal,
+      }),
+    });
+    data.set(`orders/${orderId}`, {
+      orderId,
+      paymentMethod,
+      status: "pending",
+      pricing: {
+        subtotal: 53100,
+        productDiscounts: 0,
+        cashDiscount: paymentMethod === "efectivo" ? discount : 0,
+        transferDiscount: paymentMethod === "transferencia" ? discount : 0,
+        shipping: 0,
+        total: checkoutTotal,
+      },
+    });
+
+    const saleBeforeEdit = data.get(`ventas/${created.id}`);
+    await engine.updateVentaEngine({
+      actor,
+      ventaId: created.id,
+      origen: "ui_ventas_detail_edit",
+      ventaData: {
+        ...saleBeforeEdit,
+        fechaEntrega: "2026-11-20",
+        rangoHorario: "08:00 - 12:00",
+      },
+    });
+
+    const updatedPricing = data.get(`orders/${orderId}`).pricing;
+    assert.equal(updatedPricing.total, checkoutTotal);
+    assert.equal(updatedPricing.cashDiscount, paymentMethod === "efectivo" ? discount : 0);
+    assert.equal(updatedPricing.transferDiscount, paymentMethod === "transferencia" ? discount : 0);
+  }
+});
+
 test("cotización reparte entre stock y pedido sin stock, exige transferencia y respeta el tope", async () => {
   const { data, quote } = fixture();
   data.set("productos/pino", { nombre: "Pino", stock: 2, estadoTienda: "Activo", valorVenta: 1000 });
@@ -263,6 +426,47 @@ test("cotización reparte entre stock y pedido sin stock, exige transferencia y 
     assert.deepEqual([inStock.items[0].cantidadSinStock, inStock.backorder.length], [0, 0]);
     await assert.rejects(quote({ ...base, items: [{ id: "pino", quantity: 5 }], paymentMethod: "efectivo" }), /transferencia/);
   } finally { globalThis.__stockCfg = null; }
+});
+
+test("si transferencia está deshabilitada, el pedido bajo pedido se registra para coordinar por WhatsApp", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 2, estadoTienda: "Activo", valorVenta: 1000 });
+  data.set("settings/tienda", { published: { metodosPago: { mercadopago: true, transferencia: false, efectivo: true } } });
+  try {
+    globalThis.__stockCfg = { activo: true, politica: "bajo_pedido", tope: 5, plazo: "3 días" };
+    const coordinated = await quote({
+      items: [{ id: "pino", quantity: 5 }], paymentMethod: "coordinacion",
+      deliveryInfo: { metodoEntrega: "retiro" },
+    });
+    assert.equal(coordinated.paymentMethod, "coordinacion");
+    assert.equal(coordinated.total, 5000);
+    assert.deepEqual(Object.keys(coordinated.paymentOptions), ["coordinacion"]);
+    await assert.rejects(quote({
+      items: [{ id: "pino", quantity: 5 }], paymentMethod: "transferencia",
+      deliveryInfo: { metodoEntrega: "retiro" },
+    }), /coordinar el pago/);
+
+    const cotizar = await quote({
+      items: [{ id: "pino", quantity: 1 }], paymentMethod: "coordinacion",
+      deliveryInfo: { metodoEntrega: "cotizar" },
+    });
+    assert.equal(cotizar.paymentMethod, "coordinacion");
+  } finally { globalThis.__stockCfg = null; }
+});
+
+test("la cotización normal sólo ofrece métodos publicados y rechaza los deshabilitados", async () => {
+  const { data, quote } = fixture();
+  data.set("productos/pino", { nombre: "Pino", stock: 10, estadoTienda: "Activo", valorVenta: 1000 });
+  data.set("settings/tienda", { published: { metodosPago: { mercadopago: false, transferencia: true, efectivo: false } } });
+  const result = await quote({
+    items: [{ id: "pino", quantity: 1 }], paymentMethod: "transferencia",
+    deliveryInfo: { metodoEntrega: "retiro" },
+  });
+  assert.deepEqual(Object.keys(result.paymentOptions), ["transferencia"]);
+  await assert.rejects(quote({
+    items: [{ id: "pino", quantity: 1 }], paymentMethod: "mercadopago",
+    deliveryInfo: { metodoEntrega: "retiro" },
+  }), /no está habilitado/);
 });
 test("cotización ignora precios manipulados y toma descuentos del sistema", async () => {
   const { data, quote } = fixture();

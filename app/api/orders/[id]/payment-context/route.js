@@ -24,7 +24,9 @@ export async function GET(request, { params }) {
       return reservation.estado === "activa" && Date.parse(reservation.expiresAt) > Date.now();
     }));
     const transferencia = order.paymentMethod === "transferencia" ? await getPublishedTransferencia(db) : null;
-    return NextResponse.json({ ...order, numeroPedido: venta?.numeroPedido || order.ventaNumeroPedido || null, reservaActiva, reservaExpiresAt: reservationExpiry, anulada: venta?.anulada === true, transferencia });
+    const publicOrderContext = { ...order };
+    delete publicOrderContext.paymentProofTokenHash;
+    return NextResponse.json({ ...publicOrderContext, numeroPedido: venta?.numeroPedido || order.ventaNumeroPedido || null, reservaActiva, reservaExpiresAt: reservationExpiry, anulada: venta?.anulada === true, transferencia });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }

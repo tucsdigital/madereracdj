@@ -32,3 +32,18 @@ test("limita los medios permitidos en pedidos con productos bajo pedido", () => 
   assert.deepEqual(Object.keys(options), ["transferencia"]);
   assert.equal(options.transferencia.total, 2850);
 });
+
+test("la coordinación no aplica descuento de transferencia ni de efectivo", () => {
+  const options = buildPaymentOptions({
+    subtotal: 5000,
+    productDiscounts: 0,
+    netSubtotal: 5000,
+    shipping: 750,
+    transferDiscountRate: 0.1,
+    cashDiscountRate: 0.2,
+    methods: ["coordinacion"],
+  });
+  assert.equal(options.coordinacion.pricing.transferDiscount, 0);
+  assert.equal(options.coordinacion.pricing.cashDiscount, 0);
+  assert.equal(options.coordinacion.total, 5750);
+});

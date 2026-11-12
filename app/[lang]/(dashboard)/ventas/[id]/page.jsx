@@ -1,15 +1,13 @@
 "use client";
 import { fechaLocalActual } from "@/lib/fechas-locales";
 import { normalizeVenta } from "@/lib/ecommerce-panel";
+import { calcularImportesEdicionVenta } from "@/lib/ventas-edicion-precios";
 import VentaImportes from "@/components/ecommerce/VentaImportes";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
-  computeLineBase,
-  computeLineSubtotal,
   computeTotals,
 } from "@/lib/pricing";
-import QuantityMeasureControl, { MedidaValue } from "@/components/ui/quantity-measure-control";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
@@ -24,13 +22,12 @@ import {
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { DateInput } from "@/components/ui/date-input";
+import { DeliveryScheduleInput } from "@/components/ui/delivery-schedule-input";
 import GoogleAddressInput from "@/components/ui/google-address-input";
-import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer, Truck, XCircle } from "lucide-react";
-import { Icon } from "@iconify/react";
+import { ArrowLeft, ArrowLeftRight, BadgePercent, Banknote, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Clock3, CreditCard, Download, Edit, ExternalLink, FileText, IdCard, Info, Loader2, Mail, MapPin, MessageCircle, Package, Phone, Plus, Printer, ReceiptText, Save, Store, Tag, Trash2, Truck, User, Wallet, XCircle } from "lucide-react";
 import { useAuth } from "@/provider/auth.provider";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
-import ComboComponentRows from "@/components/ventas/ComboComponentRows";
+import ProductosVentaEditor from "@/components/ventas/ProductosVentaEditor";
 import {
   applyDerivedComboStock,
   isComboProduct,
@@ -43,6 +40,7 @@ const ModalCambiarCliente = dynamic(
 );
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
+import { getClienteCuit, getClienteDni } from "@/lib/clientes-search";
 import {
   buildVentaPaymentSnapshot,
   normalizeVentaPaymentFields,
@@ -59,6 +57,38 @@ function formatFechaLocal(dateString) {
   if (!year || !month || !day) return dateString;
   const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
   return dateObj.toLocaleDateString("es-AR");
+}
+
+function formatFechaHoraLocal(dateValue) {
+  if (!dateValue) return "-";
+  if (typeof dateValue === "string" && !dateValue.includes("T")) return formatFechaLocal(dateValue);
+  const parsedDate = dateValue?.toDate instanceof Function
+    ? dateValue.toDate()
+    : new Date(dateValue);
+  if (Number.isNaN(parsedDate.getTime())) return formatFechaLocal(String(dateValue));
+  return parsedDate.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function capitalizarPrimeraLetra(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "-";
+  return `${text.charAt(0).toLocaleUpperCase("es-AR")}${text.slice(1)}`;
+}
+
+function obtenerCuilCuit(cliente = {}) {
+  const cuil = String(cliente.cuil || "").trim();
+  if (cuil) return cuil;
+
+  const cuit = String(getClienteCuit(cliente) || "").trim();
+  const digits = cuit.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 9 ? "" : cuit;
 }
 
 const buildPagoSnapshot = (ventaLike) => {
@@ -155,6 +185,17 @@ const VentaDetalle = () => {
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
   const [guardandoCambios, setGuardandoCambios] = useState(false);
+  const [pickupActionBusy, setPickupActionBusy] = useState(false);
+  const ventaEditBaselineRef = useRef(null);
+  const esVentaEcommerce = Boolean(
+    venta?.ecommerceLifecycle === true ||
+    String(venta?.origen || "").trim().toLowerCase() === "ecommerce_externo"
+  );
+  const [proofActionBusy, setProofActionBusy] = useState(false);
+  const [proofReasonDraft, setProofReasonDraft] = useState("");
+  const [showProofRejectForm, setShowProofRejectForm] = useState(false);
+  const [ecommerceActionError, setEcommerceActionError] = useState("");
+  const [ecommerceActionNotice, setEcommerceActionNotice] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const ventaAnulada = useMemo(() => {
     if (!venta) return false;
@@ -418,6 +459,7 @@ const VentaDetalle = () => {
   const [borrandoPago, setBorrandoPago] = useState(false);
   const [pagoABorrar, setPagoABorrar] = useState(null);
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
+  const [errorBorrarPago, setErrorBorrarPago] = useState("");
 
   // Estado para cambio de cliente
   const [showSelectorCliente, setShowSelectorCliente] = useState(false);
@@ -425,45 +467,6 @@ const VentaDetalle = () => {
   // Dólar Blue dinámico (venta)
   const [loadingDolar, setLoadingDolar] = useState(false);
   const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
-
-  // Estados para filtros de productos
-  const [categoriaId, setCategoriaId] = useState("");
-  const [busquedaProducto, setBusquedaProducto] = useState("");
-  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
-  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
-
-  // Estados para catálogo (idénticos a ventas/page.jsx)
-  const [productosState, setProductosState] = useState([]);
-  const [productosPorCategoria, setProductosPorCategoria] = useState({});
-  const [categoriasState, setCategoriasState] = useState([]);
-
-  // Sin búsqueda remota: todo se filtra en memoria (idéntico)
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [productosPorPagina] = useState(12);
-  const [busquedaDebounced, setBusquedaDebounced] = useState("");
-  useEffect(() => {
-    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
-    return () => clearTimeout(id);
-  }, [busquedaProducto]);
-  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
-  const [isPending, startTransition] = React.useTransition();
-
-  // Derivar categorías y agrupación desde los productos cargados (igual intención que ventas/page.jsx)
-  useEffect(() => {
-    if (!Array.isArray(productos) || productos.length === 0) {
-      setProductosState([]);
-      setProductosPorCategoria({});
-      setCategoriasState([]);
-      return;
-    }
-    setProductosState(productos);
-    const agrupados = {};
-    productos.forEach((p) => {
-      (agrupados[p.categoria] = agrupados[p.categoria] || []).push(p);
-    });
-    setProductosPorCategoria(agrupados);
-    setCategoriasState(Object.keys(agrupados));
-  }, [productos]);
 
   useEffect(() => {
     const fetchVenta = async () => {
@@ -648,6 +651,7 @@ const VentaDetalle = () => {
       console.log("ventaClonada.nuevoPagoMonto:", ventaClonada.nuevoPagoMonto);
       console.log("ventaClonada.nuevoPagoMetodo:", ventaClonada.nuevoPagoMetodo);
 
+      ventaEditBaselineRef.current = JSON.parse(JSON.stringify(ventaClonada));
       setVentaEdit(ventaClonada);
     }
   }, [editando, venta]);
@@ -661,7 +665,12 @@ const VentaDetalle = () => {
       if (res.ok && data?.referencia != null) {
         setVentaEdit((prev) => {
           if (!prev?.pagoEnDolares) return prev;
-          return { ...prev, valorOficialDolar: Number(data.referencia) };
+          const nextRate = Number(data.referencia);
+          const baseline = ventaEditBaselineRef.current;
+          if (baseline && prev.valorOficialDolar === baseline.valorOficialDolar) {
+            baseline.valorOficialDolar = nextRate;
+          }
+          return { ...prev, valorOficialDolar: nextRate };
         });
         setUltimaActualizacionDolar(data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date());
       }
@@ -702,6 +711,15 @@ const VentaDetalle = () => {
     try {
       if (!venta?.id) {
         console.error("No se puede actualizar: venta no disponible");
+        return;
+      }
+
+      if (editando) {
+        setVentaEdit((previous) => ({ ...previous, clienteId, cliente: clienteData }));
+        if (!clientes.some((cliente) => cliente.id === clienteId)) {
+          setClientes((previous) => [...previous, { id: clienteId, ...clienteData }]);
+        }
+        setShowSelectorCliente(false);
         return;
       }
 
@@ -1027,111 +1045,6 @@ const VentaDetalle = () => {
     return productos.find((p) => p.id === productoId);
   };
 
-  // Obtener tipos de madera únicos
-  const tiposMadera = [
-    ...new Set(
-      productos
-        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
-        .map((p) => p.tipoMadera)
-    ),
-  ].filter(Boolean);
-
-  // Obtener subcategorías de ferretería únicas
-  const subCategoriasFerreteria = [
-    ...new Set(
-      productos
-        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-        .map((p) => p.subCategoria)
-    ),
-  ].filter(Boolean);
-
-  // Función para normalizar texto (optimizada)
-  const normalizarTexto = useCallback((texto) => {
-    if (!texto) return "";
-    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-  }, []);
-
-  
-
-  // Filtrado idéntico a ventas/page.jsx
-  const productosFiltrados = useMemo(() => {
-    let fuente;
-    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
-    if (hayBusqueda) {
-      if (categoriaId) {
-        const localCat = productosPorCategoria[categoriaId] || [];
-        fuente = localCat;
-      } else {
-        fuente = productos;
-      }
-    } else if (categoriaId) {
-      // derivar agrupación local
-      const agrupados = productos.reduce((acc, p) => {
-        (acc[p.categoria] = acc[p.categoria] || []).push(p);
-        return acc;
-      }, {});
-      fuente = agrupados[categoriaId];
-    }
-    if (!fuente) return [];
-
-    const busquedaNormalizada = normalizarTexto(busquedaDefer);
-    return fuente
-      .filter((prod) => {
-        const nombreNormalizado = normalizarTexto(prod.nombre);
-        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
-        let cumpleBusqueda = busquedaNormalizada === "";
-        if (busquedaNormalizada !== "") {
-          if (busquedaNormalizada.endsWith(".")) {
-            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
-            cumpleBusqueda = 
-              nombreNormalizado.startsWith(busquedaSinPunto) ||
-              unidadNormalizada.startsWith(busquedaSinPunto);
-          } else {
-            cumpleBusqueda = 
-              nombreNormalizado.includes(busquedaNormalizada) ||
-              unidadNormalizada.includes(busquedaNormalizada);
-          }
-        }
-        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
-        const cumpleTipoMadera =
-          categoriaId !== "Maderas" ||
-          filtroTipoMadera === "" ||
-          prod.tipoMadera === filtroTipoMadera;
-        const cumpleSubCategoria =
-          categoriaId !== "Ferretería" ||
-          filtroSubCategoria === "" ||
-          prod.subCategoria === filtroSubCategoria;
-        return (
-          cumpleCategoria && cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
-        );
-      })
-      .sort((a, b) => {
-      const stockA = Number(a.stock) || 0;
-      const stockB = Number(b.stock) || 0;
-        if (stockA > 0 && stockB === 0) return -1;
-        if (stockA === 0 && stockB > 0) return 1;
-      return 0;
-    });
-  }, [productos, productosPorCategoria, categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
-
-  const totalProductos = productosFiltrados.length;
-  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
-  const productosPaginados = useMemo(() => {
-    const inicio = (paginaActual - 1) * productosPorPagina;
-    const fin = inicio + productosPorPagina;
-    return productosFiltrados.slice(inicio, fin);
-  }, [productosFiltrados, paginaActual, productosPorPagina]);
-
-  const cambiarPagina = useCallback((nuevaPagina) => {
-    startTransition(() => {
-      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
-    });
-  }, [totalPaginas, startTransition]);
-
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
-
   // Funciones para manejar cambios en productos
   const handleDecrementarCantidad = (id) => {
     setVentaEdit((prev) => ({
@@ -1379,6 +1292,125 @@ const VentaDetalle = () => {
     });
   };
 
+  const construirProductoCatalogo = (prod) => {
+    if (isComboProduct(prod)) {
+      return {
+        item: {
+          id: prod.id,
+          originalId: prod.id,
+          codigo: prod.codigo || "",
+          nombre: prod.nombre,
+          detalle: prod.detalle || "",
+          precio: Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0,
+          unidad: "Unidad",
+          stock: prod.stock,
+          cantidad: 1,
+          descuento: 0,
+          categoria: "Combos",
+          esCombo: true,
+          tipoProducto: "combo",
+          componentesCombo: normalizeComboComponents(prod.componentesCombo),
+          versionComposicion: Number(prod.versionComposicion) || 1,
+        },
+      };
+    }
+
+    if (prod.categoria === "Maderas") {
+      const alto = Number(prod.alto) || 0;
+      const ancho = Number(prod.ancho) || 0;
+      const largo = Number(prod.largo) || 0;
+      const precioPorPie = Number(prod.precioPorPie) || 0;
+      if (!(alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0)) {
+        return {
+          error: true,
+          item: { precio: 0, unidad: prod.unidadMedida, categoria: prod.categoria },
+        };
+      }
+      return {
+        item: {
+          id: prod.id,
+          originalId: prod.id,
+          codigo: prod.codigo || "",
+          nombre: prod.nombre,
+          detalle: prod.detalle || "",
+          precio: calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie }),
+          unidad: prod.unidadMedida,
+          stock: prod.stock,
+          cantidad: 1,
+          descuento: 0,
+          categoria: prod.categoria,
+          alto,
+          ancho,
+          largo,
+          precioPorPie,
+          cepilladoAplicado: String(prod.unidadMedida || "").trim().toUpperCase() === "M2",
+          cepilladoPorcentaje: String(prod.unidadMedida || "").trim().toUpperCase() === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
+          calibradoAplicado: false,
+          calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+          tipoMadera: prod.tipoMadera || "",
+          subcategoria: prod.subcategoria || prod.subCategoria || "",
+        },
+      };
+    }
+
+    const precio = prod.categoria === "Ferretería"
+      ? prod.valorVenta || 0
+      : prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0;
+    return {
+      item: {
+        id: prod.id,
+        originalId: prod.id,
+        codigo: prod.codigo || "",
+        nombre: prod.nombre,
+        detalle: prod.detalle || "",
+        precio,
+        unidad: prod.unidadMedida || prod.unidadVenta,
+        stock: prod.stock,
+        cantidad: 1,
+        descuento: 0,
+        categoria: prod.categoria,
+      },
+    };
+  };
+
+  const handleAgregarProductoCatalogo = (prod) => {
+    const productoConstruido = construirProductoCatalogo(prod);
+    if (productoConstruido.error) {
+      console.warn("El producto de madera no tiene dimensiones válidas.");
+      return;
+    }
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: [...(prev.productos || []), productoConstruido.item],
+    }));
+  };
+
+  const handleAgregarEjemplo = () => {
+    const productoEjemplo = {
+      id: "ejemplo-" + Date.now(),
+      nombre: "MACHIMBRE DE EJEMPLO",
+      precio: calcularPrecioMachimbre({ alto: 0.2, largo: 3, cantidad: 1, precioPorPie: 25000 }),
+      unidad: "M2",
+      stock: 100,
+      cantidad: 1,
+      descuento: 0,
+      categoria: "Maderas",
+      noInventariable: true,
+      esEditable: true,
+      precioIncluyeCantidad: true,
+      alto: 0.2,
+      ancho: 0,
+      largo: 3,
+      precioPorPie: 25000,
+      cepilladoAplicado: true,
+      cepilladoPorcentaje: 0,
+      calibradoAplicado: false,
+      calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+      subcategoria: "machimbre",
+    };
+    setVentaEdit((prev) => ({ ...prev, productos: [...(prev.productos || []), productoEjemplo] }));
+  };
+
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
     setVentaEdit((prev) => ({
@@ -1604,6 +1636,17 @@ const VentaDetalle = () => {
       console.log("clienteId asignado (fallback):", ventaEdit.clienteId);
     }
 
+    if (ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local") {
+      if (!String(ventaEdit.fechaEntrega || "").trim()) {
+        setErrorForm("Seleccioná la fecha de entrega antes de guardar.");
+        return;
+      }
+      if (!String(ventaEdit.rangoHorario || "").trim()) {
+        setErrorForm("Seleccioná el horario de entrega antes de guardar.");
+        return;
+      }
+    }
+
     if (!ventaEdit.cliente) {
       console.log("Advertencia: No hay objeto cliente en ventaEdit, armando objeto mínimo...");
       ventaEdit.cliente =
@@ -1637,11 +1680,15 @@ const VentaDetalle = () => {
     console.log("clienteId final:", ventaEdit.clienteId);
     console.log("cliente final:", ventaEdit.cliente);
 
-    if (!ventaEdit.productos?.length && !ventaEdit.items?.length) {
+    const productosArr = esVentaEcommerce
+      ? (Array.isArray(venta.productos) ? venta.productos : venta.items || [])
+      : (ventaEdit.productos || ventaEdit.items || []);
+
+    if (!productosArr.length) {
       setErrorForm("Agrega al menos un producto.");
       return;
     }
-    for (const p of ventaEdit.productos || ventaEdit.items) {
+    for (const p of productosArr) {
       if (!p.cantidad || p.cantidad <= 0) {
         setErrorForm("Todas las cantidades deben ser mayores a 0.");
         return;
@@ -1652,27 +1699,24 @@ const VentaDetalle = () => {
       }
     }
 
-    const productosArr = ventaEdit.productos || ventaEdit.items;
-    const { subtotal, descuentoTotal, total: totalSinEnvio } = computeTotals(productosArr);
-
-    // Calcular costo de envío solo si no es retiro local
-    const costoEnvioCalculado =
-      ventaEdit.tipoEnvio &&
-      ventaEdit.tipoEnvio !== "retiro_local" &&
-      ventaEdit.costoEnvio !== undefined &&
-      ventaEdit.costoEnvio !== "" &&
-      !isNaN(Number(ventaEdit.costoEnvio))
-        ? Number(ventaEdit.costoEnvio)
-        : 0;
-
-    // Calcular descuento de efectivo si aplica (10% sobre el subtotal)
-    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-    const baseImponible = Math.max(0, totalSinEnvio - descuentoEfectivo);
-    const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
-    const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
-    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
-    const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
-    const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
+    const importesCalculados = calcularImportesEdicionVenta({
+      esVentaEcommerce,
+      ventaOriginal: venta,
+      ventaEdit,
+      totalesProductos: computeTotals(productosArr),
+    });
+    const {
+      subtotal,
+      descuentoTotal,
+      descuentos,
+      descuentoEfectivo,
+      ivaPorcentaje,
+      ivaMonto,
+      transferenciaPorcentaje,
+      transferenciaMonto,
+      costoEnvioCalculado,
+      total,
+    } = importesCalculados;
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
       ventaEdit.cliente = venta.cliente;
@@ -1708,14 +1752,21 @@ const VentaDetalle = () => {
     });
 
     const ventaActualizada = {
-      ...ventaEdit,
+      ...(esVentaEcommerce ? venta : ventaEdit),
+      ...(esVentaEcommerce ? {
+        fechaEntrega: ventaEdit.fechaEntrega || "",
+        rangoHorario: ventaEdit.rangoHorario || "",
+      } : {}),
+      ...importesCalculados,
       subtotal,
       descuentoTotal,
-      aplicaIva: Boolean(ventaEdit?.aplicaIva),
-      ivaPorcentaje,
+      descuentos,
+      descuentoEfectivo,
+      aplicaIva: esVentaEcommerce ? venta.aplicaIva : Boolean(ventaEdit?.aplicaIva),
+      ivaPorcentaje: esVentaEcommerce ? venta.ivaPorcentaje : ivaPorcentaje,
       ivaMonto,
-      aplicaTransferencia: Boolean(ventaEdit?.aplicaTransferencia),
-      transferenciaPorcentaje,
+      aplicaTransferencia: esVentaEcommerce ? venta.aplicaTransferencia : Boolean(ventaEdit?.aplicaTransferencia),
+      transferenciaPorcentaje: esVentaEcommerce ? venta.transferenciaPorcentaje : transferenciaPorcentaje,
       transferenciaMonto,
       total,
       productos: productosArr,
@@ -1810,6 +1861,7 @@ const VentaDetalle = () => {
     // Actualizar el estado local
     setVenta(ventaActualizadaConFlags);
     setEditando(false);
+    ventaEditBaselineRef.current = null;
     
     // Limpiar campos de pago
     setVentaEdit((prev) => ({
@@ -1961,30 +2013,146 @@ const VentaDetalle = () => {
   };
 
   const paymentSnapshot = buildVentaPaymentSnapshot(venta);
+  const hayCambiosVenta = Boolean(
+    editando &&
+    ventaEdit &&
+    ventaEditBaselineRef.current &&
+    JSON.stringify(ventaEdit) !== JSON.stringify(ventaEditBaselineRef.current)
+  );
+  const numeroVenta = String(venta?.numeroPedido || venta?.id?.slice(-8) || "—");
   const estadoPago = paymentSnapshot.estadoPago;
   const montoAbonado = paymentSnapshot.abonado;
   const saldoPendiente = paymentSnapshot.saldoPendiente;
   const estadoPagoFinal = paymentSnapshot.estadoPago;
+  const esRetiroLocal = !venta?.tipoEnvio || ["retiro_local", "retiro", "retiro_en_sucursal", "retira", "retira_en_local", "pickup"].includes(String(venta.tipoEnvio).trim().toLowerCase());
+  const esPagoTransferencia = ["transferencia", "transfer", "bank_transfer"].includes(String(venta?.formaPago || "").trim().toLowerCase());
+  const estadoPreparacion = String(venta?.estadoPreparacion || "pendiente").trim().toLowerCase();
+  const estadoComprobante = String(venta?.paymentProofStatus || "").trim().toLowerCase();
+  const comprobantesPago = Array.isArray(venta?.comprobantesPago) ? venta.comprobantesPago : [];
+  const comprobanteTransferencia = comprobantesPago.find((item) => item?.id === venta?.paymentProofEvidenceId)
+    || (estadoComprobante === "received" ? venta?.ultimoComprobante || comprobantesPago[comprobantesPago.length - 1] : null);
+  const comprobanteEsPdf = String(comprobanteTransferencia?.tipo || "").toLowerCase() === "pdf"
+    || String(comprobanteTransferencia?.mimeType || "").toLowerCase().includes("pdf")
+    || /\.pdf(?:[?#]|$)/i.test(String(comprobanteTransferencia?.url || ""));
+  const sucursalRetiro = venta?.sucursal && typeof venta.sucursal === "object" ? venta.sucursal : {};
+  const sucursalRetiroNombre = String(sucursalRetiro.nombre || sucursalRetiro.name || (typeof venta?.sucursal === "string" ? venta.sucursal : "")).trim();
+  const sucursalRetiroDireccion = String(sucursalRetiro.direccion || sucursalRetiro.address || "").trim();
+  const clienteEmail = String(venta?.cliente?.email || "").trim().toLowerCase();
+  const clientePerfilVenta = clientes.find((cliente) => venta?.clienteId && cliente.id === venta.clienteId)
+    || clientes.find((cliente) => clienteEmail && String(cliente.email || "").trim().toLowerCase() === clienteEmail)
+    || {};
+  const clienteDni = getClienteDni(venta?.cliente || {}) || getClienteDni(clientePerfilVenta);
+  const clienteCuilCuit = obtenerCuilCuit(venta?.cliente || {}) || obtenerCuilCuit(clientePerfilVenta);
 
-  // Función para borrar pago del historial (solo para admin@admin.com)
-  const handleBorrarPago = async (pagoIndex) => {
-    if (user?.email !== "admin@admin.com") {
-      console.log("Usuario no autorizado para borrar pagos");
+  const enviarAccionEcommerce = async (path, payload) => {
+    if (!user?.getIdToken) throw new Error("Iniciá sesión nuevamente para realizar esta acción.");
+    const token = await user.getIdToken();
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) throw new Error(result?.error || "No se pudo completar la acción.");
+    return result;
+  };
+
+  const actualizarEstadoRetiro = async (status) => {
+    if (!venta?.id || pickupActionBusy) return;
+    setPickupActionBusy(true);
+    setEcommerceActionError("");
+    setEcommerceActionNotice("");
+    try {
+      const result = await enviarAccionEcommerce(`/api/erp/ventas/${encodeURIComponent(venta.id)}/pickup-status`, {
+        status,
+      });
+      if (result.sale) setVenta((previous) => ({ ...previous, ...result.sale }));
+      const customerChannel = result.notification?.channels?.find((channel) => channel.audience === "customer");
+      const emailNote = result.notificationError
+        ? ` No se pudo enviar el email: ${result.notificationError}`
+        : result.notification?.skipped
+          ? " El aviso por email está desactivado en la configuración."
+          : customerChannel?.skipped
+            ? " No hay un email de cliente disponible para el aviso."
+            : result.notification?.channels?.length
+              ? " Se procesó el aviso por email."
+              : "";
+      setEcommerceActionNotice(status === "preparando"
+        ? `Preparación iniciada.${emailNote}`
+        : status === "listo_para_retirar"
+          ? `Pedido listo para retirar.${emailNote} También podés avisar por WhatsApp.`
+          : "Retiro registrado.");
+    } catch (actionError) {
+      setEcommerceActionError(actionError instanceof Error ? actionError.message : "No se pudo actualizar el estado de retiro.");
+    } finally {
+      setPickupActionBusy(false);
+    }
+  };
+
+  const revisarComprobante = async (action) => {
+    if (!venta?.id || proofActionBusy) return;
+    const reason = proofReasonDraft.trim();
+    if (action === "reject" && !reason) {
+      setEcommerceActionError("Escribí qué debe corregir el cliente antes de observar el comprobante.");
       return;
     }
+    setProofActionBusy(true);
+    setEcommerceActionError("");
+    setEcommerceActionNotice("");
+    try {
+      const result = await enviarAccionEcommerce(`/api/erp/ventas/${encodeURIComponent(venta.id)}/payment-proof`, { action, ...(action === "reject" ? { reason } : {}) });
+      if (result.sale) setVenta((previous) => ({ ...previous, ...result.sale }));
+      setProofReasonDraft("");
+      setShowProofRejectForm(false);
+      const customerNotification = result.notification?.channels?.find((channel) => channel.audience === "customer");
+      const notificationNote = result.notificationError
+        ? ` No se pudo enviar el aviso: ${result.notificationError}`
+        : result.notification?.skipped || customerNotification?.skipped
+          ? " El aviso por email está desactivado o no hay email de cliente disponible."
+          : " Se procesó el aviso por email.";
+      setEcommerceActionNotice(action === "confirm"
+        ? `Acreditación confirmada y pago registrado.${notificationNote}`
+        : `Comprobante observado.${notificationNote}`);
+    } catch (actionError) {
+      setEcommerceActionError(actionError instanceof Error ? actionError.message : "No se pudo revisar el comprobante.");
+    } finally {
+      setProofActionBusy(false);
+    }
+  };
 
+  const whatsappRetiroHref = (() => {
+    let phone = String(venta?.cliente?.telefono || "").replace(/\D/g, "");
+    if (phone.startsWith("00")) phone = phone.slice(2);
+    if (phone.startsWith("54")) {
+      if (!phone.startsWith("549")) phone = `549${phone.slice(2)}`;
+    } else {
+      phone = `549${phone.replace(/^0+/, "")}`;
+    }
+    if (phone.length < 11) return "";
+    const reference = String(venta?.numeroPedido || venta?.id?.slice(-8) || "");
+    const place = [sucursalRetiroNombre, sucursalRetiroDireccion].filter(Boolean).join(" · ");
+    const text = `Hola ${String(venta?.cliente?.nombre || "").trim()}, tu pedido ${reference} está listo para retirar${place ? ` en ${place}` : " en nuestra sucursal"}.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  })();
+
+  // El borrado se procesa en el servidor y queda registrado en auditoría.
+  const handleBorrarPago = async (pagoIndex) => {
+    if (!user) return;
+
+    setErrorBorrarPago("");
     setBorrandoPago(true);
     setPagoABorrar(pagoIndex);
 
     try {
-      // Simular delay para UX
-      await new Promise((res) => setTimeout(res, 500));
-
       // Crear nueva lista de pagos sin el pago a borrar
       const nuevosPagos = venta.pagos.filter((_, index) => index !== pagoIndex);
 
       const paymentFields = normalizeVentaPaymentFields({
-        venta: { ...venta, pagos: nuevosPagos },
+        venta: {
+          ...venta,
+          pagos: nuevosPagos,
+          montoAbonado: nuevosPagos.reduce((total, payment) => total + (Number(payment?.monto) || 0), 0),
+        },
         previousVenta: venta,
         actorEmail: String(user?.email || ""),
       });
@@ -1995,43 +2163,46 @@ const VentaDetalle = () => {
         ...paymentFields,
       };
 
-      // Actualizar en Firebase
+      // La API actualiza la venta y registra la auditoría en una sola transacción.
       const before = buildPagoSnapshot(venta);
       const after = buildPagoSnapshot(ventaActualizada);
-      const response = await fetch(`/api/erp/ventas/${encodeURIComponent(venta.id)}`, {
-        method: "PUT",
+      const response = await fetch(`/api/erp/ventas/${encodeURIComponent(venta.id)}/payments`, {
+        method: "DELETE",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
-        body: JSON.stringify({ venta: ventaActualizada, origen: "ui_ventas_delete_pago" }),
+        body: JSON.stringify({ paymentIndex: pagoIndex, version: venta.version ?? null }),
       });
       const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo actualizar el pago");
+      if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo eliminar el pago");
       ventaActualizada.version = result.version;
+      setVenta(ventaActualizada);
 
       if (before.estadoPago !== after.estadoPago && user) {
         const numeroPedido = String(venta?.numeroPedido || venta?.numero || "");
-        await addDoc(collection(db, "ventas", venta.id, "pago_events"), {
-          type: "estado_pago_changed",
-          ventaId: String(venta.id || ""),
-          numeroPedido,
-          clienteId: String(venta?.clienteId || ""),
-          clienteNombre: String(venta?.cliente?.nombre || ""),
-          before,
-          after,
-          becamePagado:
-            (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
-          at: serverTimestamp(),
-          byUid: String(user.uid || ""),
-          byEmail: String(user.email || ""),
-          source: "ventas_detail_delete_pago",
-        });
+        try {
+          await addDoc(collection(db, "ventas", venta.id, "pago_events"), {
+            type: "estado_pago_changed",
+            ventaId: String(venta.id || ""),
+            numeroPedido,
+            clienteId: String(venta?.clienteId || ""),
+            clienteNombre: String(venta?.cliente?.nombre || ""),
+            before,
+            after,
+            becamePagado:
+              (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+            at: serverTimestamp(),
+            byUid: String(user.uid || ""),
+            byEmail: String(user.email || ""),
+            source: "ventas_detail_delete_pago",
+          });
+        } catch (eventError) {
+          console.error("No se pudo registrar el cambio de estado del pago:", eventError);
+        }
       }
-
-      // Actualizar estado local
-      setVenta(ventaActualizada);
 
       console.log("✅ Pago borrado exitosamente");
     } catch (error) {
       console.error("Error al borrar pago:", error);
+      setErrorBorrarPago(error instanceof Error ? error.message : "No se pudo eliminar el pago.");
     } finally {
       setBorrandoPago(false);
       setPagoABorrar(null);
@@ -2040,37 +2211,87 @@ const VentaDetalle = () => {
 
   // Función para confirmar borrado de pago
   const confirmarBorradoPago = (pagoIndex) => {
-    if (user?.email !== "admin@admin.com") {
-      return;
-    }
+    if (!user || !Array.isArray(venta?.pagos) || !venta.pagos[pagoIndex]) return;
+    setErrorBorrarPago("");
     setPagoABorrar(pagoIndex);
     setMostrarConfirmacionBorrado(true);
   };
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] px-3 py-5 font-sans text-slate-900 sm:px-6 sm:py-8">
+    <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] px-3 py-4 font-sans text-foreground sm:px-6 sm:py-7">
       <style>{`
-    select {
-      background: #fff !important;
-      border: 1px solid #d1d5db !important;
-      border-radius: 6px !important;
-      padding: 8px 12px !important;
-      font-size: 1rem !important;
-      color: #222 !important;
-      outline: none !important;
-      box-shadow: none !important;
-      transition: border 0.2s;
-    }
-    select:focus {
-      border: 1.5px solid #2563eb !important;
-      box-shadow: 0 0 0 2px #2563eb22 !important;
-    }
     @keyframes fade-in {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in {
       animation: fade-in 0.5s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .animate-fade-in { animation: none; }
+    }
+    .venta-productos-responsive th {
+      font-size: 0.75rem !important;
+      font-weight: 500 !important;
+      opacity: 0.72;
+    }
+    @media (max-width: 767px) {
+      .venta-productos-responsive > div { overflow: visible !important; }
+      .venta-productos-responsive table,
+      .venta-productos-responsive tbody { display: block; width: 100%; }
+      .venta-productos-responsive thead {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+      }
+      .venta-productos-responsive tbody { display: grid; gap: 0.75rem; }
+      .venta-productos-responsive tr {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: hidden; border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+        border-radius: 0.65rem; color: inherit;
+      }
+      .venta-productos-responsive td {
+        display: flex; min-width: 0; align-items: flex-start; justify-content: space-between;
+        gap: 0.5rem; padding: 0.65rem !important; text-align: right !important;
+        font-size: 0.8rem !important;
+      }
+      .venta-productos-responsive td::before {
+        flex: 0 1 auto; color: inherit; content: ""; opacity: 0.65;
+        font-size: 0.7rem; text-align: left; font-weight: 500;
+      }
+      .venta-productos-responsive td:nth-child(2) {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+      }
+      .venta-productos-responsive td:nth-child(2)::before { grid-column: 1; grid-row: 1 / span 2; }
+      .venta-productos-responsive td:nth-child(2) > div {
+        grid-column: 2; justify-self: end; text-align: right; white-space: nowrap;
+      }
+      .venta-productos-responsive td:first-child {
+        display: block; grid-column: 1 / -1; border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent) !important;
+        padding: 0.8rem !important; text-align: left !important;
+      }
+      .venta-productos-responsive td:first-child::before { content: none; }
+      .venta-productos-responsive td:nth-child(2)::before { content: "Cantidad"; }
+      .venta-productos-responsive td:nth-child(3)::before { content: "Cepillado"; }
+      .venta-productos-responsive td:nth-child(4)::before { content: "Calibrado"; }
+      .venta-productos-responsive td:nth-child(5)::before { content: "Precio unit."; }
+      .venta-productos-responsive td:nth-child(6)::before { content: "Descuento"; }
+      .venta-productos-responsive td:nth-child(7)::before { content: "Subtotal"; }
+    }
+    @media screen {
+      .venta-productos-responsive thead tr {
+        border-bottom-color: color-mix(in srgb, var(--border) 42%, transparent) !important;
+      }
+      .venta-productos-responsive tbody tr {
+        border-bottom-color: color-mix(in srgb, var(--border) 26%, transparent) !important;
+      }
+    }
+    @media screen and (max-width: 767px) {
+      .venta-productos-responsive tr {
+        border-bottom-color: color-mix(in srgb, var(--border) 26%, transparent) !important;
+      }
+      .venta-productos-responsive td:first-child {
+        border-bottom-color: color-mix(in srgb, var(--border) 20%, transparent) !important;
+      }
     }
     #venta-print .sello-pendiente { color: #b91c1c; border-color: #b91c1c; }
     #venta-print .sello-parcial { color: #b45309; border-color: #b45309; }
@@ -2170,7 +2391,7 @@ const VentaDetalle = () => {
       <div id="venta-print" className="mx-auto px-1 sm:px-3">
         {/* Header profesional igual al de presupuesto */}
         <div
-          className="print-header mb-5 flex items-center gap-4 border-b border-slate-200 pb-4"
+          className="print-header mb-5 hidden items-center gap-4 border-b border-border pb-4 print:flex"
           style={{ marginBottom: 32 }}
         >
           <img
@@ -2197,15 +2418,41 @@ const VentaDetalle = () => {
           </div>
         </div>
         {/* Header con botones */}
-        <div className="no-print mb-5 border-b border-slate-200 bg-white px-3 py-4 sm:px-5 sm:py-5">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-            <div className="flex-1">
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
-              </h1>
+        <div className="no-print mb-5 border-b border-border/60 px-0 pb-5 pt-1">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <Button
+                variant="outline"
+                aria-label="Volver a ventas"
+                onClick={() => router.back()}
+                className="mt-1 h-11 w-11 shrink-0 rounded-xl border-border bg-card p-0 text-foreground shadow-sm hover:bg-muted"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  {numeroVenta.toUpperCase().startsWith("VENTA-") ? numeroVenta : `VENTA-${numeroVenta}`}
+                </h1>
+                {!ventaAnulada ? (
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                    estadoPagoFinal === "pagado"
+                      ? "bg-success/10 text-foreground"
+                      : estadoPagoFinal === "parcial"
+                        ? "bg-warning/10 text-foreground"
+                        : "bg-destructive/10 text-foreground"
+                  }`}>
+                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${estadoPagoFinal === "pagado" ? "bg-success" : estadoPagoFinal === "parcial" ? "bg-warning" : "bg-destructive"}`} />
+                    {estadoPagoFinal === "pagado" ? "Pagado" : estadoPagoFinal === "parcial" ? "Pago parcial" : "Pendiente"}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {formatFechaHoraLocal(venta?.fecha)} <span className="px-1.5">·</span> Venta / Comprobante
+              </p>
               {ventaAnulada && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
-                  <XCircle className="w-4 h-4" />
+                <div className="mt-3 inline-flex max-w-full flex-wrap items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-sm font-semibold text-destructive">
+                  <XCircle className="h-4 w-4 shrink-0" />
                   <span>Venta anulada</span>
                   {venta?.anulacionMotivo ? (
                     <span className="font-normal opacity-90">· {String(venta.anulacionMotivo)}</span>
@@ -2213,7 +2460,7 @@ const VentaDetalle = () => {
                 </div>
               )}
               {venta?.aReponer === true && (
-                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                <div className="mt-3 flex max-w-3xl items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-foreground">
                   <span className="font-semibold">A reponer:</span>
                   <span>
                     {(Array.isArray(venta.productos) ? venta.productos : [])
@@ -2224,69 +2471,17 @@ const VentaDetalle = () => {
                   </span>
                 </div>
               )}
-              {/* Mostrar observaciones si existen */}
-              {venta.observaciones && (
-                <p className="text-muted-foreground mt-1 whitespace-pre-line">
-                  {venta.observaciones}
-                </p>
-              )}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
+            <div className="flex w-full flex-wrap items-center gap-2 xl:w-auto xl:justify-end">
               <Button
-                variant="outline"
-                onClick={() => router.back()}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                <span className="hidden sm:inline">Volver</span>
-              </Button>
-              <Button
-                onClick={() => handleDownloadPDF(false)}
+                type="button"
+                onClick={(event) => handlePrintPDF(false, event)}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
-                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+                className="no-print h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground shadow-sm hover:bg-muted disabled:opacity-50 sm:w-auto"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
-                {downloadingPDF ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
-                ) : (
-                  <Download className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
-                )}
-                <span className="hidden sm:inline relative z-10 font-medium">Descargar</span>
-                <span className="sm:hidden relative z-10">{downloadingPDF ? "⏳" : "📥"}</span>
-              </Button>
-              <Button
-                onClick={() => handleDownloadPDF(true)}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
-                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
-                {downloadingPDFEmpleado ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-sky-700 dark:text-sky-300 relative z-10" />
-                ) : (
-                  <User className="w-4 h-4 mr-1 lg:mr-2 text-sky-700 dark:text-sky-300 transition-colors duration-300 relative z-10" />
-                )}
-                <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
-                <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
-              </Button>
-              <Button
-                onClick={(e) => {
-                  if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }
-                  handlePrintPDF(false, e);
-                }}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
-                {printingPDF ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
-                ) : (
-                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
-                )}
-                <span className="hidden sm:inline relative z-10 font-medium">Imprimir</span>
-                <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
+                {printingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+                Imprimir
               </Button>
               <Button
                 onClick={(e) => {
@@ -2297,16 +2492,15 @@ const VentaDetalle = () => {
                   handlePrintEnvio(e);
                 }}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 shadow-sm hover:bg-emerald-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+                className="no-print h-10 flex-none rounded-lg border border-success/30 bg-success/10 px-3 text-sm text-foreground hover:bg-success/15 disabled:opacity-50"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {printingPDFEnvio ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-emerald-800 dark:text-emerald-200 relative z-10" />
+                  <Loader2 className="w-4 h-4 mr-0 animate-spin sm:mr-2" />
                 ) : (
-                  <Truck className="w-4 h-4 mr-1 lg:mr-2 text-emerald-800 dark:text-emerald-200 transition-colors duration-300 relative z-10" />
+                  <Truck className="h-4 w-4 mr-0 text-success sm:mr-2" />
                 )}
                 <span className="hidden sm:inline relative z-10 font-medium">Imprimir Envío</span>
-                <span className="sm:hidden relative z-10">{printingPDFEnvio ? "⏳" : "🚚"}</span>
+                <span className="sr-only sm:hidden">Imprimir envío</span>
               </Button>
               <Button
                 onClick={(e) => {
@@ -2317,31 +2511,70 @@ const VentaDetalle = () => {
                   handlePrintPDF(true, e);
                 }}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+                className="no-print h-10 flex-none rounded-lg border border-info/30 bg-info/10 px-3 text-sm text-foreground hover:bg-info/15 disabled:opacity-50"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {printingPDFEmpleado ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-sky-700 dark:text-sky-300 relative z-10" />
+                  <Loader2 className="w-4 h-4 mr-0 animate-spin sm:mr-2" />
                 ) : (
-                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-sky-700 dark:text-sky-300 transition-colors duration-300 relative z-10" />
+                  <Printer className="h-4 w-4 mr-0 text-info sm:mr-2" />
                 )}
                 <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
-                <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
+                <span className="sr-only sm:hidden">Imprimir versión para empleado</span>
               </Button>
-              {!editando && !ventaAnulada && (
+              <details className="group relative w-full sm:w-auto">
+                <summary className="flex h-10 cursor-pointer list-none items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  {downloadingPDF || downloadingPDFEmpleado ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <span>Descargar</span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </summary>
+                <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">
+                  <button
+                    type="button"
+                    disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                    onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); handleDownloadPDF(false); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" />Comprobante
+                  </button>
+                  <button
+                    type="button"
+                    disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                    onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); handleDownloadPDF(true); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" />Versión para empleado
+                  </button>
+                </div>
+              </details>
+              {editando ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditando(false);
+                    setVentaEdit(null);
+                    ventaEditBaselineRef.current = null;
+                    setErrorForm("");
+                  }}
+                  disabled={loadingPrecios || guardandoCambios}
+                  className="no-print h-10 flex-none rounded-lg border-border px-3 text-sm"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />Cancelar
+                </Button>
+              ) : !ventaAnulada ? (
                 <Button
                   onClick={() => setEditando(true)}
-                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                  className="no-print h-10 flex-none rounded-lg bg-foreground px-3 text-sm text-background hover:bg-foreground/90"
                 >
-                  <span className="hidden sm:inline">Editar</span>
-                  <span className="sm:hidden">✏️</span>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Editar</span>
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
         {!ventaAnulada && (venta?.requiereRevision || venta?.stockNegativo || venta?.advertencias?.stockInsuficiente?.length > 0) && (
-          <div className="mb-5 rounded-xl border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 no-print">
+          <div className="no-print mb-5 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
             <div className="font-semibold">Revisión de inventario</div>
             {Array.isArray(venta?.advertencias?.stockInsuficiente) && venta.advertencias.stockInsuficiente.length > 0 ? (
               <div className="mt-2 space-y-1">
@@ -2359,13 +2592,248 @@ const VentaDetalle = () => {
             )}
           </div>
         )}
+        {!editando ? (
+        <>
+        {!ventaAnulada && esVentaEcommerce && (esRetiroLocal || esPagoTransferencia) ? (
+          <section className="no-print mb-5 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm" aria-labelledby={esRetiroLocal ? "ecommerce-operations-title" : "payment-proof-title"}>
+
+            {esRetiroLocal ? (
+              <div className="grid gap-4 px-4 py-5 sm:px-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1.1fr)_minmax(0,1fr)_minmax(0,1.25fr)_minmax(12rem,1.1fr)] xl:items-center">
+                  <div className="flex min-w-0 items-center gap-3 xl:pr-4">
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-muted text-foreground">
+                      <Package className="h-6 w-6" />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 id="ecommerce-operations-title" className="text-lg font-semibold tracking-tight text-foreground">Preparación y retiro</h2>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-foreground ${
+                      estadoPreparacion === "listo_para_retirar" ? "bg-success/10"
+                        : estadoPreparacion === "preparando" ? "bg-info/10"
+                          : estadoPreparacion === "retirado" ? "bg-muted text-muted-foreground"
+                            : "bg-warning/10"
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${estadoPreparacion === "listo_para_retirar" ? "bg-success" : estadoPreparacion === "preparando" ? "bg-info" : estadoPreparacion === "retirado" ? "bg-muted-foreground" : "bg-warning"}`} />
+                      {{
+                        pendiente: "Pendiente de preparación",
+                        preparando: "En preparación",
+                        listo_para_retirar: "Listo para retirar",
+                        retirado: "Retirado",
+                      }[estadoPreparacion] || estadoPreparacion}
+                    </span>
+                    </div>
+                  </div>
+                  <dl className="mt-3 grid gap-x-5 gap-y-2 text-sm sm:col-span-2 sm:grid-cols-2 xl:col-span-2 xl:col-start-2 xl:row-start-1 xl:grid-cols-2 xl:border-l xl:border-border/60 xl:py-2 xl:pl-5">
+                    <div className="min-w-0">
+                      <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><Store className="h-4 w-4" aria-hidden="true" />Sucursal</dt>
+                      <dd className="mt-1 break-words text-sm font-semibold text-foreground">{sucursalRetiroNombre || "Sin sucursal asignada"}</dd>
+                    </div>
+                    <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+                      <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><MapPin className="h-4 w-4" aria-hidden="true" />Dirección de retiro</dt>
+                      <dd className="mt-1 break-words text-sm leading-relaxed text-foreground">{sucursalRetiroDireccion || "Dirección no disponible"}</dd>
+                    </div>
+                  </dl>
+                  <div className="flex min-w-0 items-start gap-3 border-t border-border/60 pt-3 text-sm sm:col-span-2 xl:col-start-4 xl:border-l xl:border-t-0 xl:py-2 xl:pl-5">
+                    <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground">Franja de retiro <span className="font-normal">(opcional)</span></p>
+                      <p className="mt-1 break-words font-semibold text-foreground">
+                      {[venta?.fechaEntrega ? formatFechaLocal(venta.fechaEntrega) : "", venta?.rangoHorario || ""]
+                        .filter(Boolean).join(", ") || "Sin fecha ni horario asignado"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4 sm:justify-end xl:col-start-2 xl:row-start-1 xl:flex-col xl:border-l xl:border-t-0 xl:py-2 xl:pl-5">
+                  {estadoPreparacion === "pendiente" ? (
+                    <Button type="button" variant="outline" size="sm" className="h-10 rounded-lg border-border px-3" disabled={pickupActionBusy} onClick={() => actualizarEstadoRetiro("preparando")}>
+                      {pickupActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Comenzar preparación
+                    </Button>
+                  ) : null}
+                  {estadoPreparacion === "preparando" ? (
+                    <Button type="button" size="sm" className="h-10 rounded-lg bg-foreground px-3 text-background hover:bg-foreground/90" disabled={pickupActionBusy || (esPagoTransferencia && estadoPago !== "pagado")} onClick={() => actualizarEstadoRetiro("listo_para_retirar")}>
+                      {pickupActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Marcar listo para retirar
+                    </Button>
+                  ) : null}
+                  {estadoPreparacion === "listo_para_retirar" ? (
+                    <>
+                      {whatsappRetiroHref ? (
+                        <Button type="button" variant="outline" size="sm" className="h-10 rounded-lg border-border px-3" asChild>
+                          <a href={whatsappRetiroHref} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-2 h-4 w-4" />Avisar por WhatsApp</a>
+                        </Button>
+                      ) : null}
+                      <Button type="button" size="sm" className="h-10 rounded-lg bg-foreground px-3 text-background hover:bg-foreground/90" disabled={pickupActionBusy} onClick={() => actualizarEstadoRetiro("retirado")}>
+                        {pickupActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Registrar retiro
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+                <p className="flex items-start gap-2 border-t border-border/60 pt-4 text-xs leading-relaxed text-muted-foreground xl:col-span-2 xl:row-start-2">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    {esPagoTransferencia && estadoPago !== "pagado"
+                      ? "Podés iniciar la preparación. Para marcar el pedido listo para retirar, primero confirmá la acreditación."
+                      : estadoPreparacion === "preparando"
+                        ? "Al cliente se le avisará cuando el pedido quede listo para retirar."
+                        : estadoPreparacion === "retirado"
+                          ? "El retiro de este pedido ya fue registrado."
+                          : "Esta franja corresponde al pedido; no modifica el horario habitual de atención de la sucursal."}
+                  </span>
+                </p>
+              </div>
+            ) : null}
+
+            {esPagoTransferencia ? (
+              <div className={`${esRetiroLocal ? "border-t border-border/60" : ""} px-4 py-4 sm:px-5`}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h3 id="payment-proof-title" className="text-sm font-semibold text-foreground">Comprobante de transferencia</h3>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                    estadoComprobante === "confirmed" ? "text-success"
+                      : estadoComprobante === "rejected" ? "text-destructive"
+                        : "text-muted-foreground"
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${estadoComprobante === "confirmed" ? "bg-success" : estadoComprobante === "rejected" ? "bg-destructive" : "bg-warning"}`} />
+                    {{
+                      received: "Pendiente de revisión",
+                      confirmed: "Acreditación confirmada",
+                      rejected: "Debe volver a cargarse",
+                      awaiting_transfer: "Pendiente de comprobante",
+                    }[estadoComprobante] || "Sin comprobante recibido"}
+                  </span>
+                </div>
+                <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+                  {estadoComprobante === "received"
+                    ? "El archivo es solo un respaldo. Confirmá el ingreso en la cuenta antes de aprobar el pago."
+                    : estadoComprobante === "confirmed"
+                      ? "La acreditación fue verificada y registrada en la venta."
+                      : estadoComprobante === "rejected"
+                        ? "Se solicitó una nueva carga. El pago sigue pendiente de acreditación."
+                        : "Todavía no se recibió un comprobante de transferencia."}
+                </p>
+                {estadoComprobante === "rejected" && venta?.paymentProofReason ? (
+                  <p className="mt-2 text-xs text-destructive">Motivo enviado al cliente: {venta.paymentProofReason}</p>
+                ) : null}
+
+                <div className="mt-4 grid gap-4 border-t border-border/50 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.82fr)] lg:items-start">
+                  {comprobanteTransferencia?.url ? (
+                    <div className="flex min-w-0 items-center gap-3">
+                      <a
+                        href={comprobanteTransferencia.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Abrir comprobante: ${comprobanteTransferencia.nombre || (comprobanteEsPdf ? "archivo PDF" : "imagen")}`}
+                        className="grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center overflow-hidden rounded-md bg-muted/50 text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {comprobanteEsPdf ? (
+                          <FileText className="h-7 w-7" aria-hidden="true" />
+                        ) : (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={comprobanteTransferencia.url}
+                              alt="Vista previa del comprobante recibido"
+                              className="h-full w-full object-contain p-1"
+                            />
+                          </>
+                        )}
+                      </a>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">Archivo recibido</p>
+                        <p className="mt-0.5 truncate text-sm font-medium text-foreground" title={comprobanteTransferencia.nombre || "Comprobante de transferencia"}>
+                          {comprobanteTransferencia.nombre || (comprobanteEsPdf ? "Comprobante.pdf" : "Comprobante de transferencia")}
+                        </p>
+                        <a
+                          href={comprobanteTransferencia.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          Ver comprobante <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="self-center text-xs text-muted-foreground">No hay un archivo disponible para previsualizar.</p>
+                  )}
+
+                  {estadoComprobante === "received" ? (
+                    <div className="min-w-0 space-y-2 lg:justify-self-stretch">
+                      <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-10 w-full rounded-lg px-3 sm:flex-1 lg:flex-none"
+                          disabled={proofActionBusy}
+                          onClick={() => revisarComprobante("confirm")}
+                        >
+                          {proofActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                          Confirmar acreditación
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-full justify-center rounded-lg px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          disabled={proofActionBusy}
+                          aria-expanded={showProofRejectForm}
+                          aria-controls="payment-proof-rejection-form"
+                          onClick={() => {
+                            setShowProofRejectForm((shown) => !shown);
+                            setProofReasonDraft("");
+                            setEcommerceActionError("");
+                          }}
+                        >
+                          {showProofRejectForm ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+                          {showProofRejectForm ? "Cancelar solicitud" : "Solicitar nueva carga"}
+                        </Button>
+                      </div>
+                      {showProofRejectForm ? (
+                        <div id="payment-proof-rejection-form" className="space-y-2 border-t border-border/50 pt-3">
+                          <label htmlFor="payment-proof-reason" className="block text-xs font-medium text-foreground">Qué debe corregir el cliente</label>
+                          <textarea
+                            id="payment-proof-reason"
+                            value={proofReasonDraft}
+                            onChange={(event) => setProofReasonDraft(event.target.value)}
+                            maxLength={300}
+                            rows={3}
+                            disabled={proofActionBusy}
+                            aria-describedby="payment-proof-reason-help"
+                            className="block min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                            placeholder="Ej.: no se alcanza a leer el importe o la fecha"
+                          />
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <p id="payment-proof-reason-help" className="text-[11px] leading-relaxed text-muted-foreground">El motivo se incluirá en el aviso al cliente.</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-9 shrink-0 rounded-lg border-border px-3"
+                              disabled={proofActionBusy || !proofReasonDraft.trim()}
+                              onClick={() => revisarComprobante("reject")}
+                            >
+                              {proofActionBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                              Enviar solicitud
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {ecommerceActionError ? <p className="mx-4 mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-5" role="alert">{ecommerceActionError}</p> : null}
+            {ecommerceActionNotice ? <p className="mx-4 mb-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-foreground sm:mx-5" role="status">{ecommerceActionNotice}</p> : null}
+          </section>
+        ) : null}
         {/* 1. Información del cliente y venta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-lg">
-                Información del Cliente
-              </h3>
+        <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-[1fr_1.08fr_.92fr]">
+          <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><User className="h-5 w-5" /></span>
+                <h2 className="text-lg font-semibold tracking-tight">Cliente</h2>
+              </div>
               {editando && (
                 <Button
                   variant="outline"
@@ -2379,308 +2847,224 @@ const VentaDetalle = () => {
                 </Button>
               )}
             </div>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Nombre:</span>{" "}
-                {venta.cliente?.nombre || "-"}
+            <div className="venta-cliente-info min-w-0 break-words text-sm">
+              <div className="venta-nombre-cliente flex items-center gap-3 border-b border-border/60 pb-4 text-lg font-semibold uppercase tracking-wide text-foreground">
+                <User className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span>{venta.cliente?.nombre || "-"}</span>
               </div>
-              <div>
-                <span className="font-medium">CUIT / DNI:</span>{" "}
-                {venta.cliente?.cuit || "-"}
-              </div>
-                <div>
-                  <span className="font-medium">Dirección:</span>{" "}
-                  {venta.usarDireccionCliente === false
-                    ? (venta.direccionEnvio || "-")
-                    : (venta.cliente?.direccion || "-")}
+              <dl className="mt-4 space-y-3">
+                <div className="grid grid-cols-[minmax(7rem,.9fr)_minmax(0,1.1fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><IdCard className="h-4 w-4 shrink-0" aria-hidden="true" />DNI</dt>
+                  <dd className="min-w-0 font-medium text-foreground">{clienteDni || "-"}</dd>
                 </div>
-                <div>
-                  <span className="font-medium">Localidad:</span>{" "}
-                  {venta.usarDireccionCliente === false
-                    ? (venta.localidadEnvio || "-")
-                    : (venta.cliente?.localidad || "-")}
+                <div className="grid grid-cols-[minmax(7rem,.9fr)_minmax(0,1.1fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><IdCard className="h-4 w-4 shrink-0" aria-hidden="true" />CUIL / CUIT</dt>
+                  <dd className="min-w-0 font-medium text-foreground">{clienteCuilCuit || "-"}</dd>
                 </div>
-              <div>
-                <span className="font-medium">Teléfono:</span>{" "}
-                {venta.cliente?.telefono || "-"}
-              </div>
-              {venta.cliente?.partido && (
-                <div>
-                  <span className="font-medium">Partido:</span>{" "}
-                  {venta.cliente.partido}
+                <div className="grid grid-cols-[minmax(7rem,.9fr)_minmax(0,1.1fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4 shrink-0" aria-hidden="true" />Teléfono</dt>
+                  <dd className="min-w-0 break-all font-medium text-foreground">{venta.cliente?.telefono || "-"}</dd>
                 </div>
-              )}
-              {venta.cliente?.barrio && (
-                <div>
-                  <span className="font-medium">Barrio:</span>{" "}
-                  {venta.cliente.barrio}
+                <div className="grid grid-cols-[minmax(7rem,.9fr)_minmax(0,1.1fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4 shrink-0" aria-hidden="true" />Email</dt>
+                  <dd className="min-w-0 break-all font-medium text-foreground">{venta.cliente?.email || "-"}</dd>
                 </div>
-              )}
-              {venta.cliente?.area && (
-                <div>
-                  <span className="font-medium">Área:</span>{" "}
-                  {venta.cliente.area}
-                </div>
-              )}
-              {venta.cliente?.lote && (
-                <div>
-                  <span className="font-medium">Lote:</span>{" "}
-                  {venta.cliente.lote}
-                </div>
-              )}
-              {venta.cliente?.descripcion && (
-                <div>
-                  <span className="font-medium">Descripción:</span>{" "}
-                  {venta.cliente.descripcion}
-                </div>
-              )}
-              <div>
-                <span className="font-medium">Email:</span>{" "}
-                {venta.cliente?.email || "-"}
-              </div>
+                {[
+                  ["Partido", venta.cliente?.partido],
+                  ["Barrio", venta.cliente?.barrio],
+                  ["Área", venta.cliente?.area],
+                  ["Lote", venta.cliente?.lote],
+                  ["Descripción", venta.cliente?.descripcion],
+                ].filter(([, value]) => value).map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[minmax(7rem,.9fr)_minmax(0,1.1fr)] gap-3">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="min-w-0 break-words font-medium text-foreground">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
-          {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
-            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-              <h3 className="font-semibold text-lg mb-2 ">
-                Información de Envío y Pago
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">Tipo de envío:</span>{" "}
-                    {venta.tipoEnvio === "envio_domicilio"
-                      ? "Envío a Domicilio"
-                      : venta.tipoEnvio}
-                  </div>
-                  <div>
-                    <span className="font-medium">Dirección:</span>{" "}
-                    {venta.usarDireccionCliente === false
-                      ? (venta.direccionEnvio || "-")
-                      : (venta.cliente?.direccion || "-")}
-                  </div>
-                  <div>
-                    <span className="font-medium">Localidad:</span>{" "}
-                    {venta.usarDireccionCliente === false
-                      ? (venta.localidadEnvio || "-")
-                      : (venta.cliente?.localidad || "-")}
-                  </div>
-                  <div>
-                    <span className="font-medium">Fecha de envío:</span>{" "}
-                    {formatFechaLocal(venta.fechaEntrega)}
-                  </div>
-                  <div>
-                    <span className="font-medium">Rango horario:</span>{" "}
-                    {venta.rangoHorario || "-"}
-                  </div>
-                  <div className="no-print">
-                    <span className="font-medium">Vendedor:</span>{" "}
-                    {venta.vendedor || "-"}
-                  </div>
+          <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><Truck className="h-5 w-5" /></span>
+              <h2 className="text-lg font-semibold tracking-tight">Envío y pago</h2>
+            </div>
+            <dl className="venta-envio-info min-w-0 space-y-3 break-words text-sm">
+              <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><Package className="h-4 w-4 shrink-0" aria-hidden="true" />Tipo de entrega</dt>
+                <dd className="font-semibold text-foreground">{capitalizarPrimeraLetra(esRetiroLocal ? "Retiro en local" : venta.tipoEnvio === "envio_domicilio" ? "Envío a domicilio" : String(venta.tipoEnvio || "Envío a domicilio").replaceAll("_", " "))}</dd>
+              </div>
+              {sucursalRetiroNombre ? (
+                <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><Store className="h-4 w-4 shrink-0" aria-hidden="true" />Sucursal</dt>
+                  <dd className="font-semibold text-foreground">{capitalizarPrimeraLetra(sucursalRetiroNombre)}</dd>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">Forma de pago:</span>{" "}
-                    <span className="forma-pago-empleado">
-                      {venta.formaPago || "-"}
-                    </span>
-                  </div>
-                  {venta.costoEnvio !== undefined &&
-                    Number(venta.costoEnvio) > 0 && (
-                      <div className="costo-envio-empleado">
-                        <span className="font-medium">Costo de envío:</span> $
-                        {Number(venta.costoEnvio).toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </div>
-                    )}
+              ) : null}
+              <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />{esRetiroLocal ? "Dirección de retiro" : "Dirección"}</dt>
+                <dd className="min-w-0 leading-relaxed text-foreground">{capitalizarPrimeraLetra(esRetiroLocal
+                    ? (sucursalRetiroDireccion || "-")
+                    : (venta.usarDireccionCliente === false ? (venta.direccionEnvio || "-") : (venta.cliente?.direccion || "-")))}</dd>
+              </div>
+              {!esRetiroLocal ? (
+                <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />Localidad</dt>
+                  <dd className="font-medium text-foreground">{capitalizarPrimeraLetra(venta.usarDireccionCliente === false ? (venta.localidadEnvio || "-") : (venta.cliente?.localidad || "-"))}</dd>
                 </div>
+              ) : null}
+              <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />{esRetiroLocal ? "Fecha de retiro" : "Fecha de envío"}</dt>
+                <dd className="font-medium text-foreground">{formatFechaLocal(venta.fechaEntrega) || "-"}</dd>
+              </div>
+              <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><Clock3 className="h-4 w-4 shrink-0" aria-hidden="true" />{esRetiroLocal ? "Horario de retiro" : "Rango horario"}</dt>
+                <dd className="font-medium text-foreground">{capitalizarPrimeraLetra(venta.rangoHorario || "-")}</dd>
+              </div>
+              <div className="no-print grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4 shrink-0" aria-hidden="true" />Vendedor</dt>
+                <dd className="font-medium text-foreground">{capitalizarPrimeraLetra(venta.vendedor || "-")}</dd>
+              </div>
+              <div className="grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3 border-t border-border/60 pt-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />Forma de pago</dt>
+                <dd className="forma-pago-empleado font-semibold text-foreground">{capitalizarPrimeraLetra(String(venta.formaPago || "-").replaceAll("_", " "))}</dd>
+              </div>
+              {venta.costoEnvio !== undefined && Number(venta.costoEnvio) > 0 ? (
+                <div className="costo-envio-empleado grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                  <dt className="flex items-center gap-2 text-muted-foreground"><Banknote className="h-4 w-4 shrink-0" aria-hidden="true" />Costo de envío</dt>
+                  <dd className="font-medium text-foreground">$ {formatearNumeroArgentino(Number(venta.costoEnvio))}</dd>
+                </div>
+              ) : null}
+              <div className="estado-pago-empleado grid grid-cols-[minmax(7rem,.8fr)_minmax(0,1.2fr)] gap-3">
+                <dt className="flex items-center gap-2 text-muted-foreground"><Tag className="h-4 w-4 shrink-0" aria-hidden="true" />Estado de la venta</dt>
+                <dd>
+                  <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${estadoPagoFinal === "pagado" ? "bg-success/10 text-foreground" : estadoPagoFinal === "parcial" ? "bg-warning/10 text-foreground" : "bg-destructive/10 text-foreground"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${estadoPagoFinal === "pagado" ? "bg-success" : estadoPagoFinal === "parcial" ? "bg-warning" : "bg-destructive"}`} />
+                    {estadoPagoFinal === "pagado" ? "Pagado" : estadoPagoFinal === "parcial" ? "Parcial" : "Pendiente"}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <aside className="flex min-w-0 flex-col rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><CreditCard className="h-5 w-5" /></span>
+                  <h2 className="text-lg font-semibold tracking-tight">Resumen de pago</h2>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${
+                  estadoPagoFinal === "pagado"
+                    ? "bg-success/10 text-foreground"
+                  : estadoPagoFinal === "parcial"
+                    ? "bg-warning/10 text-foreground"
+                    : "bg-destructive/10 text-foreground"
+              }`}>
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${estadoPagoFinal === "pagado" ? "bg-success" : estadoPagoFinal === "parcial" ? "bg-warning" : "bg-destructive"}`} />
+                {estadoPagoFinal === "pagado" ? "Pagado" : estadoPagoFinal === "parcial" ? "Parcial" : "Pendiente"}
+              </span>
+            </div>
+            <div className="mt-5 space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <span className="text-muted-foreground">Total de la venta</span>
+                <span className="text-lg font-bold tabular-nums total-empleado">$ {formatearNumeroArgentino(venta.total || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Monto abonado</span>
+                <span className="font-semibold tabular-nums text-success monto-abonado-empleado">$ {formatearNumeroArgentino(montoAbonado)}</span>
+              </div>
+              {saldoPendiente > 0 ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 px-3 py-3">
+                  <span className="text-muted-foreground">Saldo pendiente</span>
+                  <span className="text-base font-bold tabular-nums text-destructive saldo-pendiente-empleado">$ {formatearNumeroArgentino(saldoPendiente)}</span>
+                </div>
+              ) : null}
+            </div>
+            <div className={`mt-5 flex items-center gap-3 rounded-xl p-3.5 ${estadoPagoFinal === "pagado" ? "bg-success/10 text-foreground" : "bg-muted/70 text-foreground"}`}>
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${estadoPagoFinal === "pagado" ? "bg-success/10" : "bg-background"}`}>
+                {estadoPagoFinal === "pagado"
+                  ? <CheckCircle2 className="h-5 w-5 text-success" />
+                  : <Clock3 className="h-5 w-5 text-muted-foreground" />}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold estado-pago-empleado">
+                  {estadoPagoFinal === "pagado" ? "Venta completamente pagada" : estadoPagoFinal === "parcial" ? "Pago parcial recibido" : "Pago pendiente"}
+                </p>
+                <p className="mt-0.5 text-xs opacity-80">
+                  {estadoPagoFinal === "pagado" ? "No hay montos pendientes." : `Saldo pendiente: $ ${formatearNumeroArgentino(saldoPendiente)}`}
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
-              <h3 className="font-semibold text-lg mb-2 ">
-                Información de Envío y Pago
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Tipo de entrega:</span> Retiro
-                  en local
-                </div>
-                <div>
-                  <span className="font-medium">Fecha de retiro:</span>{" "}
-                  {formatFechaLocal(venta.fechaEntrega)}
-                </div>
-                <div>
-                  <span className="font-medium">Horario de retiro:</span>{" "}
-                  {venta.rangoHorario || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Vendedor:</span>{" "}
-                  {venta.vendedor || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Forma de pago:</span>{" "}
-                  {venta.formaPago || "-"}
-                </div>
-                {/* Estado de la venta */}
-                <div className="estado-pago-empleado space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">Estado de la venta:</span>{" "}
-                    {(() => {
-                      const estadoPago = estadoPagoFinal;
-
-                      if (estadoPago === "pagado") {
-                        return (
-                          <span className="text-green-700 font-bold ml-2">
-                            Pagado
-                          </span>
-                        );
-                      } else if (estadoPago === "parcial") {
-                        return (
-                          <span className="text-yellow-700 font-bold ml-2">
-                            Parcial
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="text-red-700 font-bold ml-2">
-                            Pendiente
-                          </span>
-                        );
-                      }
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </aside>
         </div>
 
-        {/* 3. Información de Pagos */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
-          <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
-
-          {/* Estado de pago */}
-          <div className="mb-4 bg-card rounded-lg no-print">
-            <div className="flex justify-between">
-              <span className="font-medium">Estado de pago:</span>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  estadoPagoFinal === "pagado"
-                    ? "bg-green-100 text-green-800"
-                    : estadoPagoFinal === "parcial"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {estadoPagoFinal === "pagado"
-                  ? "Pagado"
-                  : estadoPagoFinal === "parcial"
-                  ? "Pago Parcial"
-                  : "Pendiente"}
-              </span>
-            </div>
-          </div>
-
-          {/* Detalles de pagos */}
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="">Total de la venta:</span>
-              <span className="font-semibold total-empleado">
-                ${formatearNumeroArgentino(venta.total || 0)}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="">Monto abonado:</span>
-              <span className="font-semibold text-green-600 monto-abonado-empleado">
-                ${formatearNumeroArgentino(montoAbonado)}
-              </span>
-            </div>
-
-            {saldoPendiente > 0 && (
-              <div className="flex justify-between border-t pt-2">
-                <span className="">Saldo pendiente:</span>
-                <span className="font-semibold text-red-600 saldo-pendiente-empleado">
-                  ${formatearNumeroArgentino(saldoPendiente)}
-                </span>
-              </div>
-            )}
-          </div>
+        {/* Actividad y adjuntos del pago */}
+        {(Array.isArray(venta.pagos) && venta.pagos.length > 0) || estadoPagoFinal !== "pagado" || (venta.pagoEnDolares && venta.valorOficialDolar) || (Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0) ? (
+        <div className="mb-5 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+          <h3 className="mb-4 flex items-center gap-3 font-semibold text-base">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-foreground"><CreditCard className="h-5 w-5" /></span>
+            Historial y comprobantes de pago
+          </h3>
 
           {/* Historial de pagos */}
           {((Array.isArray(venta.pagos) && venta.pagos.length > 0) || estadoPagoFinal !== 'pagado') && (
             <div className="mt-4 historial-pagos-empleado">
-              <h4 className="font-medium mb-2">Historial de pagos:</h4>
               {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
-                <div className="bg-card rounded-lg p-3">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-card border-b">
-                        <th className="text-left py-1">Fecha</th>
-                        <th className="text-left py-1">Método</th>
-                        <th className="text-right py-1">Monto</th>
-                        {user?.email === "admin@admin.com" && (
-                          <th className="text-center py-1">Acciones</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {venta.pagos.map((pago, idx) => (
-                        <tr key={idx} className="border-b border-border/50">
-                          <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
-                          <td className="py-1">{pago.metodo}</td>
-                          <td className="py-1 text-right">
-                            ${Number(pago.monto).toFixed(2)}
-                          </td>
-                          {user?.email === "admin@admin.com" && (
-                            <td className="py-1 text-center">
-                              <button
-                                type="button"
-                                onClick={() => confirmarBorradoPago(idx)}
-                                disabled={borrandoPago}
-                                className={`p-1 rounded text-red-700 dark:text-red-300 hover:text-red-700 hover:bg-red-500/10 transition-colors ${
-                                  borrandoPago && pagoABorrar === idx
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                                title="Borrar pago"
-                              >
-                                {borrandoPago && pagoABorrar === idx ? (
-                                  <svg
-                                    className="animate-spin h-4 w-4"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <circle
-                                      className="opacity-25"
-                                      cx="12"
-                                      cy="12"
-                                      r="10"
-                                      stroke="currentColor"
-                                      strokeWidth="4"
-                                      fill="none"
-                                    />
-                                    <path
-                                      className="opacity-75"
-                                      fill="currentColor"
-                                      d="M4 12a8 8 0 018-8v8z"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ul className="divide-y divide-border/40">
+                  {venta.pagos.map((pago, idx) => {
+                    const metodoOriginal = String(pago.metodo || "-").trim().replaceAll("_", " ");
+                    const metodoNormalizado = metodoOriginal.toLocaleLowerCase("es-AR");
+                    const metodoVisible = capitalizarPrimeraLetra(metodoNormalizado);
+                    const IconoMetodo = /efectivo|cash/.test(metodoNormalizado)
+                      ? Banknote
+                      : /transfer|bank/.test(metodoNormalizado)
+                        ? ArrowLeftRight
+                        : CreditCard;
+
+                    return (
+                      <li
+                        key={`${pago.fechaHora || pago.fecha || "pago"}-${idx}`}
+                        className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 py-3 first:pt-1 last:pb-1 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto]"
+                      >
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-foreground" aria-hidden="true">
+                          <IconoMetodo className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{metodoVisible}</p>
+                          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                            <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{formatFechaHoraLocal(pago.fechaHora || pago.fecha)}</span>
+                          </p>
+                        </div>
+                        <div className="col-start-2 flex min-w-0 items-center justify-between gap-3 sm:col-start-auto sm:justify-end">
+                          <span className="text-base font-bold tabular-nums text-foreground sm:text-lg">
+                            $ {formatearNumeroArgentino(pago.monto)}
+                          </span>
+                          {user ? (
+                            <button
+                              type="button"
+                              onClick={() => confirmarBorradoPago(idx)}
+                              disabled={borrandoPago}
+                              aria-label={`Borrar pago ${metodoVisible} por $ ${formatearNumeroArgentino(pago.monto)}`}
+                              className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+                                borrandoPago && pagoABorrar === idx ? "opacity-50" : ""
+                              }`}
+                              title="Borrar pago"
+                            >
+                              {borrandoPago && pagoABorrar === idx
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Trash2 className="h-4 w-4" />}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <div className="text-sm text-muted-foreground">Sin pagos registrados</div>
+                <p className="py-3 text-sm text-muted-foreground">Sin pagos registrados.</p>
               )}
+              {errorBorrarPago ? (
+                <p role="alert" className="mt-3 text-sm text-destructive">{errorBorrarPago}</p>
+              ) : null}
             </div>
           )}
 
@@ -2758,22 +3142,36 @@ const VentaDetalle = () => {
             </div>
           )}
         </div>
+        ) : null}
 
         {/* Productos y Servicios */}
         {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
         (Array.isArray(venta.items) && venta.items.length > 0) ? (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
-            <h3 className="font-semibold text-lg mb-4 ">
-              Productos y Servicios
-            </h3>
-            <DetalleVentaPresupuestoItemsTable
-              items={venta.productos || venta.items}
-              formatearNumeroArgentino={formatearNumeroArgentino}
-              paraEmpleado={false}
-            />
+          <div className="mb-5 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-muted text-foreground"><Package className="h-5 w-5" /></span>
+                <h3 className="font-semibold text-base">Productos y servicios</h3>
+              </div>
+            </div>
+            <div className="venta-productos-responsive">
+              <DetalleVentaPresupuestoItemsTable
+                items={venta.productos || venta.items}
+                formatearNumeroArgentino={formatearNumeroArgentino}
+                paraEmpleado={false}
+              />
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_0.75fr]">
+              <aside className="min-h-28 rounded-lg bg-muted/40 p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-background text-foreground"><ClipboardList className="h-5 w-5" /></span>
+                  <span className="text-sm font-medium">Observaciones</span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">{venta.observaciones || "—"}</p>
+              </aside>
             {/* Totales (recalculados desde items para consistencia) */}
             {(() => {
-              if (venta.origen === "ecommerce_externo") return <div className="mt-6 ml-auto max-w-lg rounded-lg bg-card p-4"><VentaImportes venta={normalizeVenta(venta.id, venta)} /></div>;
+              if (venta.origen === "ecommerce_externo") return <div className="w-full self-stretch rounded-lg bg-muted/40 p-4"><VentaImportes venta={normalizeVenta(venta.id, venta)} /></div>;
               const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
               const { subtotal, descuentoTotal, total } = computeTotals(items);
               const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;
@@ -2786,245 +3184,285 @@ const VentaDetalle = () => {
               const totalFinal = typeof venta.total === "number" && !isNaN(venta.total)
                 ? venta.total
                 : baseImponible + ivaMonto + transferenciaMonto + envio;
+              const formatearImporte = (valor) => new Intl.NumberFormat("es-AR", {
+                minimumFractionDigits: Number(valor) % 1 === 0 ? 0 : 2,
+                maximumFractionDigits: 2,
+              }).format(Number(valor) || 0);
               return (
-                <div className="mt-6 flex justify-end">
-                  <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                <div className="w-full rounded-lg bg-muted/40 p-4 sm:p-5">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between subtotal-empleado">
                         <span>Subtotal:</span>
-                        <span>$ {subtotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        <span className="tabular-nums">$ {formatearImporte(subtotal)}</span>
                       </div>
                       <div className="flex justify-between descuento-empleado">
                         <span>Descuento total:</span>
-                        <span>$ {descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        <span className="tabular-nums">$ {formatearImporte(descuentoTotal)}</span>
                       </div>
                       {descuentoEfectivo > 0 && (
                         <div className="flex justify-between descuento-empleado">
                           <span>Descuento (Efectivo 10%):</span>
-                          <span className="text-green-600">$ {descuentoEfectivo.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                          <span className="text-success tabular-nums">$ {formatearImporte(descuentoEfectivo)}</span>
                         </div>
                       )}
                       {envio > 0 && (
                         <div className="flex justify-between costo-envio-empleado">
                           <span>Cotización de envío:</span>
-                          <span>$ {envio.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                          <span className="tabular-nums">$ {formatearImporte(envio)}</span>
                         </div>
                       )}
                       {ivaMonto > 0 && (
                         <div className="flex justify-between">
                           <span>IVA ({ivaPorcentaje}%):</span>
-                          <span>$ {ivaMonto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                          <span className="tabular-nums">$ {formatearImporte(ivaMonto)}</span>
                         </div>
                       )}
                       {transferenciaMonto > 0 && (
                         <div className="flex justify-between">
                           <span>Transferencia ({transferenciaPorcentaje}%):</span>
-                          <span>$ {transferenciaMonto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                          <span className="tabular-nums">$ {formatearImporte(transferenciaMonto)}</span>
                         </div>
                       )}
-                      <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
+                      <div className="flex justify-between border-t border-border/60 pt-3 text-lg font-bold total-empleado">
                         <span>Total:</span>
-                        <span className="text-primary">$ {totalFinal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        <span className="tabular-nums text-foreground">$ {formatearImporte(totalFinal)}</span>
                       </div>
                     </div>
-                  </div>
                 </div>
               );
             })()}
+            </div>
           </div>
         ) : null}
 
-        {/* 5. Observaciones */}
-        {venta.observaciones && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
-            <p className="text-foreground whitespace-pre-wrap">
-              {venta.observaciones}
-            </p>
+        {(!Array.isArray(venta.productos) || venta.productos.length === 0) && (!Array.isArray(venta.items) || venta.items.length === 0) && venta.observaciones ? (
+          <div className="mb-5 rounded-xl bg-muted/40 p-4 sm:p-5">
+            <h3 className="mb-2 flex items-center gap-3 font-semibold text-base"><ClipboardList className="h-5 w-5" />Observaciones</h3>
+            <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{venta.observaciones}</p>
           </div>
-        )}
+        ) : null}
+        </>
+        ) : null}
 
-        {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
+        {/* 8. Edición: formularios agrupados por tarea, con jerarquía y etiquetas claras */}
         {editando && ventaEdit && (
-          <div className="flex flex-col gap-8 mt-8">
-            {/* Información de envío */}
-            <section className="space-y-4 bg-card rounded-lg p-4 border border-border/60 shadow-sm">
-              <h3 className="text-lg font-semibold  mb-2">
-                Información de envío
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-medium">Tipo de envío</span>
-                  <select
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.tipoEnvio || ""}
-                    onChange={(e) => {
-                      const nuevoTipoEnvio = e.target.value;
-                      setVentaEdit((prev) => {
-                        const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
-
-                        // Si cambia de envío a retiro local, limpiar solo datos exclusivos del envío
-                        if (nuevoTipoEnvio === "retiro_local") {
-                          updated.costoEnvio = "";
-                          updated.direccionEnvio = "";
-                          updated.localidadEnvio = "";
-                        }
-
-                        // Si cambia de retiro local a envío, inicializar campos
-                        if (
-                          nuevoTipoEnvio !== "retiro_local" &&
-                          prev.tipoEnvio === "retiro_local"
-                        ) {
-                          updated.usarDireccionCliente = true;
-                          updated.costoEnvio = "0";
-                        }
-
-                        return updated;
-                      });
-                    }}
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="retiro_local">Retiro en local</option>
-                    <option value="envio_domicilio">Envío a domicilio</option>
-                  </select>
-                </label>
-                {ventaEdit.tipoEnvio && (
-                    <>
-                      {ventaEdit.tipoEnvio !== "retiro_local" && (
-                        <>
-                      <label className="block col-span-2">
-                        <span className="text-sm font-medium">
-                          ¿Usar dirección del cliente?
-                        </span>
-                        <input
-                          type="checkbox"
-                          className="ml-2"
-                          checked={ventaEdit.usarDireccionCliente !== false}
-                          onChange={(e) =>
-                            setVentaEdit({
-                              ...ventaEdit,
-                              usarDireccionCliente: e.target.checked,
-                            })
-                          }
-                        />
-                      </label>
-                      {ventaEdit.usarDireccionCliente === false ? (
-                        <>
-                          <GoogleAddressInput
-                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                            value={ventaEdit.direccionEnvio || ""}
-                            onChange={({ address, locality, lat, lng, mapsUrl }) => setVentaEdit((prev) => ({ ...prev, direccionEnvio: address, localidadEnvio: locality || prev.localidadEnvio, direccionMapsUrl: mapsUrl, direccionLat: lat, direccionLng: lng }))}
-                            placeholder="Dirección de envío"
-                          />
-                          <input
-                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                            value={ventaEdit.localidadEnvio || ""}
-                            onChange={(e) =>
-                              setVentaEdit({
-                                ...ventaEdit,
-                                localidadEnvio: e.target.value,
-                              })
-                            }
-                            placeholder="Localidad/Ciudad"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <input
-                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                            value={ventaEdit.cliente?.direccion || ""}
-                            readOnly
-                            placeholder="Dirección del cliente"
-                          />
-                          <input
-                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                            value={ventaEdit.cliente?.localidad || ""}
-                            readOnly
-                            placeholder="Localidad del cliente"
-                          />
-                        </>
-                      )}
-                      <input
-                        className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                        value={ventaEdit.costoEnvio || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            costoEnvio: e.target.value,
-                          })
-                        }
-                        placeholder="Costo de envío"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                      />
-                        </>
-                      )}
-                      <DateInput
-                        value={ventaEdit.fechaEntrega || ""}
-                        onChange={(v) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            fechaEntrega: v,
-                          })
-                        }
-                        buttonClassName="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg justify-start"
-                      />
-                      <input
-                        className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                        value={ventaEdit.rangoHorario || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            rangoHorario: e.target.value,
-                          })
-                        }
-                        placeholder={
-                          ventaEdit.tipoEnvio === "retiro_local"
-                            ? "Horario de retiro (opcional)"
-                            : "Rango horario (ej: 8-12, 14-18)"
-                        }
-                      />
-                    </>
-                  )}
+          <div className="flex flex-col gap-6 pb-24 pt-2">
+            {esVentaEcommerce ? (
+              <section className="space-y-5 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pedido de /tienda</p>
+                  <h2 className="mt-1 text-lg font-semibold text-foreground">Programación de entrega o retiro</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                    Los productos, descuentos, forma de pago e importe se conservan según la compra confirmada en la tienda. Desde esta pantalla podés actualizar la fecha y el horario; los cambios se guardan con el botón flotante.
+                  </p>
+                </div>
+                <DeliveryScheduleInput
+                  fechaEntrega={ventaEdit.fechaEntrega || ""}
+                  rangoHorario={ventaEdit.rangoHorario || ""}
+                  required={ventaEdit.tipoEnvio !== "retiro_local"}
+                  description={ventaEdit.tipoEnvio === "retiro_local"
+                    ? "Fecha y horario de retiro opcionales."
+                    : "Definí la fecha y la franja horaria de entrega."}
+                  onFechaEntregaChange={(value) => setVentaEdit((previous) => ({ ...previous, fechaEntrega: value }))}
+                  onRangoHorarioChange={(value) => setVentaEdit((previous) => ({ ...previous, rangoHorario: value }))}
+                />
+              </section>
+            ) : (
+              <>
+            <section className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente de la venta</p>
+                <h2 className="mt-1 truncate text-lg font-semibold text-foreground">{ventaEdit.cliente?.nombre || "Cliente sin nombre"}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {[ventaEdit.cliente?.cuit, ventaEdit.cliente?.telefono, ventaEdit.cliente?.email].filter(Boolean).join(" · ") || "Sin datos de contacto"}
+                </p>
               </div>
+              <Button type="button" variant="outline" onClick={() => setShowSelectorCliente(true)} className="shrink-0 rounded-lg border-border">
+                <Edit className="mr-2 h-4 w-4" />Cambiar cliente
+              </Button>
             </section>
 
-            {/* Información adicional */}
-            <section className="space-y-4 bg-card rounded-lg p-4 border border-border/60 shadow-sm">
-              <h3 className="text-lg font-semibold  mb-2">
-                Información adicional
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-medium">
-                    Vendedor responsable
-                  </span>
-                  <input
-                    type="text"
-                    value={ventaEdit.vendedor || ""}
-                    readOnly
-                    className="w-full px-3 py-2 border border-border/60 rounded-lg bg-muted/50 text-muted-foreground cursor-not-allowed"
-                    placeholder="Vendedor (no editable)"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    El vendedor no se puede modificar una vez creada la venta
-                  </p>
-                </label>
-                <label className="block col-span-2">
-                  <span className="text-sm font-medium">Observaciones</span>
-                  <textarea
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.observaciones || ""}
-                    onChange={(e) =>
-                      setVentaEdit({
-                        ...ventaEdit,
-                        observaciones: e.target.value,
-                      })
-                    }
-                    placeholder="Observaciones"
-                  />
-                </label>
+            {/* Entrega e información adicional */}
+            <section className="rounded-xl border border-border/50 bg-card p-4 sm:p-5">
+              <div className="space-y-5">
+                <header>
+                  <h3 className="text-base font-semibold text-foreground">Entrega y envío</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Modalidad, destino y programación en un solo lugar.</p>
+                </header>
+
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(19rem,.8fr)] lg:gap-7">
+                  <div className="min-w-0 space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className={`block min-w-0 space-y-1.5 ${ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? "" : "sm:col-span-2"}`}>
+                        <span className="text-sm font-medium text-foreground">Tipo de envío</span>
+                        <select
+                          className="h-10 w-full rounded-md border border-border/60 bg-background px-3 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          value={ventaEdit.tipoEnvio || ""}
+                          onChange={(e) => {
+                            const nuevoTipoEnvio = e.target.value;
+                            setVentaEdit((prev) => {
+                              const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
+
+                              // Si cambia de envío a retiro local, limpiar solo datos exclusivos del envío
+                              if (nuevoTipoEnvio === "retiro_local") {
+                                updated.costoEnvio = "";
+                                updated.direccionEnvio = "";
+                                updated.localidadEnvio = "";
+                              }
+
+                              // Si cambia de retiro local a envío, inicializar campos
+                              if (
+                                nuevoTipoEnvio !== "retiro_local" &&
+                                prev.tipoEnvio === "retiro_local"
+                              ) {
+                                updated.usarDireccionCliente = true;
+                                updated.costoEnvio = "0";
+                              }
+
+                              return updated;
+                            });
+                          }}
+                        >
+                          <option value="">Selecciona...</option>
+                          <option value="retiro_local">Retiro en local</option>
+                          <option value="envio_domicilio">Envío a domicilio</option>
+                        </select>
+                      </label>
+
+                      {ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? (
+                        <div className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p id="usar-direccion-cliente-label" className="text-sm font-medium text-foreground">
+                              Usar dirección del cliente
+                            </p>
+                            <p id="usar-direccion-cliente-hint" className="mt-0.5 text-xs text-muted-foreground">
+                              {ventaEdit.usarDireccionCliente === false
+                                ? "Usar otra dirección"
+                                : "Usar sus datos guardados"}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={ventaEdit.usarDireccionCliente !== false}
+                            onCheckedChange={(checked) => setVentaEdit((previous) => ({ ...previous, usarDireccionCliente: checked }))}
+                            aria-labelledby="usar-direccion-cliente-label"
+                            aria-describedby="usar-direccion-cliente-hint"
+                            className="shrink-0"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,.8fr)_minmax(9rem,.65fr)]">
+                          <label className="block min-w-0 space-y-1.5 sm:col-span-2 xl:col-span-1">
+                            <span className="text-sm font-medium text-foreground">Dirección de entrega</span>
+                            {ventaEdit.usarDireccionCliente === false ? (
+                              <GoogleAddressInput
+                                id="direccion-envio-venta"
+                                className="h-10 w-full rounded-md border border-border/60 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                value={ventaEdit.direccionEnvio || ""}
+                                onChange={({ address, locality, lat, lng, mapsUrl }) => setVentaEdit((previous) => ({
+                                  ...previous,
+                                  direccionEnvio: address,
+                                  localidadEnvio: locality || previous.localidadEnvio,
+                                  direccionMapsUrl: mapsUrl,
+                                  direccionLat: lat,
+                                  direccionLng: lng,
+                                }))}
+                                placeholder="Buscar dirección"
+                              />
+                            ) : (
+                              <input
+                                id="direccion-envio-cliente"
+                                value={ventaEdit.cliente?.direccion || ""}
+                                readOnly
+                                className="h-10 w-full rounded-md border border-border/40 bg-muted/30 px-3 text-sm text-muted-foreground"
+                                placeholder="Sin dirección cargada"
+                              />
+                            )}
+                          </label>
+
+                          <label className="block min-w-0 space-y-1.5">
+                            <span className="text-sm font-medium text-foreground">Localidad</span>
+                            {ventaEdit.usarDireccionCliente === false ? (
+                              <input
+                                id="localidad-envio-venta"
+                                className="h-10 w-full rounded-md border border-border/60 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                value={ventaEdit.localidadEnvio || ""}
+                                onChange={(e) => setVentaEdit((previous) => ({ ...previous, localidadEnvio: e.target.value }))}
+                                placeholder="Localidad o ciudad"
+                              />
+                            ) : (
+                              <input
+                                id="localidad-envio-cliente"
+                                value={ventaEdit.cliente?.localidad || ""}
+                                readOnly
+                                className="h-10 w-full rounded-md border border-border/40 bg-muted/30 px-3 text-sm text-muted-foreground"
+                                placeholder="Sin localidad cargada"
+                              />
+                            )}
+                          </label>
+
+                          <label className="block min-w-0 space-y-1.5">
+                            <span className="text-sm font-medium text-foreground">Costo de envío</span>
+                            <span className="relative block">
+                              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">$</span>
+                              <input
+                                id="costo-envio-venta"
+                                className="h-10 w-full rounded-md border border-border/60 bg-background pl-7 pr-3 text-sm tabular-nums text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                value={ventaEdit.costoEnvio || ""}
+                                onChange={(e) => setVentaEdit((previous) => ({ ...previous, costoEnvio: e.target.value }))}
+                                placeholder="0"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                              />
+                            </span>
+                          </label>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="min-w-0 border-t border-border/40 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                    {ventaEdit.tipoEnvio ? (
+                      <DeliveryScheduleInput
+                        fechaEntrega={ventaEdit.fechaEntrega || ""}
+                        rangoHorario={ventaEdit.rangoHorario || ""}
+                        required={ventaEdit.tipoEnvio !== "retiro_local"}
+                        description={ventaEdit.tipoEnvio === "retiro_local"
+                          ? "Fecha y horario de retiro opcionales."
+                          : "Definí la fecha y la franja horaria de entrega."}
+                        onFechaEntregaChange={(value) => setVentaEdit((previous) => ({ ...previous, fechaEntrega: value }))}
+                        onRangoHorarioChange={(value) => setVentaEdit((previous) => ({ ...previous, rangoHorario: value }))}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Seleccioná una modalidad para definir la fecha y el horario.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 border-t border-border/40 pt-4 lg:grid-cols-[minmax(13rem,.45fr)_minmax(0,1.55fr)] lg:items-start lg:gap-6">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-foreground">Información adicional</h3>
+                    <p className="mt-3 text-xs font-medium text-muted-foreground">VENDEDOR RESPONSABLE</p>
+                    <p className="mt-1 break-all text-sm font-medium text-foreground">
+                      {ventaEdit.vendedor || "Sin vendedor asignado"}
+                    </p>
+                  </div>
+
+                  <label className="block min-w-0 space-y-1.5 lg:pt-0.5">
+                    <span className="text-sm font-medium text-foreground">Observaciones</span>
+                    <textarea
+                      id="observaciones-venta"
+                      className="min-h-24 w-full resize-y rounded-md border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={ventaEdit.observaciones || ""}
+                      onChange={(e) => setVentaEdit((previous) => ({ ...previous, observaciones: e.target.value }))}
+                      placeholder="Agregá detalles relevantes para preparar o entregar la venta."
+                    />
+                  </label>
+                </div>
               </div>
             </section>
 
@@ -3111,1204 +3549,360 @@ const VentaDetalle = () => {
               </div>
             </section>
 
-            {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
             <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-              <h3 className="font-semibold text-lg mb-4 ">
-                Editar productos de la venta
-              </h3>
-              {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
-              <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
-                {/* Header con estadísticas */}
-                <div className="bg-gradient-to-r from-sky-500/10 via-transparent to-transparent px-6 py-4 border-b border-border/60">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-sky-500/10 rounded-lg flex items-center justify-center">
-                        <svg
-                          className="w-6 h-6 text-sky-700 dark:text-sky-300"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold ">Productos</h3>
-                        <p className="text-sm ">
-                          Selecciona los productos para tu venta
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const productoEjemplo = {
-                            id: "ejemplo-" + Date.now(),
-                            nombre: "MACHIMBRE DE EJEMPLO",
-                            precio: calcularPrecioMachimbre({
-                              alto: 0.2,
-                              largo: 3,
-                              cantidad: 1,
-                              precioPorPie: 25000,
-                            }),
-                            unidad: "M2",
-                            stock: 100,
-                            cantidad: 1,
-                            descuento: 0,
-                            categoria: "Maderas",
-                            noInventariable: true,
-                            esEditable: true, // Marca que es un producto editable
-                            precioIncluyeCantidad: true,
-                            alto: 0.2,
-                            ancho: 0,
-                            largo: 3,
-                            precioPorPie: 25000,
-                            cepilladoAplicado: true,
-                            cepilladoPorcentaje: 0,
-                            calibradoAplicado: false,
-                            calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
-                            subcategoria: "machimbre",
-                          };
-                          setVentaEdit({
-                            ...ventaEdit,
-                            productos: [
-                              ...(ventaEdit.productos || []),
-                              productoEjemplo,
-                            ],
-                          });
-                        }}
-                        className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/15"
-                      >
-                        <Icon
-                          icon="heroicons:plus-circle"
-                          className="w-3 h-3 mr-1"
-                        />
-                        Agregar Ejemplo
-                      </Button>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-primary">
-                          {(ventaEdit.productos || []).length}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          productos agregados
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Filtros mejorados */}
-                  <div className="flex flex-col gap-3">
-                    {/* Filtro de categorías */}
-                    <div className="flex-1">
-                      <div className="flex bg-card rounded-lg p-1 shadow-sm border border-border/60">
-                        {categoriasState.map((categoria) => (
-                          <button
-                            key={categoria}
-                            type="button"
-                            className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                              categoriaId === categoria
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted/50 text-foreground hover:bg-muted"
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (categoriaId === categoria) {
-                                setCategoriaId("");
-                                setFiltroTipoMadera("");
-                                setFiltroSubCategoria("");
-                              } else {
-                                setCategoriaId(categoria);
-                                setFiltroTipoMadera("");
-                                setFiltroSubCategoria("");
-                              }
-                            }}
-                          >
-                            {categoria}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Buscador mejorado - siempre visible */}
-                    <div className="w-full">
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg
-                            className="h-5 w-5 text-muted-foreground"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar productos..."
-                          value={busquedaProducto}
-                          onChange={(e) => setBusquedaProducto(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-border/60 rounded-lg focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-200 bg-background text-foreground"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Filtros específicos por categoría */}
-                    <div className="flex flex-col gap-3">
-                      {/* Filtro de tipo de madera */}
-                      {categoriaId === "Maderas" && tiposMadera.length > 0 && (
-                        <div className="w-full">
-                          <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-border/60">
-                            <button
-                              type="button"
-                              className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
-                                filtroTipoMadera === ""
-                                  ? "bg-orange-600 text-white"
-                                  : "bg-muted/50 text-foreground hover:bg-muted"
-                              }`}
-                              onClick={() => setFiltroTipoMadera("")}
-                            >
-                              Todos los tipos
-                            </button>
-                            {tiposMadera.map((tipo) => (
-                              <button
-                                key={tipo}
-                                type="button"
-                                className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
-                                  filtroTipoMadera === tipo
-                                    ? "bg-orange-600 text-white"
-                                    : "bg-muted/50 text-foreground hover:bg-muted"
-                                }`}
-                                onClick={() => setFiltroTipoMadera(tipo)}
-                              >
-                                {tipo}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Filtro de subcategoría de ferretería */}
-                      {categoriaId === "Ferretería" &&
-                        subCategoriasFerreteria.length > 0 && (
-                          <div className="w-full">
-                            <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-border/60 overflow-x-auto">
-                              <button
-                                type="button"
-                                className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
-                                  filtroSubCategoria === ""
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted/50 text-foreground hover:bg-muted"
-                                }`}
-                                onClick={() => setFiltroSubCategoria("")}
-                              >
-                                Todas las subcategorías
-                              </button>
-                              {subCategoriasFerreteria.map((subCategoria) => (
-                                <button
-                                  key={subCategoria}
-                                  type="button"
-                                  className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
-                                    filtroSubCategoria === subCategoria
-                                      ? "bg-primary text-primary-foreground"
-                                      : "bg-muted/50 text-foreground hover:bg-muted"
-                                  }`}
-                                  onClick={() =>
-                                    setFiltroSubCategoria(subCategoria)
-                                  }
-                                >
-                                  {subCategoria}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </div>
-                {/* Lista de productos (alineada a ventas/page.jsx) */}
-                <div className="max-h-150 overflow-y-auto">
-                  {!categoriaId ? (
-                        <div className="p-8 text-center">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-sky-500/10 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                      <h3 className="text-lg font-medium  mb-2">Selecciona una categoría</h3>
-                      <p className="text-muted-foreground">Elige una categoría para ver los productos disponibles</p>
-                        </div>
-                  ) : productosFiltrados.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-amber-500/10 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </div>
-                      <h3 className="text-lg font-medium  mb-2">No se encontraron productos</h3>
-                      <p className="text-muted-foreground">Intenta cambiar los filtros o la búsqueda</p>
-                        </div>
-                  ) : (
-                    <div className="space-y-4">
-                        {/* Indicador de rendimiento */}
-                        <div className="px-4 py-2 bg-sky-500/10 border-b border-sky-500/20">
-                          <div className="flex items-center justify-between text-sm">
-                          <span className="text-sky-700 dark:text-sky-300">Mostrando {productosPaginados.length} de {totalProductos} productos filtrados</span>
-                          <span className="text-sky-700/90 dark:text-sky-300/90 font-medium">Página {paginaActual} de {totalPaginas}</span>
-                          </div>
-                        </div>
-
-                        {/* Grid de productos paginados */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 relative">
-                          {/* Overlay de carga durante la paginación */}
-                        {isPending && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-                              <div className="flex items-center gap-3 bg-card px-4 py-3 rounded-lg shadow-lg border border-border/60">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                              <span className="text-sm font-medium text-foreground">Cargando productos...</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {productosPaginados.map((prod) => {
-                          const productosMismoOrigen = (ventaEdit.productos || []).filter((p) => (p.originalId || p.id) === prod.id);
-                          const yaAgregado = productosMismoOrigen.length > 0;
-                          const itemAgregado = productosMismoOrigen[0];
-                          const cantidadActual = itemAgregado?.cantidad || 0;
-                          const precio = (() => {
-                            if (isComboProduct(prod)) return Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0;
-                            if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
-                            if (prod.categoria === "Ferretería") return prod.valorVenta || 0;
-                            return (
-                              prod.precioUnidad ||
-                              prod.precioUnidadVenta ||
-                              prod.precioUnidadHerraje ||
-                              prod.precioUnidadQuimico ||
-                              prod.precioUnidadHerramienta ||
-                              0
-                            );
-                          })();
-
-                          return (
-                            <div key={prod.id} className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${yaAgregado ? "border-emerald-500/30 bg-emerald-500/5" : "border-border/60 hover:border-primary/50"}`}>
-                              <div className="p-4 flex flex-col h-full">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${prod.categoria === "Maderas" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>
-                                        {prod.categoria === "Maderas" ? "🌲" : "🔧"}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-semibold text-foreground truncate">{prod.nombre}</h4>
-                                        {prod.categoria === "Maderas" && prod.tipoMadera && (
-                                            <div className="flex items-center gap-1 mt-1">
-                                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">🌲 {prod.tipoMadera}</span>
-                                            </div>
-                                          )}
-                                        {prod.categoria === "Ferretería" && prod.subCategoria && (
-                                            <div className="flex items-center gap-1 mt-1">
-                                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🔧 {prod.subCategoria}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      {yaAgregado && (
-                                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                                          <span className="text-xs font-medium">Agregado</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                      </div>
-                                      </div>
-
-                                {/* Información del producto */}
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted-foreground">Precio:</span>
-                                    <span className="text-sm font-semibold text-foreground">${formatearNumeroArgentino(precio)}</span>
-                                      </div>
-                                  {prod.unidadMedida && (
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs text-muted-foreground">Unidad:</span>
-                                      <span className="text-xs text-foreground">{prod.unidadMedida}</span>
-                                    </div>
-                                  )}
-                                  {prod.stock !== undefined && (
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs text-muted-foreground">{isComboProduct(prod) ? "Combos armables:" : "Stock:"}</span>
-                                      <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
-                                    </div>
-                                  )}
-                                  {isComboProduct(prod) && (
-                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                      <span>Incluye</span>
-                                      <span>{normalizeComboComponents(prod.componentesCombo).length} productos</span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Botón de agregar o controles de cantidad */}
-                                <div className="mt-4">
-                                {yaAgregado ? (
-                                  <div className="grid grid-cols-4 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        if (cantidadActual > 1) {
-                                          handleDecrementarCantidad(itemAgregado.id);
-                                        } else {
-                                          handleQuitarProductoDesdeCatalogo(prod.id);
-                                        }
-                                      }}
-                                      disabled={loadingPrecios}
-                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
-                                    >
-                                      −
-                                    </button>
-                                    <div className="flex-1 text-center">
-                                      <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
-                                        {cantidadActual}
-                                      </div>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleIncrementarCantidad(itemAgregado.id);
-                                      }}
-                                      disabled={loadingPrecios}
-                                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
-                                    >
-                                      +
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleClonarProducto(itemAgregado.id);
-                                      }}
-                                      disabled={loadingPrecios}
-                                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
-                                      title="Clonar"
-                                    >
-                                      Clonar
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        if (isComboProduct(prod)) {
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: [
-                                              ...(prev.productos || []),
-                                              {
-                                                id: prod.id,
-                                                originalId: prod.id,
-                                                codigo: prod.codigo || "",
-                                                nombre: prod.nombre,
-                                                detalle: prod.detalle || "",
-                                                precio: Number(prod.precioVenta ?? prod.valorVenta ?? prod.precioCalculado ?? 0) || 0,
-                                                unidad: "Unidad",
-                                                stock: prod.stock,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                categoria: "Combos",
-                                                esCombo: true,
-                                                tipoProducto: "combo",
-                                                componentesCombo: normalizeComboComponents(prod.componentesCombo),
-                                                versionComposicion: Number(prod.versionComposicion) || 1,
-                                              },
-                                            ],
-                                          }));
-                                          return;
-                                        }
-                                        if (prod.categoria === "Maderas") {
-                                          const alto = Number(prod.alto) || 0;
-                                          const ancho = Number(prod.ancho) || 0;
-                                          const largo = Number(prod.largo) || 0;
-                                          const precioPorPie = Number(prod.precioPorPie) || 0;
-                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                            const precioCalc = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                              productos: [
-                                                ...(prev.productos || []),
-                                                {
-                                                  id: prod.id,
-                                                  originalId: prod.id,
-                                                  codigo: prod.codigo || "",
-                                                  nombre: prod.nombre,
-                                                  detalle: prod.detalle || "",
-                                                  precio: precioCalc,
-                                                  unidad: prod.unidadMedida,
-                                                  stock: prod.stock,
-                                                  cantidad: 1,
-                                                  descuento: 0,
-                                                  categoria: prod.categoria,
-                                                  alto,
-                                                  ancho,
-                                                  largo,
-                                                  precioPorPie,
-                                                  cepilladoAplicado: String(prod.unidadMedida || "").trim().toUpperCase() === "M2",
-                                                  cepilladoPorcentaje: String(prod.unidadMedida || "").trim().toUpperCase() === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
-                                                  calibradoAplicado: false,
-                                                  calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
-                                                  tipoMadera: prod.tipoMadera || "",
-                                                  subcategoria: prod.subcategoria || prod.subCategoria || "",
-                                                },
-                                              ],
-                                            }));
-                                          } else {
-                                            console.warn("El producto de madera no tiene dimensiones válidas.");
-                                          }
-                                        } else if (prod.categoria === "Ferretería") {
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                            productos: [
-                                              ...(prev.productos || []),
-                                              {
-                                                id: prod.id,
-                                                originalId: prod.id,
-                                                codigo: prod.codigo || "",
-                                                nombre: prod.nombre,
-                                                detalle: prod.detalle || "",
-                                                precio: prod.valorVenta || 0,
-                                                unidad: prod.unidadMedida || prod.unidadVenta,
-                                                stock: prod.stock,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                categoria: prod.categoria,
-                                              },
-                                            ],
-                                          }));
-                                        } else {
-                                          const precioOtro = (
-                                            prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0
-                                          );
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: [
-                                              ...(prev.productos || []),
-                                              {
-                                                id: prod.id,
-                                                originalId: prod.id,
-                                                codigo: prod.codigo || "",
-                                                nombre: prod.nombre,
-                                                detalle: prod.detalle || "",
-                                                precio: precioOtro,
-                                                unidad: prod.unidadMedida || prod.unidadVenta,
-                                                stock: prod.stock,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                categoria: prod.categoria,
-                                              },
-                                            ],
-                                          }));
-                                        }
-                                      }}
-                                      disabled={loadingPrecios}
-                                      className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
-                                    >
-                                      Agregar
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Controles de paginación */}
-                      {totalPaginas > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-t border-border/60">
-                          {/* Información de página */}
-                          <div className="text-sm text-foreground flex items-center gap-2">
-                            {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
-                            <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
-                          </div>
-                          {/* Controles de navegación */}
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => cambiarPagina(1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Primera página">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
-                            </button>
-                            <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página anterior">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
-                            </button>
-                            <div className="flex items-center gap-1">
-                              {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                                let pageNum;
-                                if (totalPaginas <= 5) pageNum = i + 1;
-                                else if (paginaActual <= 3) pageNum = i + 1;
-                                else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                                else pageNum = paginaActual - 2 + i;
-                                return (
-                                  <button key={pageNum} onClick={() => cambiarPagina(pageNum)} disabled={isPending} className={`px-3 py-1 text-sm rounded-md transition-colors ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : paginaActual === pageNum ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"}`}>
-                                    {pageNum}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <button onClick={() => cambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página siguiente">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
-                            </button>
-                            <button onClick={() => cambiarPagina(totalPaginas)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Última página">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7"/></svg>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                        </div>
-                      )}
-              </div>
-            </section>
-
-              {/* Tabla de productos seleccionados - diseño EXACTO de ventas/page.jsx */}
-              {(ventaEdit.productos || []).length > 0 && (
-                <section className="mt-4 bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
-                  <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
-                    <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="pagoEnEfectivo"
-                          checked={Boolean(ventaEdit?.pagoEnEfectivo)}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setVentaEdit((prev) => {
-                              if (!prev) return prev;
-                              return {
-                                ...prev,
-                                pagoEnEfectivo: checked,
-                                ...(checked ? { formaPago: "efectivo" } : null),
-                              };
-                            });
-                          }}
-                          className="w-4 h-4 text-blue-600 bg-background border-default-300 rounded focus:ring-blue-500 focus:ring-2"
-                          disabled={loadingPrecios}
-                        />
-                        <label
-                          htmlFor="pagoEnEfectivo"
-                          className="text-sm font-medium text-default-700"
-                        >
-                          Pago en efectivo (-10%)
-                        </label>
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
-                        {(ventaEdit.productos || []).length} producto{(ventaEdit.productos || []).length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-[15px]">
-                      <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
-                        <tr className="border-b border-default-200">
-                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
-                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Medida</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Canteado</th>
-                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
-                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio en efectivo</th>
-                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-default-200">
-                        {(ventaEdit.productos || []).map((p, idx) => (
-                          <React.Fragment key={p.id}>
-                          <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              {p.categoria && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
-                                  {p.categoria}
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-4 align-top text-sm text-default-600">
-                              <div className="font-semibold text-default-900">
-                                {p.esEditable ? (
-                                  <input
-                                    type="text"
-                                    value={p.nombre}
-                                    onChange={(e) => handleNombreChange(p.id, e.target.value)}
-                                    className="w-full px-2 py-1 border border-border/60 uppercase rounded text-base font-bold bg-background text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                                    disabled={loadingPrecios}
-                                    placeholder="Nombre del producto"
-                                  />
-                                ) : (
-                                  <div>
-                                    {p.nombre}
-                                    {p.categoria === "Maderas" && p.tipoMadera && (
-                                      <span className="font-semibold text-default-900"> {" "}- {p.tipoMadera.toUpperCase()}</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              {p.detalle && (
-                                <div className="mt-1 text-xs text-default-500">
-                                  {p.detalle}
-                                </div>
-                              )}
-                              {p.categoria === "Maderas" && p.esEditable && (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <label htmlFor={`unidad-${p.id}`} className="text-xs font-semibold text-default-600">
-                                    Unidad
-                                  </label>
-                                  <select
-                                    id={`unidad-${p.id}`}
-                                    value={p.unidad || "Pie"}
-                                    onChange={(e) => handleUnidadMaderaChange(p.id, e.target.value)}
-                                    className="h-8 rounded-md border border-default-300 bg-background px-2 !text-[12px] !leading-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                                    style={{ fontSize: "15px", fontFamily: "inherit", fontWeight: 500 }}
-                                    disabled={loadingPrecios}
-                                  >
-                                    <option value="Unidad">Unidad</option>
-                                    <option value="M2">M2</option>
-                                    <option value="ML">ML</option>
-                                    <option value="Pie">Fórmula pie</option>
-                                  </select>
-                                </div>
-                              )}
-                              {p.categoria === "Ferretería" && p.subCategoria && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{p.subCategoria}</span>
-                                </div>
-                              )}
-
-                              {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
-                                <div className="mt-2 flex flex-wrap items-start gap-3">
-                                  <div className="inline-block w-fit rounded-md border border-orange-500/20 bg-orange-500/10 p-1.5 align-top">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
-                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
-                                        Dimensiones
-                                      </span>
-                                      {p.unidad === "M2" ? (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
-                                          Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
-                                          Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2))} m³
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {p.unidad === "M2" ? (
-                                      <div className="flex flex-wrap items-end gap-2">
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
-                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
-                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="flex flex-wrap items-end gap-2">
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
-                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
-                                          <input type="number" min="0" step="0.01" value={p.ancho === "" ? "" : p.ancho || ""} onChange={(e) => handleAnchoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
-                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="inline-block w-fit p-1.5 bg-emerald-500/10 rounded-md border border-emerald-500/20 align-top">
-                                    <div className="flex items-center gap-1 mb-1">
-                                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>
-                                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">Precio</span>
-                                    </div>
-                                    <div className="inline-block w-fit">
-                                      <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
-                                      <div className="relative">
-                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
-                                        <input type="number" min="0" step="0.01" value={p.precioPorPie === "" ? "" : p.precioPorPie || ""} onChange={(e) => {
-                                          if (p.unidad === "M2") {
-                                            handlePrecioPorPieChange(p.id, e.target.value);
-                                          } else {
-                                            handlePrecioPorPieChangeMadera(p.id, e.target.value);
-                                          }
-                                        }} className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-background text-foreground focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums" disabled={loadingPrecios} placeholder="0.00" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              <div className="flex items-center justify-center">
-                                <QuantityMeasureControl
-                                  product={p}
-                                  cantidad={p.cantidad === "" ? "" : p.cantidad}
-                                  disabled={loadingPrecios}
-                                  onCantidadChange={(next) => handleCantidadChange(p.id, next)}
-                                  onIncrement={() => handleIncrementarCantidad(p.id)}
-                                  onDecrement={() => handleDecrementarCantidad(p.id)}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleClonarProducto(p.id)}
-                                  disabled={loadingPrecios}
-                                  className="ml-2 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
-                                  title="Clonar producto"
-                                >
-                                  Clonar
-                                </button>
-                              </div>
-                              <div className="mt-1 text-[11px] text-default-500 text-center tabular-nums">
-                                <MedidaValue
-                                  product={{
-                                    ...p,
-                                    cantidad: Math.max(
-                                      1,
-                                      Math.ceil(Number(p.cantidad) || 1)
-                                    ),
-                                  }}
-                                  className="text-[11px] text-default-500"
-                                />
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              {p.categoria === "Maderas" ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  <input type="checkbox" checked={p.cepilladoAplicado || false} onChange={(e) => { recalcularPreciosMadera(p.id, e.target.checked); }} className="w-4 h-4 text-blue-600 bg-background border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2" disabled={loadingPrecios} title="Aplicar cepillado" />
-                                  <div className="relative w-16">
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      step={0.1}
-                                      value={p.unidad === "M2" ? 0 : p.cepilladoPorcentaje === "" ? "" : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE}
-                                      onChange={(e) => handleCepilladoPorcentajeChange(p.id, e.target.value)}
-                                      className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-background text-foreground focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
-                                      disabled={loadingPrecios || !p.cepilladoAplicado || p.unidad === "M2"}
-                                    />
-                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              {p.categoria === "Maderas" ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={p.calibradoAplicado || false}
-                                    onChange={(e) => handleCalibradoAplicadoChange(p.id, e.target.checked)}
-                                    className="w-4 h-4 text-indigo-600 bg-background border-default-300 rounded focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:ring-2"
-                                    disabled={loadingPrecios}
-                                    title="Aplicar calibrado"
-                                  />
-                                  <div className="relative w-16">
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      step={0.1}
-                                      value={p.calibradoPorcentaje === "" ? "" : p.calibradoPorcentaje ?? DEFAULT_CALIBRADO_PORCENTAJE}
-                                      onChange={(e) => handleCalibradoPorcentajeChange(p.id, e.target.value)}
-                                      className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-background text-foreground focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
-                                      disabled={loadingPrecios || !p.calibradoAplicado}
-                                    />
-                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              {p.esEditable ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="100"
-                                  value={
-                                    p.precio === ""
-                                      ? ""
-                                      : p.categoria === "Maderas" && p.unidad === "M2"
-                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
-                                      : p.precio
-                                  }
-                                  onChange={(e) => handlePrecioChange(p.id, e.target.value)}
-                                  className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-background text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
-                                  disabled={loadingPrecios}
-                                  placeholder="0"
-                                />
-                              ) : (
-                                <span className="block text-right font-semibold text-default-900 tabular-nums">
-                                  {`$${formatearNumeroArgentino(
-                                    p.categoria === "Maderas" && p.unidad === "M2"
-                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
-                                      : p.precio
-                                  )}`}
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600">
-                              <div className="relative w-20 md:w-24 mx-auto">
-                                <input type="number" min={0} max={100} value={p.descuento === "" ? "" : p.descuento || ""} onChange={(e) => handleDescuentoChange(p.id, e.target.value)} className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-background text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-200" disabled={loadingPrecios} />
-                                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
-                              ${formatearNumeroArgentino(
-                                (() => {
-                                  const precioBase = computeLineBase(p);
-                                  const precioConDescuento =
-                                    precioBase * (1 - Number(p.descuento || 0) / 100);
-                                  const efectivo = ventaEdit?.pagoEnEfectivo
-                                    ? precioConDescuento * 0.9
-                                    : precioConDescuento;
-                                  return Math.round(efectivo);
-                                })()
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
-                              ${formatearNumeroArgentino(computeLineSubtotal(p))}
-                            </td>
-                            <td className="p-4 align-middle text-center text-sm text-default-600">
-                              <span className="group relative inline-flex">
-                                <button type="button" aria-label="Eliminar producto" onClick={() => handleQuitarProducto(p.id)} disabled={loadingPrecios} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50" title="Eliminar">
-                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" /></svg>
-                                </button>
-                                <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
-                              </span>
-                            </td>
-                          </tr>
-                          {isComboProduct(p) && <ComboComponentRows combo={p} productos={productos} />}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
-
-              {/* Totales y botones por debajo de la tabla */}
-              {(ventaEdit.productos || []).length > 0 && (
-                <div className="flex flex-col items-end gap-3 mt-4">
-                  {(() => {
-                    const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
-                    const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
-                    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                    const baseImponible = Math.max(0, total - descuentoEfectivo);
-                    const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
-                    const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
-                    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
-                    const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
-                    const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
-                    return (
-                      <div className="flex w-full flex-col items-end gap-3">
-                        {/* Controles de IVA y Transferencia alineados a la derecha */}
-                        <div className="flex flex-wrap items-center justify-end gap-3">
-                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
-                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(ventaEdit?.aplicaIva)}
-                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))}
-                                disabled={loadingPrecios}
-                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-                              />
-                              Aplicar IVA
-                            </label>
-                            <label className="flex items-center gap-1.5 text-sm">
-                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={ventaEdit?.ivaPorcentaje ?? 21}
-                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))}
-                                disabled={loadingPrecios || !ventaEdit?.aplicaIva}
-                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                              />
-                              <span className="text-xs text-muted-foreground">%</span>
-                            </label>
-                          </div>
-
-                          <div className="flex items-center gap-3 rounded-lg border border-default-200 bg-card px-3 py-2 shadow-xs">
-                            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(ventaEdit?.aplicaTransferencia)}
-                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))}
-                                disabled={loadingPrecios}
-                                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
-                              />
-                              Pago con Transferencia
-                            </label>
-                            <label className="flex items-center gap-1.5 text-sm">
-                              <span className="text-xs text-muted-foreground">Porcentaje:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={ventaEdit?.transferenciaPorcentaje ?? 10}
-                                onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))}
-                                disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia}
-                                className="h-8 w-20 rounded-md border border-default-300 bg-background px-2 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                              />
-                              <span className="text-xs text-muted-foreground">%</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Banner resumen de totales */}
-                        <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                          <div>
-                            Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
-                          </div>
-                          <div>
-                            Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
-                          </div>
-                          {descuentoEfectivo > 0 && (
-                            <div>
-                              Descuento (Efectivo 10%): <span className="font-bold text-green-600">${formatearNumeroArgentino(descuentoEfectivo)}</span>
-                            </div>
-                          )}
-                          {envio > 0 && (
-                            <div>
-                              Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
-                            </div>
-                          )}
-                          {ivaMonto > 0 && (
-                            <div>
-                              IVA ({ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(ivaMonto)}</span>
-                            </div>
-                          )}
-                          {transferenciaMonto > 0 && (
-                            <div>
-                              Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(transferenciaMonto)}</span>
-                            </div>
-                          )}
-                          <div>
-                            Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+              <ProductosVentaEditor
+                items={ventaEdit.productos || []}
+                productos={productos}
+                onAgregarProductoCatalogo={handleAgregarProductoCatalogo}
+                getProductoCatalogoPreview={construirProductoCatalogo}
+                onAgregarEjemplo={handleAgregarEjemplo}
+                onQuitarProductoDesdeCatalogo={handleQuitarProductoDesdeCatalogo}
+                loadingPrecios={loadingPrecios}
+                pagoEnEfectivo={Boolean(ventaEdit?.pagoEnEfectivo)}
+                idPagoEnEfectivo="venta-pago-efectivo"
+                formatearNumeroArgentino={formatearNumeroArgentino}
+                defaultCepilladoPorcentaje={DEFAULT_CEPILLADO_PORCENTAJE}
+                defaultCalibradoPorcentaje={DEFAULT_CALIBRADO_PORCENTAJE}
+                onPagoEnEfectivoChange={(checked) => {
+                  setVentaEdit((prev) => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      pagoEnEfectivo: checked,
+                      ...(checked ? { formaPago: "efectivo" } : null),
+                    };
+                  });
+                }}
+                onNombreChange={handleNombreChange}
+                onUnidadMaderaChange={handleUnidadMaderaChange}
+                onDimensionChange={(id, campo, value, producto) => {
+                  if (campo === "alto") {
+                    return producto.unidad === "M2"
+                      ? handleAltoChange(id, value)
+                      : handleAltoChangeMadera(id, value);
+                  }
+                  if (campo === "ancho") return handleAnchoChangeMadera(id, value);
+                  if (campo === "largo") {
+                    return producto.unidad === "M2"
+                      ? handleLargoChange(id, value)
+                      : handleLargoChangeMadera(id, value);
+                  }
+                }}
+                onPrecioPorPieChange={(id, value, producto) => producto.unidad === "M2"
+                  ? handlePrecioPorPieChange(id, value)
+                  : handlePrecioPorPieChangeMadera(id, value)}
+                onCantidadChange={handleCantidadChange}
+                onIncrementarCantidad={handleIncrementarCantidad}
+                onDecrementarCantidad={handleDecrementarCantidad}
+                onCepilladoChange={recalcularPreciosMadera}
+                onCepilladoPorcentajeChange={handleCepilladoPorcentajeChange}
+                onCalibradoChange={handleCalibradoAplicadoChange}
+                onCalibradoPorcentajeChange={handleCalibradoPorcentajeChange}
+                onPrecioChange={handlePrecioChange}
+                onDescuentoChange={handleDescuentoChange}
+                onClonarProducto={handleClonarProducto}
+                onQuitarProducto={handleQuitarProducto}
+              />
 
               {(() => {
-                // Cálculo limpio y UI mejorada para pagos pendientes
-                const totalesEdicion = computeTotals(ventaEdit.productos || []);
-                const subtotal = totalesEdicion.subtotal;
-                const descuento = totalesEdicion.descuentoTotal;
-
-                // Calcular costo de envío basado en el tipo de envío actual
-                const envio =
-                  ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
-                    ? Number(ventaEdit.costoEnvio) || 0
-                    : 0;
-
-                const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                const baseImponible = Math.max(0, subtotal - descuento - descuentoEfectivo);
-                const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
-                const ivaMonto = Boolean(ventaEdit?.aplicaIva) ? baseImponible * (ivaPorcentaje / 100) : 0;
-                const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 10);
-                const transferenciaMonto = Boolean(ventaEdit?.aplicaTransferencia) ? baseImponible * (transferenciaPorcentaje / 100) : 0;
-                const total = baseImponible + ivaMonto + transferenciaMonto + envio;
+                const { subtotal, descuentoTotal, total: subtotalConDescuento } = computeTotals(ventaEdit.productos || []);
+                const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
+                  ? Number(ventaEdit.costoEnvio) || 0
+                  : 0;
+                const descuentoEfectivo = ventaEdit.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                const descuentoTotalFinal = descuentoTotal + descuentoEfectivo;
+                const baseImponible = Math.max(0, subtotalConDescuento - descuentoEfectivo);
+                const ivaPorcentaje = Math.max(0, Number(ventaEdit.ivaPorcentaje) || 21);
+                const ivaMonto = ventaEdit.aplicaIva ? baseImponible * (ivaPorcentaje / 100) : 0;
+                const transferenciaPorcentaje = Math.max(0, Number(ventaEdit.transferenciaPorcentaje) || 10);
+                const transferenciaMonto = ventaEdit.aplicaTransferencia
+                  ? baseImponible * (transferenciaPorcentaje / 100)
+                  : 0;
+                const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
-                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                  ? ventaEdit.pagos.reduce((acc, pago) => acc + Number(pago.monto), 0)
                   : Number(ventaEdit.montoAbonado || 0);
-                const saldo = Math.max(0, total - abonado);
+                const saldo = Math.max(0, totalFinal - abonado);
+                const montoValido = Boolean(ventaEdit.nuevoPagoMonto)
+                  && Number(ventaEdit.nuevoPagoMonto) > 0
+                  && Number(ventaEdit.nuevoPagoMonto) <= saldo;
+                const metodoValido = Boolean(ventaEdit.nuevoPagoMetodo)
+                  && ventaEdit.nuevoPagoMetodo.trim() !== "";
+                const botonHabilitado = !registrandoPago && montoValido && metodoValido;
+                const errorMonto = Boolean(ventaEdit.nuevoPagoMonto) && !montoValido;
+                const errorMetodo = Boolean(ventaEdit.nuevoPagoMetodo) && !metodoValido;
 
-                if (saldo > 0) {
-                  // Validar que los campos estén inicializados
-                  const montoValido = ventaEdit.nuevoPagoMonto && 
-                    Number(ventaEdit.nuevoPagoMonto) > 0 && 
-                    Number(ventaEdit.nuevoPagoMonto) <= saldo;
-                  const metodoValido = ventaEdit.nuevoPagoMetodo && 
-                    ventaEdit.nuevoPagoMetodo.trim() !== "";
-                  const botonHabilitado = !registrandoPago && montoValido && metodoValido;
+                return (
+                  <div className={`mt-5 grid items-start gap-4 ${
+                    (ventaEdit.productos || []).length > 0 && saldo > 0
+                      ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]"
+                      : ""
+                  }`}>
+                    {(ventaEdit.productos || []).length > 0 ? (
+                      <section className="w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm" aria-labelledby="venta-totales-heading">
+                        <header className="flex items-center gap-3 border-b border-border/50 px-4 py-3 sm:px-5">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground" aria-hidden="true">
+                            <BadgePercent className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0">
+                            <h3 id="venta-totales-heading" className="text-base font-semibold text-foreground">Impuestos y descuentos</h3>
+                            <p className="text-xs text-muted-foreground sm:text-sm">Configurá los adicionales y revisá el total actualizado.</p>
+                          </div>
+                        </header>
 
-                  return (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 my-3 w-full max-w-xl ml-auto">
-                      {/* Encabezado con jerarquía tipográfica */}
-                      <div className="mb-2">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-lg text-yellow-900">Saldo pendiente</span>
-                          <span className="text-lg font-extrabold text-yellow-900">${formatearNumeroArgentino(saldo)}</span>
+                        <div className="grid gap-2 p-3 sm:p-4">
+                          <article className="flex min-w-0 items-center gap-3 rounded-xl border border-border/60 bg-card p-3 sm:gap-4 sm:p-4">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground" aria-hidden="true">
+                              <ReceiptText className="h-5 w-5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground">Aplicar IVA</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">Sobre la base neta</p>
+                            </div>
+                            <Switch
+                              id="venta-aplica-iva"
+                              checked={Boolean(ventaEdit.aplicaIva)}
+                              onCheckedChange={(checked) => setVentaEdit((previous) => ({ ...previous, aplicaIva: checked }))}
+                              disabled={loadingPrecios}
+                              color="dark"
+                              size="lg"
+                              aria-label="Aplicar IVA"
+                            />
+                            <label htmlFor="venta-iva-porcentaje" className="flex h-10 w-[5.25rem] shrink-0 items-center rounded-lg bg-muted/70 px-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                              <input
+                                id="venta-iva-porcentaje"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={ventaEdit.ivaPorcentaje ?? 21}
+                                onChange={(event) => setVentaEdit((previous) => ({ ...previous, ivaPorcentaje: event.target.value }))}
+                                disabled={loadingPrecios || !ventaEdit.aplicaIva}
+                                aria-label="Porcentaje de IVA"
+                                className="min-w-0 flex-1 bg-transparent text-right text-sm font-semibold tabular-nums text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                              <span className="pl-1 text-sm font-semibold text-foreground">%</span>
+                            </label>
+                          </article>
+
+                          <article className="flex min-w-0 items-center gap-3 rounded-xl border border-border/60 bg-card p-3 sm:gap-4 sm:p-4">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground" aria-hidden="true">
+                              <ArrowLeftRight className="h-5 w-5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground">Pago con transferencia</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">Adicional sobre la base neta</p>
+                            </div>
+                            <Switch
+                              id="venta-aplica-transferencia"
+                              checked={Boolean(ventaEdit.aplicaTransferencia)}
+                              onCheckedChange={(checked) => setVentaEdit((previous) => ({ ...previous, aplicaTransferencia: checked }))}
+                              disabled={loadingPrecios}
+                              color="dark"
+                              size="lg"
+                              aria-label="Aplicar adicional por transferencia"
+                            />
+                            <label htmlFor="venta-transferencia-porcentaje" className="flex h-10 w-[5.25rem] shrink-0 items-center rounded-lg bg-muted/70 px-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                              <input
+                                id="venta-transferencia-porcentaje"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={ventaEdit.transferenciaPorcentaje ?? 10}
+                                onChange={(event) => setVentaEdit((previous) => ({ ...previous, transferenciaPorcentaje: event.target.value }))}
+                                disabled={loadingPrecios || !ventaEdit.aplicaTransferencia}
+                                aria-label="Porcentaje por transferencia"
+                                className="min-w-0 flex-1 bg-transparent text-right text-sm font-semibold tabular-nums text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                              <span className="pl-1 text-sm font-semibold text-foreground">%</span>
+                            </label>
+                          </article>
                         </div>
-                        <div className="mt-1 text-lg font-medium text-green-700">Abonado ${formatearNumeroArgentino(abonado)}</div>
-                      </div>
 
-                      {/* Línea de captura: monto + método + acción */}
-                      <div className="flex flex-col md:flex-row md:items-center gap-2">
-                        <input
-                          type="number"
-                          min={1}
-                          max={saldo}
-                          step="0.01"
-                          placeholder="0,00"
-                          className={`flex-1 h-9 border rounded-md px-3 text-sm ${ventaEdit.nuevoPagoMonto && !montoValido ? 'border-red-500 bg-red-500/10' : 'border-amber-500/30 bg-background'} text-foreground`}
-                          value={ventaEdit.nuevoPagoMonto || ""}
-                          onChange={(e) => {
-                            const valor = e.target.value;
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              nuevoPagoMonto: valor,
-                            }));
-                          }}
-                          disabled={registrandoPago}
-                        />
-                        <select
-                          className={`h-9 w-full md:w-44 border rounded-md px-2 text-sm ${ventaEdit.nuevoPagoMetodo && !metodoValido ? 'border-red-500 bg-red-500/10' : 'border-amber-500/30 bg-background'} text-foreground`}
-                          value={ventaEdit.nuevoPagoMetodo || ""}
-                          onChange={(e) => {
-                            const valor = e.target.value;
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              nuevoPagoMetodo: valor,
-                            }));
-                          }}
-                          disabled={registrandoPago}
-                        >
-                          <option value="">Selecciona...</option>
-                          <option value="efectivo">Efectivo</option>
-                          <option value="transferencia">Transferencia</option>
-                          <option value="tarjeta">Tarjeta</option>
-                          <option value="cheque">Cheque</option>
-                          <option value="otro">Otro</option>
-                        </select>
-                        <button
-                          type="button"
-                          className={`h-9 px-3 inline-flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${botonHabilitado ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
-                          onClick={async () => {
-                            if (!botonHabilitado) {
-                              return;
-                            }
+                        <div className="space-y-2 border-t border-border/50 px-4 py-3 sm:px-5">
+                          <div className="flex items-center justify-between gap-4 text-sm">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="shrink-0 font-medium tabular-nums text-foreground">$ {formatearNumeroArgentino(subtotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-4 text-sm">
+                            <span className="text-muted-foreground">Descuentos</span>
+                            <span className="shrink-0 font-medium tabular-nums text-success">− $ {formatearNumeroArgentino(descuentoTotalFinal)}</span>
+                          </div>
+                          {ventaEdit.aplicaIva ? (
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <span className="text-muted-foreground">IVA ({ivaPorcentaje}%)</span>
+                              <span className="shrink-0 font-medium tabular-nums text-foreground">$ {formatearNumeroArgentino(ivaMonto)}</span>
+                            </div>
+                          ) : null}
+                          {ventaEdit.aplicaTransferencia ? (
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <span className="text-muted-foreground">Transferencia ({transferenciaPorcentaje}%)</span>
+                              <span className="shrink-0 font-medium tabular-nums text-foreground">$ {formatearNumeroArgentino(transferenciaMonto)}</span>
+                            </div>
+                          ) : null}
+                          {envio > 0 ? (
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <span className="text-muted-foreground">Envío</span>
+                              <span className="shrink-0 font-medium tabular-nums text-foreground">$ {formatearNumeroArgentino(envio)}</span>
+                            </div>
+                          ) : null}
+                          <div className="flex items-end justify-between gap-4 border-t border-border/60 pt-3">
+                            <span className="font-semibold text-foreground">Total</span>
+                            <span className="shrink-0 text-xl font-bold tabular-nums text-foreground">$ {formatearNumeroArgentino(totalFinal)}</span>
+                          </div>
+                        </div>
+                      </section>
+                    ) : null}
 
-                            setRegistrandoPago(true);
-                            
-                            try {
-                              await new Promise((res) => setTimeout(res, 400));
-                              const fechaHoraPago = new Date().toISOString();
-                              const fechaPago = fechaLocalActual();
-                              const nuevoPago = {
-                                fecha: fechaPago,
-                                fechaHora: fechaHoraPago,
-                                monto: Number(ventaEdit.nuevoPagoMonto),
-                                metodo: ventaEdit.nuevoPagoMetodo,
-                                usuario: "usuario",
-                              };
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                pagos: [
-                                  ...(Array.isArray(prev.pagos)
-                                    ? prev.pagos
-                                    : Array.isArray(pagosSimples)
-                                      ? pagosSimples
-                                      : []),
-                                  nuevoPago,
-                                ],
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
-                              setPagoExitoso(true);
-                              setTimeout(() => setPagoExitoso(false), 1800);
-                            } catch (error) {
-                              console.error("Error al registrar pago:", error);
-                            } finally {
-                              setRegistrandoPago(false);
-                            }
-                          }}
-                          disabled={!botonHabilitado}
-                        >
-                          {registrandoPago ? (
-                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                          ) : (
-                            'Registrar pago'
-                          )}
-                        </button>
+                    {saldo > 0 ? (
+                      <section className="w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm" aria-labelledby="venta-pago-heading">
+                        <header className="flex items-center gap-3 border-b border-border/50 px-4 py-3 sm:px-5">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground" aria-hidden="true">
+                            <Wallet className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0">
+                            <h3 id="venta-pago-heading" className="text-base font-semibold text-foreground">Pago de la venta</h3>
+                            <p className="text-xs text-muted-foreground sm:text-sm">Registrá un pago y actualizá el saldo.</p>
+                          </div>
+                        </header>
+
+                        <div className="grid grid-cols-2 divide-x divide-border/60 border-b border-border/40 px-3 py-3 sm:px-4">
+                          <div className="min-w-0 px-2 sm:px-3">
+                            <p className="text-xs text-muted-foreground sm:text-sm">Abonado</p>
+                            <p className="truncate text-lg font-bold tabular-nums text-success sm:text-xl">$ {formatearNumeroArgentino(abonado)}</p>
+                          </div>
+                          <div className="min-w-0 px-2 sm:px-3">
+                            <p className="text-xs text-muted-foreground sm:text-sm">Saldo pendiente</p>
+                            <p className="truncate text-lg font-bold tabular-nums text-warning sm:text-xl">$ {formatearNumeroArgentino(saldo)}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 p-3 sm:p-4 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_auto]">
+                          <label className={`flex h-12 min-w-0 items-center gap-3 rounded-xl border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${errorMonto ? "border-destructive" : "border-border/60"}`}>
+                            <Banknote className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            <span className="h-7 w-px shrink-0 bg-border/60" aria-hidden="true" />
+                            <span className="sr-only">Monto del pago</span>
+                            <input
+                              type="number"
+                              min="0.01"
+                              max={saldo}
+                              step="0.01"
+                              placeholder="$ 0,00"
+                              value={ventaEdit.nuevoPagoMonto || ""}
+                              onChange={(event) => setVentaEdit((previous) => ({ ...previous, nuevoPagoMonto: event.target.value }))}
+                              disabled={registrandoPago}
+                              aria-label="Monto del pago"
+                              aria-invalid={errorMonto}
+                              className="h-full min-w-0 flex-1 bg-transparent text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                            />
+                          </label>
+                          <label className={`flex h-12 min-w-0 items-center gap-3 rounded-xl border bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${errorMetodo ? "border-destructive" : "border-border/60"}`}>
+                            <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            <span className="h-7 w-px shrink-0 bg-border/60" aria-hidden="true" />
+                            <span className="sr-only">Medio de pago</span>
+                            <select
+                              value={ventaEdit.nuevoPagoMetodo || ""}
+                              onChange={(event) => setVentaEdit((previous) => ({ ...previous, nuevoPagoMetodo: event.target.value }))}
+                              disabled={registrandoPago}
+                              aria-label="Medio de pago"
+                              aria-invalid={errorMetodo}
+                              className="h-full min-w-0 flex-1 appearance-none bg-transparent text-sm text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <option value="">Seleccionar medio de pago</option>
+                              <option value="efectivo">Efectivo</option>
+                              <option value="transferencia">Transferencia</option>
+                              <option value="tarjeta">Tarjeta</option>
+                              <option value="cheque">Cheque</option>
+                              <option value="otro">Otro</option>
+                            </select>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          </label>
+                          <Button
+                            type="button"
+                            onClick={async () => {
+                              if (!botonHabilitado) return;
+                              setRegistrandoPago(true);
+                              try {
+                                await new Promise((resolve) => setTimeout(resolve, 400));
+                                const fechaHoraPago = new Date().toISOString();
+                                const fechaPago = fechaLocalActual();
+                                const nuevoPago = {
+                                  fecha: fechaPago,
+                                  fechaHora: fechaHoraPago,
+                                  monto: Number(ventaEdit.nuevoPagoMonto),
+                                  metodo: ventaEdit.nuevoPagoMetodo,
+                                  usuario: "usuario",
+                                };
+                                setVentaEdit((previous) => ({
+                                  ...previous,
+                                  pagos: [
+                                    ...(Array.isArray(previous.pagos)
+                                      ? previous.pagos
+                                      : Array.isArray(pagosSimples)
+                                        ? pagosSimples
+                                        : []),
+                                    nuevoPago,
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                                setPagoExitoso(true);
+                                setTimeout(() => setPagoExitoso(false), 1800);
+                              } catch (error) {
+                                console.error("Error al registrar pago:", error);
+                              } finally {
+                                setRegistrandoPago(false);
+                              }
+                            }}
+                            disabled={!botonHabilitado}
+                            className="h-12 w-full rounded-xl bg-foreground px-5 text-background hover:bg-foreground/90 hover:text-background focus-visible:ring-2 focus-visible:ring-ring xl:col-span-2 2xl:col-span-1 2xl:w-auto"
+                          >
+                            {registrandoPago ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
+                            Registrar pago
+                          </Button>
+                        </div>
+
+                        {errorMonto || errorMetodo || pagoExitoso ? (
+                          <div className="space-y-1 px-3 pb-3 text-sm sm:px-4 sm:pb-4" aria-live="polite">
+                            {errorMonto ? <p className="text-destructive">{Number(ventaEdit.nuevoPagoMonto) <= 0 ? "El monto debe ser mayor a 0" : Number(ventaEdit.nuevoPagoMonto) > saldo ? `No puede superar $ ${formatearNumeroArgentino(saldo)}` : "Monto inválido"}</p> : null}
+                            {errorMetodo ? <p className="text-destructive">Seleccioná un medio de pago válido.</p> : null}
+                            {pagoExitoso ? <p className="font-medium text-success">¡Pago registrado! Guardá los cambios para persistirlo.</p> : null}
+                          </div>
+                        ) : null}
+                      </section>
+                    ) : null}
+
+                    {errorForm ? (
+                      <div
+                        className={`rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive ${(ventaEdit.productos || []).length > 0 && saldo > 0 ? "lg:col-span-2" : ""}`}
+                        role="alert"
+                      >
+                        {errorForm}
                       </div>
-                      {/* Mensajes de validación compactos */}
-                      {ventaEdit.nuevoPagoMonto && !montoValido && (
-                        <div className="mt-2 text-xs text-red-600">{Number(ventaEdit.nuevoPagoMonto) <= 0 ? 'El monto debe ser mayor a 0' : Number(ventaEdit.nuevoPagoMonto) > saldo ? `No puede superar $${formatearNumeroArgentino(saldo)}` : 'Monto inválido'}</div>
-                      )}
-                      {ventaEdit.nuevoPagoMetodo && !metodoValido && (
-                        <div className="mt-1 text-xs text-red-600">Selecciona un método válido</div>
-                      )}
-                      {pagoExitoso && (<div className="mt-2 text-xs text-green-700 font-semibold">¡Pago registrado!</div>)}
-                    </div>
-                  );
-                }
-                return null;
+                    ) : null}
+                  </div>
+                );
               })()}
-              <div className="flex flex-wrap justify-end gap-2 mt-6">
-                <Button
-                  variant="default"
-                  onClick={handleGuardarCambios}
-                  disabled={loadingPrecios || guardandoCambios}
-                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-                >
-                  {guardandoCambios ? (
-                    <span className="inline-flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                      <span className="hidden sm:inline">Guardando...</span>
-                    </span>
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">Guardar cambios</span>
-                      <span className="sm:hidden">💾</span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setEditando(false)}
-                  disabled={loadingPrecios || guardandoCambios}
-                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-                >
-                  <span className="hidden sm:inline">Cancelar</span>
-                  <span className="sm:hidden">❌</span>
-                </Button>
-              </div>
-              {errorForm && (
-                <div className="text-red-500 mt-2">{errorForm}</div>
-              )}
             </div>
+              </>
+            )}
           </div>
         )}
       </div>
+
+      {hayCambiosVenta ? (
+        <div className="no-print fixed bottom-5 right-4 z-40 sm:bottom-7 sm:right-7">
+          <Button
+            type="button"
+            onClick={handleGuardarCambios}
+            disabled={loadingPrecios || guardandoCambios}
+            className="h-12 rounded-full px-5 shadow-xl"
+            aria-label={guardandoCambios ? "Guardando cambios de la venta" : "Guardar cambios de la venta"}
+          >
+            {guardandoCambios ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {guardandoCambios ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </div>
+      ) : null}
 
       {/* Modal de confirmación para borrar pago */}
       {mostrarConfirmacionBorrado && pagoABorrar !== null && (
@@ -4333,7 +3927,7 @@ const VentaDetalle = () => {
                 <div className="font-medium">Detalles del pago:</div>
                 <div className="mt-1">
                   <span className="text-muted-foreground">Fecha:</span>{" "}
-                  {formatFechaLocal(venta.pagos[pagoABorrar].fecha)}
+                  {formatFechaHoraLocal(venta.pagos[pagoABorrar].fechaHora || venta.pagos[pagoABorrar].fecha)}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Método:</span>{" "}
@@ -4342,11 +3936,12 @@ const VentaDetalle = () => {
                 <div>
                   <span className="text-muted-foreground">Monto:</span>{" "}
                   <span className="font-semibold text-red-700 dark:text-red-300">
-                    ${Number(venta.pagos[pagoABorrar].monto).toFixed(2)}
+                    $ {formatearNumeroArgentino(venta.pagos[pagoABorrar].monto)}
                   </span>
                 </div>
               </div>
             </div>
+            <p className="mb-4 text-xs text-muted-foreground">La eliminación quedará registrada en Auditoría.</p>
 
             <div className="flex gap-3 justify-end">
               <button
@@ -4408,9 +4003,9 @@ const VentaDetalle = () => {
       <ModalCambiarCliente
         open={showSelectorCliente}
         onClose={() => setShowSelectorCliente(false)}
-        clienteActual={venta?.cliente ? {
-          id: venta.clienteId,
-          ...(venta.cliente || {})
+        clienteActual={(editando ? ventaEdit?.cliente : venta?.cliente) ? {
+          id: editando ? ventaEdit?.clienteId : venta?.clienteId,
+          ...((editando ? ventaEdit?.cliente : venta?.cliente) || {})
         } : null}
         clientes={clientes}
         onClienteSeleccionado={handleClienteSeleccionado}

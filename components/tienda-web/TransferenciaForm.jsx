@@ -9,10 +9,40 @@ const BANCO = [
   ["cuit", "CUIT / CUIL", "11 dígitos, sin guiones.", "30123456789"],
 ];
 
-export default function TransferenciaForm({ transferencia, efectivo, issues = [], onChange, onEfectivoChange }) {
+const PAYMENT_METHODS = [
+  ["mercadopago", "Mercado Pago", "Tarjetas, débito y dinero en cuenta."],
+  ["transferencia", "Transferencia", "Pago mediante CBU/CVU o alias."],
+  ["efectivo", "Efectivo", "Pago al recibir o retirar el pedido."],
+];
+
+export default function TransferenciaForm({ transferencia, efectivo, metodosPago = {}, issues = [], onChange, onEfectivoChange, onMetodosPagoChange }) {
   const error = (field) => issues.find((i) => i.scope === "transferencia" && i.field === field)?.message;
+  const methods = { mercadopago: true, transferencia: true, efectivo: true, ...metodosPago };
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+      <fieldset>
+        <legend className="text-sm font-semibold">Métodos de pago disponibles</legend>
+        <p className="mt-1 text-xs text-default-500">Elegí cuáles puede seleccionar el cliente en el checkout. Dejá al menos uno habilitado.</p>
+        <div className="mt-3 divide-y divide-border">
+          {PAYMENT_METHODS.map(([key, label, description]) => (
+            <label key={key} className="-mx-2 flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-md px-2 py-3 transition-colors hover:bg-muted/40 focus-within:bg-muted/40">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{label}</span>
+                <span className="mt-0.5 block text-xs text-default-500">{description}</span>
+              </span>
+              <input
+                type="checkbox"
+                aria-label={`Habilitar ${label}`}
+                checked={Boolean(methods[key])}
+                onChange={(event) => onMetodosPagoChange?.({ ...methods, [key]: event.target.checked })}
+                className="h-4 w-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              />
+            </label>
+          ))}
+        </div>
+        {error("metodosPago") ? <p className="mt-2 text-xs text-destructive">{error("metodosPago")}</p> : null}
+      </fieldset>
+
       <div className="space-y-3 border-b border-border pb-6">
         <h3 className="text-sm font-semibold">Pago en efectivo</h3>
         <Field label="Descuento por pagar en efectivo (%)" hint="Se aplica sobre el neto de los productos, sin incluir el envío. Usá 0 para no ofrecer descuento." htmlFor="efectivo-descuento">
@@ -52,7 +82,7 @@ export default function TransferenciaForm({ transferencia, efectivo, issues = []
         </Field>
       </div>
 
-      {!transferencia.cbu && !transferencia.alias && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Sin CBU ni alias, el cliente no sabrá a dónde transferir.</p>}
+      {methods.transferencia && !transferencia.cbu && !transferencia.alias && <p className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm text-warning">Sin CBU ni alias, el cliente no sabrá a dónde transferir.</p>}
     </div>
   );
 }

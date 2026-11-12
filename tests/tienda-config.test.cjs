@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.resolve(__dirname, "../lib/tienda-config.js"
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const mod = { exports: {} };
 new Function("require", "module", "exports", compiled)(require, mod, mod.exports);
-const { TIENDA_DEFAULTS, normalizeTiendaConfig, validateTiendaConfig, publicTiendaConfig } = mod.exports;
+const { TIENDA_DEFAULTS, normalizeTiendaConfig, validateTiendaConfig, publicTiendaConfig, tiendaIssues } = mod.exports;
 
 test("sin configuración usa los valores que antes estaban fijos en la tienda y son válidos", () => {
   const cfg = normalizeTiendaConfig(undefined);
@@ -26,8 +26,10 @@ test("sin configuración usa los valores que antes estaban fijos en la tienda y 
   assert.equal(cfg.inicio.offerPopup.enabled, true);
   assert.equal(cfg.inicio.offerPopup.showOnDesktop, true);
   assert.equal(cfg.notificacionesPedidos.enabled, false);
+  assert.equal(cfg.notificacionesPedidos.events.preparingForPickup, true);
   assert.equal(cfg.checkout.reservaStockMercadoPagoMinutos, 10);
   assert.equal(cfg.efectivo.descuentoPct, 0);
+  assert.deepEqual(cfg.metodosPago, { mercadopago: true, transferencia: true, efectivo: true });
   assert.equal(cfg.contacto.horarios.length, 3);
   assert.deepEqual(cfg.contacto.redes, [{ platform: "TikTok", url: "https://www.tiktok.com/@maderascaballero2" }]);
   assert.deepEqual(validateTiendaConfig(TIENDA_DEFAULTS).errors, []);
@@ -44,6 +46,11 @@ test("los avisos validan cantidad y formato de destinatarios sin publicar sus da
   const publicConfig = publicTiendaConfig({ notificacionesPedidos: { enabled: true, recipients: ["privado@example.com"] } });
   assert.equal("notificacionesPedidos" in publicConfig, false);
   assert.equal(publicConfig.inicio.about.story.length, 3);
+});
+
+test("el aviso de preparación puede desactivarse de forma independiente", () => {
+  assert.equal(normalizeTiendaConfig({ notificacionesPedidos: { events: { preparingForPickup: false } } }).notificacionesPedidos.events.preparingForPickup, false);
+  assert.equal(normalizeTiendaConfig({ notificacionesPedidos: { events: { readyForPickup: false } } }).notificacionesPedidos.events.preparingForPickup, true);
 });
 
 test("el plazo de reserva Mercado Pago es configurable entre 5 y 30 minutos y no se publica", () => {
@@ -232,4 +239,15 @@ test("transferencia: valida formatos y avisa si faltan los datos para transferir
   for (const pattern of [/CBU/, /alias/, /CUIT/]) assert.ok(errors.some((e) => pattern.test(e)), `falta error ${pattern}`);
   assert.ok(validateTiendaConfig(TIENDA_DEFAULTS).warnings.some((w) => /CBU ni alias/.test(w)));
   assert.deepEqual(validateTiendaConfig({ transferencia: { cbu: "0000003100000123456789", alias: "maderas.cab", cuit: "30123456789" } }).errors, []);
+});
+
+test("medios de pago: configura habilitaciones, conserva los defaults antiguos y publica solo flags", () => {
+  const old = normalizeTiendaConfig({ transferencia: { cbu: "0000003100000123456789" } });
+  assert.deepEqual(old.metodosPago, { mercadopago: true, transferencia: true, efectivo: true });
+
+  const config = normalizeTiendaConfig({ metodosPago: { mercadopago: false, transferencia: true, efectivo: false } });
+  assert.deepEqual(config.metodosPago, { mercadopago: false, transferencia: true, efectivo: false });
+  assert.deepEqual(publicTiendaConfig({ metodosPago: config.metodosPago }).metodosPago, config.metodosPago);
+  assert.ok(tiendaIssues({ metodosPago: { mercadopago: false, transferencia: false, efectivo: false } })
+    .some((issue) => issue.field === "metodosPago" && /al menos un/.test(issue.message)));
 });

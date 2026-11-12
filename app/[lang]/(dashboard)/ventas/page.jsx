@@ -350,7 +350,7 @@ const CompactTableCard = ({
           const customRowClass = rowClassName?.(rowOriginal) || "";
           return (
             <article key={row.id} role="row" aria-label={`${rowOriginal.cliente?.nombre || (title === "Ventas" ? "Venta" : "Presupuesto")}, ${rowOriginal.numeroPedido || rowOriginal.id?.slice(-8) || "sin número"}`} onClick={(event) => {
-              if (event.target instanceof Element && event.target.closest("button, a, [role='button'], input, select")) return;
+              if (event.target instanceof Element && event.target.closest("button, a, [role='button'], [role='menuitem'], input, select")) return;
               onRowClick?.(rowOriginal);
             }} className={`grid cursor-pointer grid-cols-1 gap-x-3 gap-y-2 border-b border-slate-200 px-3 py-3 transition-colors last:border-0 hover:bg-slate-50/70 sm:px-4 xl:grid-cols-[var(--record-columns)] xl:items-center xl:gap-3 xl:px-5 ${anulado ? "bg-rose-50/40" : ""} ${customRowClass}`} style={{ "--record-columns": gridTemplate }}>
               {row.getVisibleCells().map((cell) => {

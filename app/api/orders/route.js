@@ -24,6 +24,7 @@ function normalizePaymentMethod(value) {
   if (!raw) return "";
   if (["efectivo", "cash"].includes(raw)) return "efectivo";
   if (["transferencia", "transfer", "bank_transfer"].includes(raw)) return "transferencia";
+  if (["coordinacion", "coordinar", "coordination"].includes(raw)) return "coordinacion";
   return raw;
 }
 
@@ -500,6 +501,7 @@ export async function POST(request) {
       items: orderData.items?.map((item) => ({ id: item.id, quantity: item.quantity })),
       email: orderData.customerInfo?.email, deliveryInfo: orderData.deliveryInfo,
       paymentMethod: orderData.paymentMethod,
+      paymentProofToken: orderData.paymentProofToken || null,
     })).digest("hex");
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(String(orderData.orderId || ""))) {
       return withCors(NextResponse.json({ error: "Identificador de pedido inválido" }, { status: 400 }));
@@ -514,24 +516,32 @@ export async function POST(request) {
           .catch((error) => console.error("No se pudo enviar el aviso de pedido confirmado:", error?.message));
       }
     };
+    const existingOrderResponse = (order) => ({
+      orderId: String(order?.orderId || orderData.orderId),
+      status: String(order?.status || "pending"),
+      paymentMethod: order?.paymentMethod || null,
+      total: Number(order?.total) || 0,
+      pricing: order?.pricing || null,
+      itemsCount: Array.isArray(order?.items) ? order.items.length : 0,
+    });
     const previous = await getDoc(doc(db, "orders", orderData.orderId));
     if (previous.exists() && previous.data().requestFingerprint !== requestFingerprint) {
       return withCors(NextResponse.json({ error: "La referencia ya pertenece a otro pedido" }, { status: 409 }));
     }
     if (previous.exists() && previous.data().ventaId) {
       await notifyCreatedOrder(previous.data());
-      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data() }));
+      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: existingOrderResponse(previous.data()) }));
     }
     if (previous.exists() && previous.data().paymentMethod === "mercadopago") {
       await notifyCreatedOrder(previous.data());
-      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: previous.data(), venta: null }));
+      return withCors(NextResponse.json({ success: true, orderId: orderData.orderId, data: existingOrderResponse(previous.data()), venta: null }));
     }
     const quote = previous.exists() ? previous.data() : await quoteOrder(orderData);
     if (!Number.isFinite(Number(orderData.pricing?.total ?? orderData.total)) || Math.abs(Number(orderData.pricing?.total ?? orderData.total) - quote.total) > 0.01) {
       return withCors(NextResponse.json({ error: "El importe cambió. Revisá el resumen actualizado antes de confirmar.", quote }, { status: 409 }));
     }
     orderData = { ...orderData, ...quote, status: "pending", createdAt: new Date().toISOString() };
-    console.log("Datos de orden recibidos:", JSON.stringify(orderData, null, 2));
+    console.log("Datos de orden recibidos:", JSON.stringify({ ...orderData, paymentProofToken: undefined }, null, 2));
 
     const camposRequeridos = ["orderId", "userId", "customerInfo", "deliveryInfo", "items", "total", "status"];
     const camposFaltantes = camposRequeridos.filter((campo) => !orderData[campo]);
@@ -611,6 +621,11 @@ export async function POST(request) {
     const shippingPrice = Number.isFinite(shippingPriceNumber) ? shippingPriceNumber : 0;
     const shippingTierKm = Number.isFinite(shippingTierKmNumber) ? shippingTierKmNumber : 0;
     const paymentMethod = normalizePaymentMethod(orderData.paymentMethod || orderData.medioPago || "");
+    const deliveryMethod = normalizeShippingType(orderData.deliveryInfo?.metodoEntrega);
+    const isPickup = deliveryMethod === "retiro";
+    const deliveryAddress = isPickup ? "" : String(orderData.deliveryInfo?.direccion || "");
+    const deliveryLocality = isPickup ? "" : String(orderData.deliveryInfo?.localidad || orderData.deliveryInfo?.ciudad || "");
+    const paymentProofToken = String(orderData.paymentProofToken || "").trim();
     const isMercadoPago = paymentMethod === "mercadopago";
     const checkoutSettings = isMercadoPago ? await getPublishedCheckoutSettings() : null;
     const reservationMinutes = checkoutSettings?.reservaStockMercadoPagoMinutos || 10;
@@ -661,6 +676,10 @@ export async function POST(request) {
       shippingTierKm,
       paymentMethod: paymentMethod || null,
       paymentStatus: isMercadoPago ? "pending" : null,
+      paymentProofStatus: paymentMethod === "transferencia" ? "awaiting_transfer" : null,
+      ...(paymentMethod === "transferencia" && paymentProofToken
+        ? { paymentProofTokenHash: crypto.createHash("sha256").update(paymentProofToken).digest("hex") }
+        : {}),
       stockReservationStatus: isMercadoPago ? "pending" : null,
       stockReservationExpiresAt,
       pendingReason,
@@ -674,21 +693,21 @@ export async function POST(request) {
         dni: customerDni,
       },
       deliveryInfo: {
-        direccion: orderData.deliveryInfo.direccion || "",
-        ciudad: orderData.deliveryInfo.ciudad || "",
-        localidad: orderData.deliveryInfo.localidad || orderData.deliveryInfo.ciudad || "",
-        partido: orderData.deliveryInfo.partido || "",
-        barrio: orderData.deliveryInfo.barrio || "",
-        area: orderData.deliveryInfo.area || "",
-        lote: orderData.deliveryInfo.lote || "",
-        codigoPostal: orderData.deliveryInfo.codigoPostal || "",
+        direccion: deliveryAddress,
+        ciudad: isPickup ? "" : String(orderData.deliveryInfo.ciudad || ""),
+        localidad: deliveryLocality,
+        partido: isPickup ? "" : orderData.deliveryInfo.partido || "",
+        barrio: isPickup ? "" : orderData.deliveryInfo.barrio || "",
+        area: isPickup ? "" : orderData.deliveryInfo.area || "",
+        lote: isPickup ? "" : orderData.deliveryInfo.lote || "",
+        codigoPostal: isPickup ? "" : orderData.deliveryInfo.codigoPostal || "",
         metodoEntrega: orderData.deliveryInfo.metodoEntrega || "",
-        lat: parseNullableNumber(orderData.deliveryInfo.lat),
-        lng: parseNullableNumber(orderData.deliveryInfo.lng),
+        lat: isPickup ? null : parseNullableNumber(orderData.deliveryInfo.lat),
+        lng: isPickup ? null : parseNullableNumber(orderData.deliveryInfo.lng),
         storeId: orderData.deliveryInfo.storeId || null,
         sucursal: orderData.deliveryInfo.sucursal || null,
-        distanciaKm: parseNullableNumber(orderData.deliveryInfo.distanciaKm),
-        maxRadiusKm: parseNullableNumber(orderData.deliveryInfo.maxRadiusKm),
+        distanciaKm: isPickup ? null : parseNullableNumber(orderData.deliveryInfo.distanciaKm),
+        maxRadiusKm: isPickup ? null : parseNullableNumber(orderData.deliveryInfo.maxRadiusKm),
         cotizacionReason: orderData.deliveryInfo.cotizacionReason || pendingReason || null,
         shippingTierKm: shippingTierKm || null,
         shippingPrice,
@@ -782,11 +801,12 @@ export async function POST(request) {
              totalSinEfectivo: Math.max(0, subtotal - descuentos + costoEnvio),
              totalConEfectivo: ["transferencia", "efectivo"].includes(paymentMethod) ? orderData.total : null,
               ecommerceLifecycle: true,
-              reservaExpiresAt: new Date(Date.now() + (["transferencia", "efectivo"].includes(paymentMethod) ? Math.max(1, Number(orderData.transferReserveHours) || 24) * 3600000 : 1800000)).toISOString(),
+              reservaExpiresAt: new Date(Date.now() + (["transferencia", "efectivo", "coordinacion"].includes(paymentMethod) ? Math.max(1, Number(orderData.transferReserveHours) || 24) * 3600000 : 1800000)).toISOString(),
             fecha: formatFechaLegible(createdAtIso),
-            fechaCreacion: createdAtIso,
-            formaPago: paymentMethod || "",
-            vendedor: "ecommerce",
+             fechaCreacion: createdAtIso,
+             formaPago: paymentMethod || "",
+             ...(paymentMethod === "transferencia" ? { paymentProofStatus: "awaiting_transfer" } : {}),
+             vendedor: "ecommerce",
             cliente: {
               email: orderData.customerInfo?.email || orderData.userId || "",
               nombre: orderData.customerInfo?.nombre || "",
@@ -794,9 +814,9 @@ export async function POST(request) {
               apellido: orderData.customerInfo?.apellido || "",
               telefono: orderData.customerInfo?.telefono || "",
               dni: String(orderData.customerInfo?.dni || "").replace(/\D/g, ""),
-              direccion: orderData.deliveryInfo?.direccion || "",
-              ciudad: orderData.deliveryInfo?.ciudad || orderData.deliveryInfo?.localidad || "",
-              codigoPostal: orderData.deliveryInfo?.codigoPostal || "",
+              direccion: deliveryAddress,
+              ciudad: isPickup ? "" : String(orderData.deliveryInfo?.ciudad || orderData.deliveryInfo?.localidad || ""),
+              codigoPostal: isPickup ? "" : orderData.deliveryInfo?.codigoPostal || "",
             },
             productos: items.map((item) => ({
               id: item.id || "",
@@ -818,15 +838,12 @@ export async function POST(request) {
               cantidadSinStock: Number(item.cantidadSinStock) || 0,
               plazoEntrega: item.plazoEntrega || "",
             })),
-            tipoEnvio: (() => {
-              const shippingType = normalizeShippingType(orderData?.deliveryInfo?.metodoEntrega);
-              return shippingType === "retiro" ? "retiro_local" : shippingType || "domicilio";
-            })(),
+            tipoEnvio: isPickup ? "retiro_local" : deliveryMethod || "domicilio",
             estadoEnvio: "pendiente",
-            direccionEnvio: orderData.deliveryInfo?.direccion || "",
-            localidadEnvio: orderData.deliveryInfo?.localidad || orderData.deliveryInfo?.ciudad || "",
-            codigoPostal: orderData.deliveryInfo?.codigoPostal || "",
-            coordenadasEnvio: {
+            direccionEnvio: deliveryAddress,
+            localidadEnvio: deliveryLocality,
+            codigoPostal: isPickup ? "" : orderData.deliveryInfo?.codigoPostal || "",
+            coordenadasEnvio: isPickup ? null : {
               lat: parseNullableNumber(orderData.deliveryInfo?.lat),
               lng: parseNullableNumber(orderData.deliveryInfo?.lng),
             },
