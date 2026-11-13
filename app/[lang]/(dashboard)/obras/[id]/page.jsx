@@ -20,6 +20,7 @@ import { Printer, Edit, User, MapPin, Calendar, ChevronUp, Loader2 } from "lucid
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { useObra } from "@/hooks/useObra";
+import { useAuth } from "@/provider/auth.provider";
 import {
   formatearNumeroArgentino,
   formatearFecha,
@@ -93,6 +94,7 @@ const ObraDetallePage = () => {
   const params = useParams();
   const router = useRouter();
   const { id, lang } = params;
+  const { user } = useAuth();
   const printingRef = useRef(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   // Pago en dólares y comprobantes para la sección de documentación
@@ -247,13 +249,16 @@ const ObraDetallePage = () => {
     };
   }, [obra?.numeroPedido]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!obra?.id || printingRef.current) return;
     printingRef.current = true;
     try {
       fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "obra",
           id: obra.id,

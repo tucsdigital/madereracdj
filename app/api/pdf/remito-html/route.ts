@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 import {
   mapVentaToRemito,
   mapPresupuestoToRemito,
@@ -19,6 +18,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: NextRequest) {
   try {
+    await verifyFirebaseToken(req.headers.get("authorization"));
+
     const body = await req.json();
     const { type, id, empleado, purpose } = body as {
       type: "venta" | "presupuesto" | "obra";
@@ -27,9 +28,9 @@ export async function POST(req: NextRequest) {
       purpose?: "documento" | "envio";
     };
 
-    if (!type || !id) {
+    if (!["venta", "presupuesto", "obra"].includes(type) || typeof id !== "string" || !id.trim()) {
       return new Response(
-        JSON.stringify({ error: "type e id son requeridos" }),
+        JSON.stringify({ error: "type e id válidos son requeridos" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -39,9 +40,10 @@ export async function POST(req: NextRequest) {
 
     const collectionName =
       type === "venta" ? "ventas" : type === "presupuesto" ? "presupuestos" : "obras";
-    const snap = await getDoc(doc(db, collectionName, id));
+    const db = getAdminDb();
+    const snap = await db.collection(collectionName).doc(id.trim()).get();
 
-    if (!snap.exists()) {
+    if (!snap.exists) {
       return new Response(
         JSON.stringify({ error: "Documento no encontrado" }),
         {
@@ -53,8 +55,8 @@ export async function POST(req: NextRequest) {
 
     let data: any = { id: snap.id, ...snap.data() };
     if (type === "venta" && data.clienteId) {
-      const clienteSnap = await getDoc(doc(db, "clientes", String(data.clienteId)));
-      if (clienteSnap.exists()) {
+      const clienteSnap = await db.collection("clientes").doc(String(data.clienteId)).get();
+      if (clienteSnap.exists) {
         data = mergeVentaClientLocation(data, clienteSnap.data() || {});
       }
     }
@@ -72,8 +74,8 @@ export async function POST(req: NextRequest) {
 
             let presupuesto: any = null;
             if (obra?.tipo === "obra" && obra?.presupuestoInicialId) {
-              const presSnap = await getDoc(doc(db, "obras", obra.presupuestoInicialId));
-              if (presSnap.exists()) {
+              const presSnap = await db.collection("obras").doc(String(obra.presupuestoInicialId)).get();
+              if (presSnap.exists) {
                 presupuesto = { id: presSnap.id, ...presSnap.data() };
               }
             }
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
       },
     });
   } catch (error: any) {
@@ -170,8 +173,8 @@ export async function POST(req: NextRequest) {
         details: error?.message,
       }),
       {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+        status: Number(error?.status) || 500,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       }
     );
   }

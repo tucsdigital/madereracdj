@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { useAuth } from "@/provider/auth.provider";
 import { Clock, CheckCircle, AlertCircle, Search, RefreshCw, Download, Printer, User, Loader2 } from "lucide-react";
 
 // Estados de envío con colores y descripciones
@@ -45,6 +46,7 @@ const formatearMonedaEnvio = (value) => {
 
 // Componente para ver detalles del envío
 function DetalleEnvio({ envio, onClose }) {
+  const { user } = useAuth();
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
   const [printingPDF, setPrintingPDF] = useState(false);
@@ -90,7 +92,10 @@ function DetalleEnvio({ envio, onClose }) {
       // Obtener HTML
       const res = await fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "venta",
           id: envio.ventaId,
@@ -183,7 +188,7 @@ function DetalleEnvio({ envio, onClose }) {
         setPrintingPDF(false);
       }
     }
-  }, [envio?.ventaId]);
+  }, [envio?.ventaId, user]);
 
   // Función para descargar PDF
   const handleDownloadPDF = async (paraEmpleado = false) => {
@@ -203,6 +208,7 @@ function DetalleEnvio({ envio, onClose }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           type: "venta",

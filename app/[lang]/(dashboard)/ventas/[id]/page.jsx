@@ -245,7 +245,10 @@ const VentaDetalle = () => {
       // Obtener HTML
       const res = await fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "venta",
           id: venta.id,
@@ -338,7 +341,7 @@ const VentaDetalle = () => {
         setPrintingPDF(false);
       }
     }
-  }, [venta?.id]);
+  }, [user, venta?.id]);
 
   const handlePrintEnvio = useCallback(async (event = null) => {
     if (event) {
@@ -355,7 +358,10 @@ const VentaDetalle = () => {
     try {
       const res = await fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "venta",
           id: venta.id,
@@ -446,7 +452,7 @@ const VentaDetalle = () => {
       printingEnvioRef.current = false;
       setPrintingPDFEnvio(false);
     }
-  }, [venta?.id]);
+  }, [user, venta?.id]);
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -1950,6 +1956,7 @@ const VentaDetalle = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           type: "venta",

@@ -272,7 +272,10 @@ const PresupuestoDetalle = () => {
       // Obtener HTML
       const res = await fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "presupuesto",
           id: presupuesto.id,
@@ -365,7 +368,7 @@ const PresupuestoDetalle = () => {
         setPrintingPDF(false);
       }
     }
-  }, [presupuesto?.id]);
+  }, [presupuesto?.id, user]);
 
   // Eliminar el estado global de cepillado automático
   // const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false);
@@ -1918,6 +1921,7 @@ const PresupuestoDetalle = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           type: "presupuesto",

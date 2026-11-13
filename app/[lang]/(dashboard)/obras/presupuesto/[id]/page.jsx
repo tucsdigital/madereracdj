@@ -97,13 +97,16 @@ const PresupuestoPage = () => {
     };
   }, [obra?.numeroPedido]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!obra?.id || printingRef.current) return;
     printingRef.current = true;
     try {
       fetch("/api/pdf/remito-html", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
           type: "obra",
           id: obra.id,
