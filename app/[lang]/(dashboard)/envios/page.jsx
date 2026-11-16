@@ -675,7 +675,7 @@ const EnviosPage = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-[60vh] w-full max-w-[1600px] items-center justify-center px-4">
+      <div className="mx-auto flex min-h-[60vh] w-full items-center justify-center px-4">
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <p>Cargando envíos...</p>
@@ -685,7 +685,7 @@ const EnviosPage = () => {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Logística · Seguimiento</p>

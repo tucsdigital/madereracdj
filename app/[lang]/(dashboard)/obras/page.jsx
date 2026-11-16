@@ -1942,7 +1942,7 @@ const ObrasPage = () => {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1700px] flex-col gap-7 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-9">
+    <div className="mx-auto flex w-full flex-col gap-7 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-9">
       {errorCargaObras ? (
         <div role="alert" className="flex flex-col gap-2 border-l-2 border-red-600 py-2 pl-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between">
           <span>{errorCargaObras}</span>

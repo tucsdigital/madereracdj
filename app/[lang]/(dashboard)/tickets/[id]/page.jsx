@@ -263,7 +263,7 @@ const TicketsDetallePage = () => {
   };
 
   return (
-    <div className="py-8 px-2 max-w-6xl mx-auto">
+    <div className="py-8 px-2 mx-auto">
       <div className="mb-8 flex items-center gap-4">
         <Button variant="outline" onClick={() => router.push(`/${lang}/tickets`)}>
           <ArrowLeft className="w-4 h-4 mr-2" />

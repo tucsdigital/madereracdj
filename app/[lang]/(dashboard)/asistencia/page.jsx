@@ -1161,7 +1161,7 @@ export default function AsistenciaPage() {
   // --- Render ---
 
   return (
-    <main className="mx-auto flex w-full max-w-[1700px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       {/* Header */}
       <section className="border-b border-slate-200 pb-5">
         {vistaActiva === "asistencia" ? (

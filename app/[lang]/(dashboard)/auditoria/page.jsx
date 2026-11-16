@@ -115,7 +115,7 @@ const AuditoriaPage = () => {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       {/* Header */}
       <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div>

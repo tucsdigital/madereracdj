@@ -1213,7 +1213,7 @@ export default function EmpleadoDetallePage() {
   };
 
   return (
-      <div className="mx-auto flex max-w-[1380px] flex-col gap-6 px-4 py-8 md:px-6 xl:px-8">
+      <div className="mx-auto flex flex-col gap-6 px-4 py-8 md:px-6 xl:px-8">
         <div className="flex flex-col gap-5 rounded-[28px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.25)] backdrop-blur md:p-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">

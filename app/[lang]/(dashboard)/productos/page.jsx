@@ -4511,7 +4511,7 @@ const ProductosPage = () => {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-[1700px] flex-col gap-6 px-3 py-6 font-sans text-foreground sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans text-foreground sm:px-6 sm:py-8">
       <header className="border-b border-border pb-5">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-primary">Catálogo · Inventario</p>
         <h1 className="text-3xl font-semibold tracking-[-.04em] text-foreground sm:text-4xl">Productos</h1>

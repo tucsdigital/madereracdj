@@ -1198,7 +1198,7 @@ const ObraDetallePage = () => {
   })();
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-7 px-3 py-5 sm:px-6 sm:py-7">
+    <div className="mx-auto w-full space-y-7 px-3 py-5 sm:px-6 sm:py-7">
       <ObraHeader
         obra={obra}
         editando={editando}

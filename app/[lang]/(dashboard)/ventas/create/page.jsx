@@ -49,7 +49,7 @@ export default function CreateVentaPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-6 sm:py-7">
+    <main className="mx-auto w-full px-3 py-5 sm:px-6 sm:py-7">
       <FormularioVentaPresupuesto tipo="venta" onClose={() => {}} onSubmit={handleSubmit} />
     </main>
   );

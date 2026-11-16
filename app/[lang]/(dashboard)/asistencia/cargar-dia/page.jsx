@@ -165,7 +165,7 @@ export default function CargarDiaPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans text-slate-900 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Asistencia · Registro</p>

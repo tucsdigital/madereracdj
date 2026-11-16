@@ -295,7 +295,7 @@ const DeudoresPage = () => {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-7 px-4 py-6 text-slate-900 sm:px-7 sm:py-9">
+    <main className="mx-auto flex min-h-screen w-full flex-col gap-7 px-4 py-6 text-slate-900 sm:px-7 sm:py-9">
       <header className="flex flex-col gap-5 border-b border-slate-200/80 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Button variant="ghost" size="sm" className="mb-5 -ml-3 h-8 text-slate-500 hover:text-slate-900" onClick={() => router.push(`/${lang}/ventas`)}>

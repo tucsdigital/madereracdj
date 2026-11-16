@@ -619,7 +619,7 @@ export default function CrearObraPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-3 py-6 font-sans sm:px-6 sm:py-8">
+    <div className="mx-auto flex w-full flex-col gap-6 px-3 py-6 font-sans sm:px-6 sm:py-8">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber-700">Obras · Alta</p>
