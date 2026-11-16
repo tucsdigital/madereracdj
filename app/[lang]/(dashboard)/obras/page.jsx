@@ -875,7 +875,7 @@ const ObrasPage = () => {
       header: "N° Presupuesto",
       exportValue: (presupuesto) => getRegistroTag("PO", presupuesto.numeroPedido, presupuesto.id),
       cell: ({ row }) => (
-        <span className="whitespace-nowrap font-mono text-xs font-semibold tracking-wide text-slate-700">
+        <span className="block max-w-full truncate font-mono text-xs font-semibold tracking-wide text-slate-700">
           {getRegistroTag("PO", row.original.numeroPedido, row.original.id)}
         </span>
       ),
@@ -956,9 +956,9 @@ const ObrasPage = () => {
       header: "Acciones",
       cell: ({ row }) => {
         const presupuesto = row.original;
-        return <div className="flex items-center justify-end gap-1.5 lg:justify-start">
-          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`); }}>
-            Abrir<ExternalLink aria-hidden="true" className="ml-2 h-3.5 w-3.5" />
+        return <div className="flex items-center justify-end gap-1 lg:justify-start">
+          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-1.5 text-[11px] font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`); }}>
+            Abrir<ExternalLink aria-hidden="true" className="ml-1 h-3 w-3" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -993,7 +993,7 @@ const ObrasPage = () => {
       header: "N° Obra",
       exportValue: (obra) => getRegistroTag("OBRA", obra.numeroPedido, obra.id),
       cell: ({ row }) => (
-        <span className="whitespace-nowrap font-mono text-xs font-semibold tracking-wide text-slate-700">
+        <span className="block max-w-full truncate font-mono text-xs font-semibold tracking-wide text-slate-700">
           {getRegistroTag("OBRA", row.original.numeroPedido, row.original.id)}
         </span>
       ),
@@ -1110,9 +1110,9 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const obra = row.original;
 
-        return <div className="flex items-center justify-end gap-1.5 lg:justify-start">
-          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/${obra.id}`); }}>
-            Abrir<ExternalLink aria-hidden="true" className="ml-2 h-3.5 w-3.5" />
+        return <div className="flex items-center justify-end gap-1 lg:justify-start">
+          <Button type="button" variant="outline" size="sm" className="h-8 rounded-md border-slate-200 bg-white px-1.5 text-[11px] font-medium text-slate-800 shadow-sm hover:bg-slate-50" onClick={(event) => { event.stopPropagation(); router.push(`/${lang}/obras/${obra.id}`); }}>
+            Abrir<ExternalLink aria-hidden="true" className="ml-1 h-3 w-3" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -2039,7 +2039,7 @@ const ObrasPage = () => {
         onDeleteNota={confirmDeleteNota}
       />
 
-      <div className="space-y-10">
+      <div className="grid min-w-0 items-start gap-7 2xl:grid-cols-2 2xl:gap-5">
         <ObrasListTable
           tabs={[]}
           activeTab="presupuestos"

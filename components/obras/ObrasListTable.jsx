@@ -135,12 +135,14 @@ export function ObrasListTable({
   const totalPages = Math.max(table.getPageCount(), 1);
   const pageSize = table.getState().pagination.pageSize;
   const gridTemplate = table.getVisibleLeafColumns().map((column) => {
-    if (column.id === "numeroPedido") return "minmax(120px, .9fr)";
-    if (column.id === "cliente") return "minmax(180px, 1.6fr)";
-    if (column.id === "actions") return "minmax(115px, auto)";
-    if (["presupuestoTotal", "pago", "debe"].includes(column.id)) return "minmax(105px, .8fr)";
-    if (["estado", "estadoUI", "bloques"].includes(column.id)) return "minmax(100px, .8fr)";
-    return "minmax(105px, .9fr)";
+    if (column.id === "numeroPedido") return "minmax(70px, .7fr)";
+    if (column.id === "cliente") return "minmax(74px, 1.3fr)";
+    if (column.id === "actions") return "minmax(96px, auto)";
+    if (["presupuestoTotal", "pago", "debe"].includes(column.id)) return "minmax(58px, .8fr)";
+    if (["estado", "estadoUI"].includes(column.id)) return "minmax(50px, .75fr)";
+    if (column.id === "bloques") return "minmax(50px, .7fr)";
+    if (column.id === "fechaCreacion") return "minmax(48px, .65fr)";
+    return "minmax(58px, .75fr)";
   }).join(" ");
   const startRow = totalRows === 0 ? 0 : table.getState().pagination.pageIndex * pageSize + 1;
   const endRow =
@@ -197,7 +199,7 @@ export function ObrasListTable({
   }, [currentPage, totalPages]);
 
   return (
-    <Tabs value={activeTab} onValueChange={onActiveTabChange} className="space-y-3">
+    <Tabs value={activeTab} onValueChange={onActiveTabChange} className="min-w-0 space-y-3">
       {tabs.length > 0 && (
         <TabsList className="h-auto rounded-none border-b border-slate-200 bg-transparent p-0">
           {tabs.map((tab) => (
@@ -210,8 +212,8 @@ export function ObrasListTable({
       )}
 
       <TabsContent value={activeTab} className="mt-0">
-        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:px-5 xl:flex-row xl:items-end xl:justify-between">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="flex min-w-0 flex-col gap-3 border-b border-slate-200 px-3 py-3 sm:px-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
@@ -220,8 +222,8 @@ export function ObrasListTable({
               <p className="mt-1 text-sm text-slate-500">{description}</p>
             </div>
 
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-nowrap xl:items-center xl:justify-end">
-              <div className="relative min-w-0 sm:col-span-2 xl:w-[280px]">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+              <div className="relative w-full min-w-0">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <Input
                   value={searchValue}
@@ -237,7 +239,7 @@ export function ObrasListTable({
                 variant="outline"
                 onClick={exportarCSV}
                 disabled={loading || totalRows === 0}
-                className="h-9 justify-center rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-none hover:bg-slate-50"
+                className="h-9 shrink-0 justify-center rounded-md border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-none hover:bg-slate-50"
               >
                 <Download className="mr-2 h-4 w-4" />Exportar
               </Button>
@@ -247,7 +249,7 @@ export function ObrasListTable({
 
           <div role="table" aria-label={title}>
             {table.getHeaderGroups().map((headerGroup) => (
-              <div key={headerGroup.id} role="row" className="hidden gap-4 border-b border-slate-200 bg-slate-50/70 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500 lg:grid lg:px-5" style={{ gridTemplateColumns: gridTemplate }}>
+              <div key={headerGroup.id} role="row" className="hidden gap-2 border-b border-slate-200 bg-slate-50/70 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[.08em] text-slate-500 lg:grid" style={{ gridTemplateColumns: gridTemplate }}>
                 {headerGroup.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
                   const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowDownUp;
@@ -256,7 +258,9 @@ export function ObrasListTable({
                     <div key={header.id} role="columnheader" aria-sort={sorted ? (sorted === "asc" ? "ascending" : "descending") : "none"} className={right ? "text-right" : ""}>
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button type="button" onClick={header.column.getToggleSortingHandler()} className={`inline-flex items-center gap-1.5 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${right ? "justify-end" : ""}`}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}<SortIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
+                          {header.column.id === "numeroPedido"
+                            ? (title === "Presupuestos" ? "N° Ppto." : "N° Obra")
+                            : flexRender(header.column.columnDef.header, header.getContext())}<SortIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
                         </button>
                       ) : flexRender(header.column.columnDef.header, header.getContext())}
                     </div>
@@ -281,7 +285,7 @@ export function ObrasListTable({
                     onRowClick(row.original);
                   }
                 }}
-                className={`grid grid-cols-1 gap-x-4 gap-y-2 border-b border-slate-200 px-3 py-4 transition-colors last:border-0 hover:bg-slate-50/60 motion-reduce:transition-none sm:px-4 lg:grid-cols-[var(--list-grid)] lg:items-center lg:px-5 lg:py-3 ${onRowClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400" : ""} ${rowClassName ? rowClassName(row.original) : ""}`}
+                className={`grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 border-b border-slate-200 px-3 py-4 transition-colors last:border-0 hover:bg-slate-50/60 motion-reduce:transition-none sm:px-4 lg:grid-cols-[var(--list-grid)] lg:items-center lg:gap-x-2 lg:px-3 lg:py-3 ${onRowClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400" : ""} ${rowClassName ? rowClassName(row.original) : ""}`}
                 style={{ "--list-grid": gridTemplate }}
               >
                 {row.getVisibleCells().map((cell, index) => (
@@ -298,7 +302,7 @@ export function ObrasListTable({
             )}
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="text-xs text-slate-500">
               Mostrando {startRow} a {endRow} de {totalRows} resultados
             </div>
