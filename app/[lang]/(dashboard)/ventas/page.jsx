@@ -188,14 +188,16 @@ const CompactTableCard = ({
 
   const columnsWithCorrelativeSort = useMemo(
     () =>
-      (Array.isArray(columns) ? columns : []).map((column) => {
-        const columnId = String(column?.id || column?.accessorKey || "");
-        if (columnId !== "numeroPedido") return column;
-        return {
-          ...column,
-          sortingFn: compareByNumeroPedidoDesc,
-        };
-      }),
+      (Array.isArray(columns) ? columns : [])
+        .filter((column) => !["vendedor", "montoAbonado"].includes(String(column?.id || column?.accessorKey || "")))
+        .map((column) => {
+          const columnId = String(column?.id || column?.accessorKey || "");
+          if (columnId !== "numeroPedido") return column;
+          return {
+            ...column,
+            sortingFn: compareByNumeroPedidoDesc,
+          };
+        }),
     [columns]
   );
 
@@ -216,13 +218,13 @@ const CompactTableCard = ({
   });
 
   const gridTemplate = table.getVisibleLeafColumns().map((column, index) => {
-    if (column.id === "numeroPedido") return "minmax(125px, 0.9fr)";
-    if (column.id === "cliente") return "minmax(205px, 1.7fr)";
-    if (column.id === "estadoPago" || column.id === "estadoPresupuesto") return "minmax(105px, 0.8fr)";
-    if (column.id === "fechaCreacion") return "minmax(125px, 1fr)";
-    if (column.id === "total" || column.id === "montoAbonado") return "minmax(115px, 0.9fr)";
-    if (column.id === "actions") return "minmax(140px, auto)";
-    return index === 0 ? "minmax(150px, 1.2fr)" : "minmax(110px, 0.85fr)";
+    if (column.id === "numeroPedido") return "minmax(78px, 0.7fr)";
+    if (column.id === "cliente") return "minmax(110px, 1.55fr)";
+    if (column.id === "estadoPago" || column.id === "estadoPresupuesto") return "minmax(86px, 0.9fr)";
+    if (column.id === "fechaCreacion") return "minmax(76px, 0.8fr)";
+    if (column.id === "total" || column.id === "montoAbonado") return "minmax(80px, 0.85fr)";
+    if (column.id === "actions") return "minmax(98px, auto)";
+    return index === 0 ? "minmax(100px, 1.2fr)" : "minmax(80px, 0.85fr)";
   }).join(" ");
   const columnLabels = {
     numeroPedido: title === "Ventas" ? "N° venta" : "N° presupuesto",
@@ -261,8 +263,8 @@ const CompactTableCard = ({
   };
 
   return (
-    <section aria-labelledby={headingId}>
-      <div className="flex flex-col gap-4 pb-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
+    <section aria-labelledby={headingId} className="min-w-0">
+      <div className="flex flex-col gap-3 pb-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 id={headingId} className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
@@ -270,8 +272,8 @@ const CompactTableCard = ({
             </div>
             <p className="mt-1 text-sm text-slate-500">{title === "Ventas" ? "Operaciones, cobros y estado de cada venta." : "Propuestas vigentes e historial de presupuestos."}</p>
           </div>
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:flex 2xl:w-auto 2xl:flex-none 2xl:flex-wrap 2xl:items-center 2xl:justify-end">
-            <label className="relative min-w-0 sm:col-span-2 2xl:w-[280px]">
+          <div className="flex w-full flex-col gap-2">
+            <label className="relative min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <Input
                 value={searchValue}
@@ -281,13 +283,14 @@ const CompactTableCard = ({
                 className="h-9 rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs shadow-sm placeholder:text-slate-500 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200"
               />
             </label>
-            <Select value={periodo} onValueChange={onPeriodoChange}>
-              <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[170px]"><SelectValue /></SelectTrigger>
-              <SelectContent>{PERIODOS_LISTA.map((p) => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}</SelectContent>
-            </Select>
-            {showEstadoFiltro ? (
+            <div className={`grid min-w-0 gap-2 ${showEstadoFiltro ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+              <Select value={periodo} onValueChange={onPeriodoChange}>
+                <SelectTrigger className="h-9 w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus:ring-2 focus:ring-slate-200"><SelectValue className="truncate" /></SelectTrigger>
+                <SelectContent>{PERIODOS_LISTA.map((p) => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}</SelectContent>
+              </Select>
+              {showEstadoFiltro ? (
               <Select value={estadoFiltro} onValueChange={onEstadoFiltroChange}>
-                <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[145px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus:ring-2 focus:ring-slate-200"><SelectValue className="truncate" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos" className="text-xs">Todos los estados</SelectItem>
                   <SelectItem value="pagado" className="text-xs">Pagado</SelectItem>
@@ -295,37 +298,40 @@ const CompactTableCard = ({
                   <SelectItem value="pendiente" className="text-xs">Pendiente</SelectItem>
                 </SelectContent>
               </Select>
-            ) : null}
-            <Select
-              value={`${sorting[0]?.id || "numeroPedido"}-${sorting[0]?.desc ? "desc" : "asc"}`}
-              onValueChange={(value) => {
-                const [id, direction] = value.split("-");
-                setSorting([{ id, desc: direction === "desc" }]);
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-              }}
-            >
-              <SelectTrigger className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs shadow-sm focus:ring-2 focus:ring-slate-200 2xl:w-[175px]" aria-label="Ordenar registros"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="numeroPedido-desc" className="text-xs">Orden: número reciente</SelectItem>
-                <SelectItem value="fechaCreacion-desc" className="text-xs">Orden: fecha reciente</SelectItem>
-                <SelectItem value="total-desc" className="text-xs">Orden: mayor importe</SelectItem>
-                <SelectItem value="cliente-asc" className="text-xs">Orden: cliente A–Z</SelectItem>
-              </SelectContent>
-            </Select>
-            <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 xl:justify-start">
-              <Checkbox checked={mostrarAnulados} onCheckedChange={(checked) => onMostrarAnuladosChange(Boolean(checked))} className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium text-slate-700">Anulados</span>
-            </label>
-            <Button type="button" variant="outline" onClick={exportarCSV} disabled={loadingBusqueda || data.length === 0} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50">
-              <Download className="mr-2 h-4 w-4" />Exportar
-            </Button>
+              ) : null}
+              <Select
+                value={`${sorting[0]?.id || "numeroPedido"}-${sorting[0]?.desc ? "desc" : "asc"}`}
+                onValueChange={(value) => {
+                  const [id, direction] = value.split("-");
+                  setSorting([{ id, desc: direction === "desc" }]);
+                  setPagination((current) => ({ ...current, pageIndex: 0 }));
+                }}
+              >
+                <SelectTrigger className="h-9 w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus:ring-2 focus:ring-slate-200" aria-label="Ordenar registros"><SelectValue className="truncate" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="numeroPedido-desc" className="text-xs">Orden: número reciente</SelectItem>
+                  <SelectItem value="fechaCreacion-desc" className="text-xs">Orden: fecha reciente</SelectItem>
+                  <SelectItem value="total-desc" className="text-xs">Orden: mayor importe</SelectItem>
+                  <SelectItem value="cliente-asc" className="text-xs">Orden: cliente A–Z</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex h-9 min-w-0 cursor-pointer items-center justify-start gap-2 rounded-md border border-slate-200 bg-white px-2">
+                <Checkbox checked={mostrarAnulados} onCheckedChange={(checked) => onMostrarAnuladosChange(Boolean(checked))} className="h-3.5 w-3.5" />
+                <span className="text-xs font-medium text-slate-700">Anulados</span>
+              </label>
+              <Button type="button" variant="outline" onClick={exportarCSV} disabled={loadingBusqueda || data.length === 0} className="h-9 min-w-0 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50">
+                <Download className="mr-2 h-4 w-4" />Exportar
+              </Button>
+            </div>
           </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
       <div role="table" aria-label={title}>
         {table.getHeaderGroups().map((headerGroup) => (
-          <div key={headerGroup.id} role="row" className="hidden gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[.09em] text-slate-500 xl:grid xl:px-5" style={{ gridTemplateColumns: gridTemplate }}>
+          <div key={headerGroup.id} role="row" className="hidden gap-2 border-b border-slate-200 bg-slate-50/70 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[.07em] text-slate-500 xl:grid" style={{ gridTemplateColumns: gridTemplate }}>
             {headerGroup.headers.map((header) => {
               const sorted = header.column.getIsSorted();
               const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowDownUp;
@@ -334,7 +340,9 @@ const CompactTableCard = ({
                 <div key={header.id} role="columnheader" aria-sort={sorted ? (sorted === "asc" ? "ascending" : "descending") : "none"} className={alignRight ? "text-right" : ""}>
                   {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button type="button" onClick={header.column.getToggleSortingHandler()} aria-label={`Ordenar por ${columnLabels[header.column.id] || header.column.id}`} className={`inline-flex items-center gap-1.5 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${alignRight ? "justify-end" : ""}`}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}<SortIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
+                      {header.column.id === "numeroPedido"
+                        ? (title === "Ventas" ? "N° venta" : "N° presup.")
+                        : flexRender(header.column.columnDef.header, header.getContext())}<SortIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
                     </button>
                   ) : flexRender(header.column.columnDef.header, header.getContext())}
                 </div>
@@ -352,7 +360,7 @@ const CompactTableCard = ({
             <article key={row.id} role="row" aria-label={`${rowOriginal.cliente?.nombre || (title === "Ventas" ? "Venta" : "Presupuesto")}, ${rowOriginal.numeroPedido || rowOriginal.id?.slice(-8) || "sin número"}`} onClick={(event) => {
               if (event.target instanceof Element && event.target.closest("button, a, [role='button'], [role='menuitem'], input, select")) return;
               onRowClick?.(rowOriginal);
-            }} className={`grid cursor-pointer grid-cols-1 gap-x-3 gap-y-2 border-b border-slate-200 px-3 py-3 transition-colors last:border-0 hover:bg-slate-50/70 sm:px-4 xl:grid-cols-[var(--record-columns)] xl:items-center xl:gap-3 xl:px-5 ${anulado ? "bg-rose-50/40" : ""} ${customRowClass}`} style={{ "--record-columns": gridTemplate }}>
+            }} className={`grid cursor-pointer grid-cols-1 gap-x-3 gap-y-2 border-b border-slate-200 px-3 py-3 transition-colors last:border-0 hover:bg-slate-50/70 sm:px-4 xl:grid-cols-[var(--record-columns)] xl:items-center xl:gap-2 xl:px-3 ${anulado ? "bg-rose-50/40" : ""} ${customRowClass}`} style={{ "--record-columns": gridTemplate }}>
               {row.getVisibleCells().map((cell) => {
                 const customCellClass = cellClassName?.(rowOriginal, cell.column.id) || "";
                 const numeric = ["total", "montoAbonado"].includes(cell.column.id);
@@ -435,7 +443,6 @@ const CompactTableCard = ({
 
 const VentasPage = () => {
   const { user } = useAuth();
-  const [activeList, setActiveList] = useState("ventas");
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -770,7 +777,7 @@ const VentasPage = () => {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-7 px-4 py-6 font-sans text-slate-900 sm:px-7 sm:py-9">
+    <main className="mx-auto flex min-h-screen w-full flex-col gap-7 px-4 py-6 font-sans text-slate-900 sm:px-7 sm:py-9">
       <header className="flex flex-col gap-5 border-b border-slate-200/80 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[.2em] text-amber-700">Comercial · Gestión</p>
@@ -778,11 +785,11 @@ const VentasPage = () => {
           <p className="mt-2 max-w-xl text-sm text-slate-500">Buscá operaciones, revisá estados y gestioná nuevos registros.</p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-          <Button type="button" onClick={() => router.push(OPCIONES_CREACION.venta.href(lang))} className="h-9 px-3 text-xs font-semibold shadow-none">
-            <Plus className="mr-1.5 h-4 w-4" />Nueva venta
-          </Button>
           <Button type="button" onClick={() => router.push(OPCIONES_CREACION.presupuesto.href(lang))} className="h-9 px-3 text-xs font-semibold shadow-none">
             <Plus className="mr-1.5 h-4 w-4" />Nuevo presupuesto
+          </Button>
+          <Button type="button" onClick={() => router.push(OPCIONES_CREACION.venta.href(lang))} className="h-9 px-3 text-xs font-semibold shadow-none">
+            <Plus className="mr-1.5 h-4 w-4" />Nueva venta
           </Button>
           <Button type="button" onClick={() => router.push(`/${lang}/ventas/deudores`)} className="h-9 px-3 text-xs font-semibold shadow-none">
             <Wallet className="mr-1.5 h-4 w-4" />
@@ -832,27 +839,23 @@ const VentasPage = () => {
         </p>
       ) : null}
 
-      <div className="border-b border-slate-200">
-        <div role="tablist" aria-label="Tipo de registro" className="flex gap-6">
-          {[
-            { value: "ventas", label: "Ventas" },
-            { value: "presupuestos", label: "Presupuestos" },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              role="tab"
-              aria-selected={activeList === tab.value}
-              onClick={() => setActiveList(tab.value)}
-              className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-1 text-sm transition-colors ${activeList === tab.value ? "border-slate-900 font-semibold text-slate-950" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {activeList === "ventas" ? (
+      <div className="grid min-w-0 items-start gap-7 2xl:grid-cols-2 2xl:gap-5">
+        <CompactTableCard
+          title="Presupuestos"
+          count={presupuestosFiltrados.length}
+          data={presupuestosFiltrados}
+          columns={columnsPresupuestos}
+          searchValue={busquedaPresupuestos}
+          onSearchChange={setBusquedaPresupuestos}
+          searchPlaceholder="Cliente, número de presupuesto o contacto"
+          periodo={periodoPresupuestos}
+          onPeriodoChange={setPeriodoPresupuestos}
+          mostrarAnulados={mostrarAnuladosPresupuestos}
+          onMostrarAnuladosChange={setMostrarAnuladosPresupuestos}
+          onRowClick={(item) => router.push(`/${lang}/presupuestos/${item.id}`)}
+          isAnuladoFn={isPresupuestoAnulado}
+          loadingBusqueda={loadingBusquedaPresupuestos}
+        />
         <CompactTableCard
           title="Ventas"
           count={ventasFiltradas.length}
@@ -872,24 +875,7 @@ const VentasPage = () => {
           isAnuladoFn={isVentaAnulada}
           loadingBusqueda={loadingBusquedaVentas}
         />
-      ) : (
-        <CompactTableCard
-          title="Presupuestos"
-          count={presupuestosFiltrados.length}
-          data={presupuestosFiltrados}
-          columns={columnsPresupuestos}
-          searchValue={busquedaPresupuestos}
-          onSearchChange={setBusquedaPresupuestos}
-          searchPlaceholder="Cliente, número de presupuesto o contacto"
-          periodo={periodoPresupuestos}
-          onPeriodoChange={setPeriodoPresupuestos}
-          mostrarAnulados={mostrarAnuladosPresupuestos}
-          onMostrarAnuladosChange={setMostrarAnuladosPresupuestos}
-          onRowClick={(item) => router.push(`/${lang}/presupuestos/${item.id}`)}
-          isAnuladoFn={isPresupuestoAnulado}
-          loadingBusqueda={loadingBusquedaPresupuestos}
-        />
-      )}
+      </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="w-[95vw] max-w-md rounded-2xl border border-border/60 shadow-2xl bg-card">
