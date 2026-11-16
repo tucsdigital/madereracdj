@@ -1642,17 +1642,6 @@ const VentaDetalle = () => {
       console.log("clienteId asignado (fallback):", ventaEdit.clienteId);
     }
 
-    if (ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local") {
-      if (!String(ventaEdit.fechaEntrega || "").trim()) {
-        setErrorForm("Seleccioná la fecha de entrega antes de guardar.");
-        return;
-      }
-      if (!String(ventaEdit.rangoHorario || "").trim()) {
-        setErrorForm("Seleccioná el horario de entrega antes de guardar.");
-        return;
-      }
-    }
-
     if (!ventaEdit.cliente) {
       console.log("Advertencia: No hay objeto cliente en ventaEdit, armando objeto mínimo...");
       ventaEdit.cliente =
@@ -2841,18 +2830,18 @@ const VentaDetalle = () => {
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><User className="h-5 w-5" /></span>
                 <h2 className="text-lg font-semibold tracking-tight">Cliente</h2>
               </div>
-              {editando && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSelectorCliente(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cambiar Cliente</span>
-                  <span className="sm:hidden">Cambiar</span>
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSelectorCliente(true)}
+                className="no-print flex shrink-0 items-center gap-2"
+                aria-label="Cambiar cliente de la venta"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Cambiar cliente</span>
+                <span className="sm:hidden">Cambiar</span>
+              </Button>
             </div>
             <div className="venta-cliente-info min-w-0 break-words text-sm">
               <div className="venta-nombre-cliente flex items-center gap-3 border-b border-border/60 pb-4 text-lg font-semibold uppercase tracking-wide text-foreground">
@@ -3266,10 +3255,10 @@ const VentaDetalle = () => {
                 <DeliveryScheduleInput
                   fechaEntrega={ventaEdit.fechaEntrega || ""}
                   rangoHorario={ventaEdit.rangoHorario || ""}
-                  required={ventaEdit.tipoEnvio !== "retiro_local"}
+                  required={false}
                   description={ventaEdit.tipoEnvio === "retiro_local"
                     ? "Fecha y horario de retiro opcionales."
-                    : "Definí la fecha y la franja horaria de entrega."}
+                    : "La fecha y el horario de entrega son opcionales."}
                   onFechaEntregaChange={(value) => setVentaEdit((previous) => ({ ...previous, fechaEntrega: value }))}
                   onRangoHorarioChange={(value) => setVentaEdit((previous) => ({ ...previous, rangoHorario: value }))}
                 />
@@ -3435,10 +3424,10 @@ const VentaDetalle = () => {
                       <DeliveryScheduleInput
                         fechaEntrega={ventaEdit.fechaEntrega || ""}
                         rangoHorario={ventaEdit.rangoHorario || ""}
-                        required={ventaEdit.tipoEnvio !== "retiro_local"}
+                        required={false}
                         description={ventaEdit.tipoEnvio === "retiro_local"
                           ? "Fecha y horario de retiro opcionales."
-                          : "Definí la fecha y la franja horaria de entrega."}
+                          : "La fecha y el horario de entrega son opcionales."}
                         onFechaEntregaChange={(value) => setVentaEdit((previous) => ({ ...previous, fechaEntrega: value }))}
                         onRangoHorarioChange={(value) => setVentaEdit((previous) => ({ ...previous, rangoHorario: value }))}
                       />

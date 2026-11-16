@@ -110,16 +110,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       )
       .min(1, "Agrega al menos un ítem"),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
-    fechaEntrega: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("La fecha de entrega es obligatoria"),
-      otherwise: (s) => s.notRequired(),
-    }),
-    rangoHorario: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("El rango horario es obligatorio"),
-      otherwise: (s) => s.notRequired(),
-    }),
+    fechaEntrega: yup.string().notRequired(),
+    rangoHorario: yup.string().notRequired(),
     costoEnvio: yup
       .number()
       .transform((value, originalValue) =>
@@ -184,16 +176,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     usarDireccionCliente: yup.boolean().default(true),
-    fechaEntrega: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("La fecha de entrega es obligatoria"),
-      otherwise: (s) => s.notRequired(),
-    }),
-    rangoHorario: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("El rango horario es obligatorio"),
-      otherwise: (s) => s.notRequired(),
-    }),
+    fechaEntrega: yup.string().notRequired(),
+    rangoHorario: yup.string().notRequired(),
     costoEnvio: yup
       .number()
       .transform((value, originalValue) =>
@@ -248,7 +232,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const costoEnvio = watch("costoEnvio");
   const pagoParcialForm = watch("pagoParcial");
   const pagoPendienteForm = watch("pagoPendiente");
-  const fechaEntregaForm = watch("fechaEntrega");
   const [clienteId, setClienteId] = useState("");
   const [clientesState, setClientesState] = useState([]);
   const [clientesLoading, setClientesLoading] = useState(true);
@@ -1587,11 +1570,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setValue("direccionEnvio", "");
       setValue("localidadEnvio", "");
       setValue("costoEnvio", "");
-    } else if (tipoEnvio && tipoEnvio !== "retiro_local") {
-      // Establecer fecha de entrega por defecto al día actual
-      if (!fechaEntregaForm) setValue("fechaEntrega", fechaLocalActual());
     }
-  }, [tipoEnvio, fechaEntregaForm, setValue]);
+  }, [tipoEnvio, setValue]);
 
   return (
     <>
@@ -3204,11 +3184,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <DeliveryScheduleInput
                         fechaEntrega={watch("fechaEntrega") || ""}
                         rangoHorario={watch("rangoHorario") || ""}
-                        required={tipoEnvioSeleccionado !== "retiro_local"}
+                        required={false}
                         disabled={isSubmitting}
                         description={tipoEnvioSeleccionado === "retiro_local"
                           ? "Programá una fecha y horario de retiro si ya están definidos."
-                          : "Seleccioná cuándo se entregará el pedido."}
+                          : "La fecha y el horario de entrega son opcionales."}
                         dateError={errors.fechaEntrega?.message}
                         timeError={errors.rangoHorario?.message}
                         onFechaEntregaChange={(value) => setValue("fechaEntrega", value, {
@@ -3281,11 +3261,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <DeliveryScheduleInput
                       fechaEntrega={watch("fechaEntrega") || ""}
                       rangoHorario={watch("rangoHorario") || ""}
-                      required={watch("tipoEnvio") !== "retiro_local"}
+                      required={false}
                       disabled={isSubmitting}
                       description={watch("tipoEnvio") === "retiro_local"
                         ? "Programá una fecha y horario de retiro si ya están definidos."
-                        : "Seleccioná cuándo se realizará la entrega."}
+                        : "La fecha y el horario de entrega son opcionales."}
                       dateError={errors.fechaEntrega?.message}
                       timeError={errors.rangoHorario?.message}
                       onFechaEntregaChange={(value) => setValue("fechaEntrega", value, {

@@ -1685,16 +1685,6 @@ const PresupuestoDetalle = () => {
       setErrorForm("Agrega al menos un producto.");
       return;
     }
-    if (presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local") {
-      if (!String(presupuestoEdit.fechaEntrega || "").trim()) {
-        setErrorForm("Seleccioná la fecha de entrega antes de guardar.");
-        return;
-      }
-      if (!String(presupuestoEdit.rangoHorario || "").trim()) {
-        setErrorForm("Seleccioná el horario de entrega antes de guardar.");
-        return;
-      }
-    }
     for (const p of presupuestoEdit.productos || presupuestoEdit.items) {
       if (!p.cantidad || p.cantidad <= 0) {
         setErrorForm("Todas las cantidades deben ser mayores a 0.");
@@ -2090,7 +2080,15 @@ const PresupuestoDetalle = () => {
           <div className="presupuesto-fade-in space-y-5">
             <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-[1fr_1.08fr_.92fr]">
               <article className="print-section min-w-0 rounded-xl border border-border/60 bg-card p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground"><User className="h-5 w-5" /></span><h2 className="text-lg font-semibold tracking-tight">Cliente</h2></div>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground"><User className="h-5 w-5" /></span>
+                    <h2 className="text-lg font-semibold tracking-tight">Cliente</h2>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowSelectorCliente(true)} className="no-print shrink-0 rounded-lg border-border" aria-label="Cambiar cliente del presupuesto">
+                    <Edit className="mr-2 h-4 w-4" />Cambiar cliente
+                  </Button>
+                </div>
                 <div className="break-words border-b border-border/60 pb-4 text-lg font-semibold uppercase tracking-wide">{presupuesto.cliente?.nombre || "Cliente sin nombre"}</div>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div className="grid grid-cols-[minmax(6.5rem,.8fr)_minmax(0,1.2fr)] gap-3"><dt className="flex items-center gap-2 text-muted-foreground"><IdCard className="h-4 w-4 shrink-0" />DNI / CUIT</dt><dd className="break-all font-medium">{presupuesto.cliente?.dni || presupuesto.cliente?.cuit || presupuesto.cliente?.cuil || "—"}</dd></div>
@@ -2137,7 +2135,7 @@ const PresupuestoDetalle = () => {
                     {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" ? <label className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2.5"><span className="text-sm font-medium">Usar dirección del cliente</span><input type="checkbox" checked={presupuestoEdit.usarDireccionCliente !== false} onChange={(event) => setPresupuestoEdit((previous) => ({ ...previous, usarDireccionCliente: event.target.checked }))} className="h-4 w-4 rounded border-input text-primary focus:ring-ring" /></label> : null}
                   </div>
                   {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,.8fr)_minmax(9rem,.65fr)]"><label className="block min-w-0 space-y-1.5 sm:col-span-2 xl:col-span-1"><span className="text-sm font-medium">Dirección de entrega</span>{presupuestoEdit.usarDireccionCliente === false ? <GoogleAddressInput value={presupuestoEdit.direccionEnvio || ""} onChange={({ address, locality, lat, lng, mapsUrl }) => setPresupuestoEdit((previous) => ({ ...previous, direccionEnvio: address, localidadEnvio: locality || previous.localidadEnvio, direccionMapsUrl: mapsUrl, direccionLat: lat, direccionLng: lng }))} placeholder="Buscar dirección" className="w-full" /> : <Input value={presupuestoEdit.cliente?.direccion || ""} readOnly placeholder="Sin dirección cargada" className="h-10 bg-muted/30" />}</label><label className="block space-y-1.5"><span className="text-sm font-medium">Localidad</span>{presupuestoEdit.usarDireccionCliente === false ? <Input value={presupuestoEdit.localidadEnvio || ""} onChange={(event) => setPresupuestoEdit((previous) => ({ ...previous, localidadEnvio: event.target.value }))} placeholder="Localidad o ciudad" className="h-10" /> : <Input value={presupuestoEdit.cliente?.localidad || ""} readOnly placeholder="Sin localidad cargada" className="h-10 bg-muted/30" />}</label><label className="block space-y-1.5"><span className="text-sm font-medium">Costo de envío</span><Input type="number" min="0" step="0.01" value={presupuestoEdit.costoEnvio || ""} onChange={(event) => setPresupuestoEdit((previous) => ({ ...previous, costoEnvio: event.target.value }))} placeholder="0" className="h-10 tabular-nums" /></label></div> : null}
-                  {presupuestoEdit.tipoEnvio ? <DeliveryScheduleInput fechaEntrega={presupuestoEdit.fechaEntrega || ""} rangoHorario={presupuestoEdit.rangoHorario || ""} required={presupuestoEdit.tipoEnvio !== "retiro_local"} description={presupuestoEdit.tipoEnvio === "retiro_local" ? "Fecha y horario de retiro opcionales." : "Definí la fecha y la franja horaria de entrega."} onFechaEntregaChange={(value) => setPresupuestoEdit((previous) => ({ ...previous, fechaEntrega: value }))} onRangoHorarioChange={(value) => setPresupuestoEdit((previous) => ({ ...previous, rangoHorario: value }))} /> : <p className="text-sm text-muted-foreground">Seleccioná una modalidad para definir fecha y horario.</p>}
+                  {presupuestoEdit.tipoEnvio ? <DeliveryScheduleInput fechaEntrega={presupuestoEdit.fechaEntrega || ""} rangoHorario={presupuestoEdit.rangoHorario || ""} required={false} description={presupuestoEdit.tipoEnvio === "retiro_local" ? "Fecha y horario de retiro opcionales." : "La fecha y el horario de entrega son opcionales."} onFechaEntregaChange={(value) => setPresupuestoEdit((previous) => ({ ...previous, fechaEntrega: value }))} onRangoHorarioChange={(value) => setPresupuestoEdit((previous) => ({ ...previous, rangoHorario: value }))} /> : <p className="text-sm text-muted-foreground">Seleccioná una modalidad para definir fecha y horario.</p>}
                 </div>
                 <div className="min-w-0 space-y-4 border-t border-border/50 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"><div><p className="text-sm font-semibold">Información adicional</p><p className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Vendedor</p><p className="mt-1 break-words text-sm">{presupuestoEdit.vendedor || "Sin vendedor asignado"}</p></div><label className="block space-y-1.5"><span className="text-sm font-medium">Observaciones</span><Textarea value={presupuestoEdit.observaciones || ""} onChange={(event) => setPresupuestoEdit((previous) => ({ ...previous, observaciones: event.target.value }))} placeholder="Agregá detalles relevantes para esta cotización." rows={4} className="min-h-24 resize-y leading-relaxed" /></label></div>
               </div>
@@ -2498,16 +2496,8 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         originalValue === "" ? undefined : value
       )
       .notRequired(),
-    fechaEntrega: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("La fecha de entrega es obligatoria"),
-      otherwise: (s) => s.notRequired(),
-    }),
-    rangoHorario: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("El rango horario es obligatorio"),
-      otherwise: (s) => s.notRequired(),
-    }),
+    fechaEntrega: yup.string().notRequired(),
+    rangoHorario: yup.string().notRequired(),
     direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
       is: (tipoEnvio, usarDireccionCliente) =>
         tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
@@ -2570,13 +2560,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   React.useEffect(() => {
     if (tipoEnvioSeleccionado === "retiro_local") {
       setValue("costoEnvio", "");
-    }
-  }, [tipoEnvioSeleccionado, setValue]);
-
-  // Establecer fecha de entrega por defecto al día actual
-  React.useEffect(() => {
-    if (tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local") {
-      setValue("fechaEntrega", fechaLocalActual());
     }
   }, [tipoEnvioSeleccionado, setValue]);
 
@@ -2681,10 +2664,10 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             <DeliveryScheduleInput
               fechaEntrega={watch("fechaEntrega") || ""}
               rangoHorario={watch("rangoHorario") || ""}
-              required={tipoEnvioSeleccionado !== "retiro_local"}
+              required={false}
               description={tipoEnvioSeleccionado === "retiro_local"
                 ? "Fecha y horario de retiro opcionales."
-                : "Seleccioná cuándo se realizará la entrega."}
+                : "La fecha y el horario de entrega son opcionales."}
               dateError={errors.fechaEntrega?.message}
               timeError={errors.rangoHorario?.message}
               onFechaEntregaChange={(value) => setValue("fechaEntrega", value, {
