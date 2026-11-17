@@ -54,9 +54,20 @@ import {
   normalizeComboComponents,
 } from "@/lib/combos";
 
-function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+function FormularioVentaPresupuesto({
+  tipo,
+  onClose,
+  onSubmit,
+  modoEdicionProductos = false,
+  productosIniciales = [],
+  onProductosChange,
+  pagoEnEfectivoInicial = false,
+  onPagoEnEfectivoChange,
+  disabled = false,
+}) {
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingInternally, setIsSubmitting] = useState(false);
+  const isSubmitting = submittingInternally || disabled;
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
   const [cloneFeedbackById, setCloneFeedbackById] = useState({});
@@ -238,16 +249,42 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const clienteSeleccionado = clientesState.find((c) => c.id === clienteId);
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
 
-  const [productosSeleccionados, setProductosSeleccionados] = useState([]);
+  const [productosSeleccionados, setProductosSeleccionados] = useState(() =>
+    modoEdicionProductos && Array.isArray(productosIniciales)
+      ? productosIniciales.map((producto) => ({
+          ...producto,
+          originalId: producto.originalId || producto.id,
+        }))
+      : []
+  );
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
-  const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
+  const [pagoEnEfectivo, setPagoEnEfectivo] = useState(() =>
+    modoEdicionProductos && Boolean(pagoEnEfectivoInicial)
+  );
   const [aplicarIva, setAplicarIva] = useState(false);
   const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
   const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
   const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("10");
   const [productosLoading, setProductosLoading] = useState(true);
+  const onProductosChangeRef = useRef(onProductosChange);
+
+  useEffect(() => {
+    onProductosChangeRef.current = onProductosChange;
+  }, [onProductosChange]);
+
+  useEffect(() => {
+    if (modoEdicionProductos) {
+      onProductosChangeRef.current?.(productosSeleccionados);
+    }
+  }, [modoEdicionProductos, productosSeleccionados]);
+
+  useEffect(() => {
+    if (modoEdicionProductos) {
+      setPagoEnEfectivo(Boolean(pagoEnEfectivoInicial));
+    }
+  }, [modoEdicionProductos, pagoEnEfectivoInicial]);
   // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 
   // Suscripción en tiempo real a todos los productos (idéntico a productos/page.jsx)
@@ -771,6 +808,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handlePagoEnEfectivoChange = (checked) => {
     setPagoEnEfectivo(checked);
+    if (modoEdicionProductos) {
+      onPagoEnEfectivoChange?.(checked);
+    }
     
     // Si se activa el pago en efectivo, bloquear forma de pago y setear a "efectivo"
     if (checked) {
@@ -1144,6 +1184,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, [productosSeleccionados, setValue]);
 
   useEffect(() => {
+    if (modoEdicionProductos) return;
+
     const fetchClientes = async () => {
       setClientesLoading(true);
       let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
@@ -1176,7 +1218,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       });
     };
     fetchClientes();
-  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID, setValue]);
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID, modoEdicionProductos, setValue]);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -1575,7 +1617,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   return (
     <>
-      <div className="mb-2">
+      {!modoEdicionProductos && <div className="mb-2">
         <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
           <Icon
             icon={
@@ -1591,9 +1633,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           Complete todos los campos requeridos para crear un nuevo {""}
           {tipo === "presupuesto" ? "presupuesto" : "venta"}.
         </p>
-      </div>
+      </div>}
 
-      {submitStatus && (
+      {!modoEdicionProductos && submitStatus && (
         <div
           className={`mb-4 p-4 rounded-lg flex items-center gap-3 text-base font-medium shadow border ${
             submitStatus === "success"
@@ -1611,11 +1653,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       )}
 
       <form
-        onSubmit={handleSubmit(handleFormSubmit)}
-        className="flex flex-col gap-6"
+        onSubmit={modoEdicionProductos
+          ? (event) => event.preventDefault()
+          : handleSubmit(handleFormSubmit)}
+        className={`flex flex-col gap-6 ${modoEdicionProductos ? "formulario-venta-edicion-productos" : ""}`}
       >
         <div className="px-1 pb-6">
-          <div className="flex flex-col gap-8">
+          <div className={`flex flex-col gap-8 ${modoEdicionProductos ? "formulario-venta-edicion-productos-contenido" : ""}`}>
             <input
               type="hidden"
               {...register("fecha")}
@@ -1796,7 +1840,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </section>
 
             {/* Sección Productos - Diseño Mejorado */}
-            <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
+            <section className={`bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden ${modoEdicionProductos ? "formulario-venta-edicion-catalogo" : ""}`}>
               {/* Header con estadísticas */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
@@ -1821,7 +1865,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         Productos
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Selecciona los productos para tu venta
+                        Selecciona los productos para tu {tipo}
                       </p>
                     </div>
                   </div>
@@ -2535,7 +2579,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             {/* Tabla de productos seleccionados */}
             {productosSeleccionados.length > 0 && (
-              <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
+              <section className={`bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60 ${modoEdicionProductos ? "formulario-venta-edicion-seleccionados" : ""}`}>
                 <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
                   <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
                   <div className="flex items-center gap-4">
@@ -2694,7 +2738,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.alto === "" ? "" : p.alto || ""}
                                             onChange={(e) => handleAltoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2706,7 +2750,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.largo === "" ? "" : p.largo || ""}
                                             onChange={(e) => handleLargoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2721,7 +2765,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.largo === "" ? "" : p.largo || ""}
                                             onChange={(e) => handleLargoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2736,7 +2780,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.alto === "" ? "" : p.alto || ""}
                                             onChange={(e) => handleAltoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2748,7 +2792,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.ancho === "" ? "" : p.ancho || ""}
                                             onChange={(e) => handleAnchoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2760,7 +2804,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <input
                                             type="number"
                                             min="0"
-                                            step="0.01"
+                                            step="any"
                                             value={p.largo === "" ? "" : p.largo || ""}
                                             onChange={(e) => handleLargoChange(p.id, e.target.value)}
                                             className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
@@ -2799,7 +2843,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       <input
                                         type="number"
                                         min="0"
-                                        step="0.01"
+                                        step="any"
                                         value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                         onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
                                         className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
@@ -2925,7 +2969,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <input
                                 type="number"
                                 min="0"
-                                step="100"
+                                step="any"
                                 value={
                                   p.precio === ""
                                     ? ""
@@ -3360,7 +3404,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
 
         {/* Totales y acciones - bloque normal */}
-        <div className="bg-card space-y-4 rounded-b-xl border-t border-default-100 p-3 md:p-4">
+        <div className={`bg-card space-y-4 rounded-b-xl border-t border-default-100 p-3 md:p-4 ${modoEdicionProductos ? "formulario-venta-edicion-resumen" : ""}`}>
           {advertenciasVenta.requiereRevision && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
               <div className="flex items-center gap-2 font-semibold">
@@ -3550,7 +3594,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
       </form>
 
-      <FormularioClienteObras
+      {modoEdicionProductos && (
+        <style>{`
+          .formulario-venta-edicion-productos > .px-1 > .formulario-venta-edicion-productos-contenido > :not(.formulario-venta-edicion-catalogo):not(.formulario-venta-edicion-seleccionados) {
+            display: none !important;
+          }
+          .formulario-venta-edicion-productos > .formulario-venta-edicion-resumen {
+            display: none !important;
+          }
+        `}</style>
+      )}
+
+      {!modoEdicionProductos && <FormularioClienteObras
         open={openNuevoCliente}
         onClose={() => setOpenNuevoCliente(false)}
         onClienteGuardado={(clienteIdNuevo, clienteData) => {
@@ -3564,7 +3619,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         }}
         mode="general"
         submitLabel="Guardar Cliente"
-      />
+      />}
     </>
   );
 }

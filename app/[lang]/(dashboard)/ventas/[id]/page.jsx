@@ -27,7 +27,7 @@ import GoogleAddressInput from "@/components/ui/google-address-input";
 import { ArrowLeft, ArrowLeftRight, BadgePercent, Banknote, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Clock3, CreditCard, Download, Edit, ExternalLink, FileText, IdCard, Info, Loader2, Mail, MapPin, MessageCircle, Package, Phone, Plus, Printer, ReceiptText, Save, Store, Tag, Trash2, Truck, User, Wallet, XCircle } from "lucide-react";
 import { useAuth } from "@/provider/auth.provider";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
-import ProductosVentaEditor from "@/components/ventas/ProductosVentaEditor";
+import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 import {
   applyDerivedComboStock,
   isComboProduct,
@@ -3546,58 +3546,26 @@ const VentaDetalle = () => {
             </section>
 
             <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-              <ProductosVentaEditor
-                items={ventaEdit.productos || []}
-                productos={productos}
-                onAgregarProductoCatalogo={handleAgregarProductoCatalogo}
-                getProductoCatalogoPreview={construirProductoCatalogo}
-                onAgregarEjemplo={handleAgregarEjemplo}
-                onQuitarProductoDesdeCatalogo={handleQuitarProductoDesdeCatalogo}
-                loadingPrecios={loadingPrecios}
-                pagoEnEfectivo={Boolean(ventaEdit?.pagoEnEfectivo)}
-                idPagoEnEfectivo="venta-pago-efectivo"
-                formatearNumeroArgentino={formatearNumeroArgentino}
-                defaultCepilladoPorcentaje={DEFAULT_CEPILLADO_PORCENTAJE}
-                defaultCalibradoPorcentaje={DEFAULT_CALIBRADO_PORCENTAJE}
+              <FormularioVentaPresupuesto
+                tipo="venta"
+                modoEdicionProductos
+                disabled={loadingPrecios}
+                productosIniciales={ventaEdit.productos || []}
+                onProductosChange={(productosActualizados) => {
+                  setVentaEdit((previous) => previous
+                    ? { ...previous, productos: productosActualizados }
+                    : previous);
+                }}
+                pagoEnEfectivoInicial={Boolean(ventaEdit.pagoEnEfectivo)}
                 onPagoEnEfectivoChange={(checked) => {
-                  setVentaEdit((prev) => {
-                    if (!prev) return prev;
-                    return {
-                      ...prev,
-                      pagoEnEfectivo: checked,
-                      ...(checked ? { formaPago: "efectivo" } : null),
-                    };
-                  });
+                  setVentaEdit((previous) => previous
+                    ? {
+                        ...previous,
+                        pagoEnEfectivo: checked,
+                        ...(checked ? { formaPago: "efectivo" } : null),
+                      }
+                    : previous);
                 }}
-                onNombreChange={handleNombreChange}
-                onUnidadMaderaChange={handleUnidadMaderaChange}
-                onDimensionChange={(id, campo, value, producto) => {
-                  if (campo === "alto") {
-                    return producto.unidad === "M2"
-                      ? handleAltoChange(id, value)
-                      : handleAltoChangeMadera(id, value);
-                  }
-                  if (campo === "ancho") return handleAnchoChangeMadera(id, value);
-                  if (campo === "largo") {
-                    return producto.unidad === "M2"
-                      ? handleLargoChange(id, value)
-                      : handleLargoChangeMadera(id, value);
-                  }
-                }}
-                onPrecioPorPieChange={(id, value, producto) => producto.unidad === "M2"
-                  ? handlePrecioPorPieChange(id, value)
-                  : handlePrecioPorPieChangeMadera(id, value)}
-                onCantidadChange={handleCantidadChange}
-                onIncrementarCantidad={handleIncrementarCantidad}
-                onDecrementarCantidad={handleDecrementarCantidad}
-                onCepilladoChange={recalcularPreciosMadera}
-                onCepilladoPorcentajeChange={handleCepilladoPorcentajeChange}
-                onCalibradoChange={handleCalibradoAplicadoChange}
-                onCalibradoPorcentajeChange={handleCalibradoPorcentajeChange}
-                onPrecioChange={handlePrecioChange}
-                onDescuentoChange={handleDescuentoChange}
-                onClonarProducto={handleClonarProducto}
-                onQuitarProducto={handleQuitarProducto}
               />
 
               {(() => {

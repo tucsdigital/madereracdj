@@ -42,7 +42,7 @@ import {
   X,
 } from "lucide-react";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
-import ProductosVentaEditor from "@/components/ventas/ProductosVentaEditor";
+import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 import { Input } from "@/components/ui/input";
 import GoogleAddressInput from "@/components/ui/google-address-input";
 import { DeliveryScheduleInput } from "@/components/ui/delivery-schedule-input";
@@ -50,8 +50,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-// FormularioVentaPresupuesto removido - usar componente separado si es necesario
-// import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 import { applyDerivedComboStock, isComboProduct, normalizeComboComponents } from "@/lib/combos";
@@ -2141,80 +2139,20 @@ const PresupuestoDetalle = () => {
               </div>
             </section>
 
-            <ProductosVentaEditor
-              items={presupuestoEdit.productos || []}
-              productos={productos}
-              onAgregarProductoCatalogo={handleAgregarProductoCatalogo}
-              getProductoCatalogoPreview={construirProductoCatalogo}
-              onAgregarEjemplo={handleAgregarEjemplo}
-              onQuitarProductoDesdeCatalogo={handleQuitarProductoDesdeCatalogo}
-              loadingPrecios={loadingPrecios}
-              pagoEnEfectivo={pagoEnEfectivo}
+            <FormularioVentaPresupuesto
+              tipo="presupuesto"
+              modoEdicionProductos
+              disabled={loadingPrecios}
+              productosIniciales={presupuestoEdit.productos || []}
+              onProductosChange={(productosActualizados) => {
+                setPresupuestoEdit((previous) => previous
+                  ? { ...previous, productos: productosActualizados }
+                  : previous);
+              }}
+              pagoEnEfectivoInicial={pagoEnEfectivo}
               onPagoEnEfectivoChange={handlePagoEnEfectivoChange}
-              idPagoEnEfectivo="presupuesto-pago-efectivo"
-              textoPagoEnEfectivo="Pago en efectivo (-10%)"
-              formatearNumeroArgentino={formatearNumeroArgentino}
-              defaultCepilladoPorcentaje={DEFAULT_CEPILLADO_PORCENTAJE}
-              defaultCalibradoPorcentaje={DEFAULT_CALIBRADO_PORCENTAJE}
-              disableMaderaTreatmentsForUnit
-              clampDiscount
-              showWhenEmpty
-              onNombreChange={(id, nombre) => setPresupuestoEdit((previous) => ({
-                ...previous,
-                productos: previous.productos.map((item) => item.id === id ? { ...item, nombre } : item),
-              }))}
-              onDimensionChange={(id, campo, value, producto) => {
-                if (campo === "alto") {
-                  return producto.unidad === "M2"
-                    ? handleAltoChange(id, value)
-                    : handleAltoChangeMadera(id, value);
-                }
-                if (campo === "ancho") return handleAnchoChangeMadera(id, value);
-                if (campo === "largo") {
-                  return producto.unidad === "M2"
-                    ? handleLargoChange(id, value)
-                    : handleLargoChangeMadera(id, value);
-                }
-              }}
-              onPrecioPorPieChange={(id, value, producto) => producto.unidad === "M2"
-                ? handlePrecioPorPieChange(id, value)
-                : handlePrecioPorPieChangeMadera(id, value)}
-              onCantidadChange={handleCantidadProductoChange}
-              onIncrementarCantidad={handleIncrementarCantidadProducto}
-              onDecrementarCantidad={handleDecrementarCantidadProducto}
-              onCepilladoChange={recalcularPreciosMadera}
-              onCepilladoPorcentajeChange={handleCepilladoPorcentajeChange}
-              onCalibradoChange={handleCalibradoAplicadoChange}
-              onCalibradoPorcentajeChange={handleCalibradoPorcentajeChange}
-              onPrecioChange={(id, value, producto) => {
-                const parsed = value === "" ? "" : Number(value);
-                setPresupuestoEdit((previous) => ({
-                  ...previous,
-                  productos: previous.productos.map((item) => {
-                    if (item.id !== id) return item;
-                    const price = parsed === "" ? 0 : Number(parsed);
-                    const includesQuantity = item.categoria === "Maderas" && ["M2", "ML"].includes(item.unidad);
-                    return {
-                      ...item,
-                      precio: includesQuantity ? price * (Number(item.cantidad) || 1) : parsed,
-                      precioIncluyeCantidad: includesQuantity,
-                    };
-                  }),
-                }));
-              }}
-              onDescuentoChange={(id, value) => {
-                const parsed = parseNumericValue(value);
-                setPresupuestoEdit((previous) => ({
-                  ...previous,
-                  productos: previous.productos.map((item) => item.id === id
-                    ? { ...item, descuento: parsed === "" ? 0 : parsed }
-                    : item),
-                }));
-              }}
-              onClonarProducto={handleClonarProducto}
-              onQuitarProducto={handleQuitarProducto}
-              footer={(
-                <div className="mt-5 space-y-4 border-t border-border/60 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+            />
+            <div className="mt-5 space-y-4 border-t border-border/60 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
                   <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
                     <header className="flex items-center gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground" aria-hidden="true">
@@ -2270,9 +2208,7 @@ const PresupuestoDetalle = () => {
                       costoEnvio: presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" ? presupuestoEdit.costoEnvio : 0,
                     }))}
                   </aside>
-                </div>
-              )}
-            />
+            </div>
 
             {errorForm ? <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{errorForm}</div> : null}
           </div>
