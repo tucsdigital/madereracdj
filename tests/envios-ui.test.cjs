@@ -44,6 +44,14 @@ test("las distancias se muestran en km legibles", () => {
   assert.equal(ui.moneyAr(900.5), "$900,50");
 });
 
+test("las sucursales sin radio siguen disponibles para el mapa y la prueba de cobertura", () => {
+  const locations = ui.numericLocations([
+    { ...local, radio: null },
+    { ...local, id: "invalid", radio: 0 },
+  ]);
+  assert.deepEqual(locations.map((location) => [location.id, location.radio]), [["a", null]]);
+});
+
 test("las tarifas se resumen en una frase y se ordenan", () => {
   assert.equal(ui.tarifasResumen([]), "Todavía no hay tarifas: todos los envíos se cotizan.");
   assert.equal(ui.tarifasResumen(tiers), "Cubre hasta 20 km · de $10.000 a $20.000");

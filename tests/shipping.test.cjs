@@ -62,6 +62,45 @@ test("el cálculo por km usa las coordenadas de la dirección y conserva el lím
   assert.equal(outside.reason, "fuera_de_zona");
 });
 
+test("sin radio una sucursal no limita el envío por km y se usa la distancia de ruta", () => {
+  const result = computeShipping({
+    locations: [{ ...local, radio: null }],
+    tiers: [],
+    rules: { pricingMode: "per_km", pricePerKm: 100 },
+    lat: point.lat,
+    lng: point.lng,
+    weightKg: 1,
+    distancesByStore: routeDistances,
+  });
+  assert.equal(result.status, "ok");
+  assert.equal(result.inRadius, true);
+  assert.equal(result.maxRadiusKm, null);
+  assert.equal(result.distance, 12.5);
+  assert.equal(result.price, 1250);
+});
+
+test("sin radio los tramos controlan el máximo de distancia y no se fuerza una cotización por zona", () => {
+  const withinLastTier = computeShipping({
+    locations: [{ ...local, radio: null }], tiers, rules: {},
+    lat: point.lat, lng: point.lng, weightKg: 1, distancesByStore: routeDistances,
+  });
+  assert.equal(withinLastTier.status, "ok");
+  assert.equal(withinLastTier.price, 20000);
+
+  const beyondLastTier = computeShipping({
+    locations: [{ ...local, radio: null }], tiers, rules: {},
+    lat: point.lat, lng: point.lng, weightKg: 1, distancesByStore: { a: 22 },
+  });
+  assert.equal(beyondLastTier.reason, "sin_tarifa");
+});
+
+test("el radio vacío es válido y los radios no positivos informados siguen siendo inválidos", () => {
+  const location = { ...local, direccion: "Calle 1" };
+  assert.deepEqual(shippingIssues({ locations: [{ ...location, radio: null }] }), []);
+  assert.ok(shippingIssues({ locations: [{ ...location, radio: 0 }] }).some((issue) => issue.field === "radio"));
+  assert.ok(shippingIssues({ locations: [{ ...location, radio: -1 }] }).some((issue) => issue.field === "radio"));
+});
+
 test("la modalidad por km respeta adicionales, mínimo y envío gratis", () => {
   const rules = {
     pricingMode: "per_km",

@@ -83,6 +83,15 @@ test("guarda sucursales, tarifas y reglas juntas, con historial y versión", asy
   assert.equal(res.body.savedBy, "admin@ejemplo.com");
 });
 
+test("permite guardar una sucursal sin radio de cobertura", async () => {
+  const { state, route } = setup();
+  const { radio, ...storeWithoutRadius } = store;
+  const res = await route.PUT(req({ locations: [storeWithoutRadius], shippingTiers: tiers, baseVersion: 0 }));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.locations[0].radio, null);
+  assert.equal(state.doc.locations[0].radio, null);
+});
+
 test("guardar sin cambios reales no escribe ni suma versión", async () => {
   const { state, route } = setup();
   await route.PUT(req({ locations: [store], shippingTiers: tiers, baseVersion: 0 }));

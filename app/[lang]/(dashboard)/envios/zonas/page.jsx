@@ -160,13 +160,13 @@ export default function ZonasEnvioPage() {
   };
   const startNew = () => {
     setSelectedId(null);
-    setDraft({ key: `new-${Date.now()}`, id: null, nombre: "", direccion: "", lat: "", lng: "", radio: 5000 });
+    setDraft({ key: `new-${Date.now()}`, id: null, nombre: "", direccion: "", lat: "", lng: "", radio: null });
   };
   const startEdit = (id) => {
     const loc = locationById(id);
     if (!loc) return;
     setSelectedId(id);
-    setDraft({ key: id, id, nombre: loc.nombre || "", direccion: loc.direccion || "", lat: loc.lat ?? "", lng: loc.lng ?? "", radio: loc.radio ?? 5000 });
+    setDraft({ key: id, id, nombre: loc.nombre || "", direccion: loc.direccion || "", lat: loc.lat ?? "", lng: loc.lng ?? "", radio: loc.radio ?? null });
     const numeric = numericLocations([loc])[0];
     if (numeric) mapRef.current?.focus(numeric);
   };

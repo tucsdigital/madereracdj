@@ -39,7 +39,7 @@ export function SucursalesList({ locations, selectedId, problems, onSelect, onAd
                     {problems[index] > 0 && <Chip tone="bad">Revisar</Chip>}
                   </div>
                   <p className="mt-0.5 truncate text-sm text-default-500">{loc.direccion || "Sin dirección"}</p>
-                  <p className="mt-2 text-xs text-default-500">Cubre hasta {kmLabel(metersToKm(loc.radio))}</p>
+                  <p className="mt-2 text-xs text-default-500">{Number(loc.radio) > 0 ? `Cubre hasta ${kmLabel(metersToKm(loc.radio))}` : "Sin límite de cobertura por radio"}</p>
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -85,6 +85,7 @@ export function SucursalForm({ draft, isNew, mapsReady, gmaps, onChange, onLocat
   const errors = attempted ? inlineIssues(issues, "sucursales", 0) : {};
   const hasCoords = String(draft.lat ?? "").trim() !== "" && String(draft.lng ?? "").trim() !== "";
   const radioKm = metersToKm(draft.radio);
+  const hasRadio = Number.isFinite(radioKm) && radioKm > 0;
 
   // El texto del campo de km se conserva tal cual se escribe ("2," mientras se tipea); se actualiza si cambia desde el deslizador o el mapa.
   const parseKm = (text) => parseFloat(String(text).replace(",", "."));
@@ -130,22 +131,39 @@ export function SucursalForm({ draft, isNew, mapsReady, gmaps, onChange, onLocat
           />
         </Field>
 
-        <Field label="Radio de cobertura" error={errors.radio} htmlFor="suc-radio">
-          <div className="flex items-center gap-3">
-            <input
-              type="range" min={0.5} max={50} step={0.5} value={Math.min(50, Math.max(0.5, radioKm || 0.5))}
-              onChange={(e) => onChange({ radio: kmToMeters(e.target.value) })}
-              className="h-2 flex-1 cursor-pointer accent-primary" aria-label="Radio de cobertura en kilómetros"
-            />
-            <UnitInput id="suc-radio" suffix="km" className="w-28" invalid={Boolean(errors.radio)}
-              value={kmText} placeholder="5"
-              onChange={(e) => {
-                setKmText(e.target.value);
-                const km = parseKm(e.target.value);
-                onChange({ radio: Number.isFinite(km) ? kmToMeters(km) : "" });
-              }} />
-          </div>
-          <p className="mt-1 text-xs text-default-500">Hasta dónde llega esta sucursal. También podés estirar el círculo en el mapa.</p>
+        <Field
+          label="Radio de cobertura (opcional)"
+          error={errors.radio}
+          hint="Dejalo vacío para que esta sucursal no tenga un límite de cobertura por radio."
+          htmlFor={hasRadio ? "suc-radio" : undefined}
+        >
+          {hasRadio ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range" min={0.5} max={50} step={0.5} value={Math.min(50, Math.max(0.5, radioKm))}
+                  onChange={(e) => onChange({ radio: kmToMeters(e.target.value) })}
+                  className="h-2 flex-1 cursor-pointer accent-primary" aria-label="Radio de cobertura en kilómetros"
+                />
+                <UnitInput id="suc-radio" suffix="km" className="w-28" invalid={Boolean(errors.radio)}
+                  value={kmText} placeholder="5"
+                  onChange={(e) => {
+                    setKmText(e.target.value);
+                    const km = parseKm(e.target.value);
+                    onChange({ radio: Number.isFinite(km) && km > 0 ? kmToMeters(km) : null });
+                  }} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-default-500">También podés ajustar el círculo desde el mapa.</p>
+                <Btn variant="ghost" size="sm" onClick={() => { setKmText(""); onChange({ radio: null }); }}>Quitar radio</Btn>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-10 items-center justify-between gap-3">
+              <span className="text-sm text-default-500">Sin límite de cobertura por radio</span>
+              <Btn size="sm" onClick={() => { setKmText("5"); onChange({ radio: 5000 }); }}>Definir radio</Btn>
+            </div>
+          )}
         </Field>
 
         <details className="rounded-lg border border-border px-4 py-3 text-sm" open={!mapsReady || undefined}>

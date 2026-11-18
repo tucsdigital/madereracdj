@@ -24,8 +24,10 @@ const storeLabel = (name) => ({ text: String(name || "Sucursal"), color: "#11182
 const boundsOf = (gmaps, locations) => {
   const bounds = new gmaps.LatLngBounds();
   locations.forEach((s) => {
-    const dLat = (s.radio || 0) / 111000;
-    const dLng = (s.radio || 0) / (111000 * Math.cos((s.lat * Math.PI) / 180) || 1);
+    // Si no hay radio, agrega un margen visual al encuadre sin dibujar un límite de cobertura.
+    const radiusForBounds = Number(s.radio) > 0 ? s.radio : 500;
+    const dLat = radiusForBounds / 111000;
+    const dLng = radiusForBounds / (111000 * Math.cos((s.lat * Math.PI) / 180) || 1);
     bounds.extend(new gmaps.LatLng(s.lat + dLat, s.lng + dLng));
     bounds.extend(new gmaps.LatLng(s.lat - dLat, s.lng - dLng));
   });
@@ -103,13 +105,15 @@ const CoverageMap = forwardRef(function CoverageMap(
       const selected = loc.id === selectedId;
       const color = selected ? COLORS.selected : COLORS.store;
       const center = { lat: loc.lat, lng: loc.lng };
-      created.push(
-        new gmaps.Circle({
-          map, center, radius: loc.radio, clickable: false,
-          strokeColor: color, strokeOpacity: selected ? 0.9 : 0.55, strokeWeight: selected ? 2.5 : 1.5,
-          fillColor: color, fillOpacity: selected ? 0.18 : 0.1,
-        })
-      );
+      if (Number(loc.radio) > 0) {
+        created.push(
+          new gmaps.Circle({
+            map, center, radius: loc.radio, clickable: false,
+            strokeColor: color, strokeOpacity: selected ? 0.9 : 0.55, strokeWeight: selected ? 2.5 : 1.5,
+            fillColor: color, fillOpacity: selected ? 0.18 : 0.1,
+          })
+        );
+      }
       const marker = new gmaps.Marker({ map, position: center, title: loc.nombre, icon: dotIcon(gmaps, color), label: storeLabel(loc.nombre), zIndex: selected ? 3 : 2 });
       marker.addListener("click", () => callbacks.current.onSelect?.(loc.id));
       created.push(marker);
@@ -123,22 +127,39 @@ const CoverageMap = forwardRef(function CoverageMap(
     const { map, gmaps } = maps;
     const d = draftRef.current;
     const center = { lat: d.lat, lng: d.lng };
-    const circle = new gmaps.Circle({
-      map, center, radius: d.radio > 0 ? d.radio : 1000, clickable: true, draggable: true, editable: true,
-      strokeColor: COLORS.selected, strokeOpacity: 0.95, strokeWeight: 2.5, fillColor: COLORS.selected, fillOpacity: 0.2,
-    });
-    const marker = new gmaps.Marker({ map, position: center, draggable: true, icon: dotIcon(gmaps, COLORS.selected), zIndex: 5 });
-    const emit = () => {
-      const c = circle.getCenter();
-      callbacks.current.onDraftChange?.({ lat: c.lat(), lng: c.lng(), radio: Math.round(circle.getRadius()) });
+    const layer = { circle: null, marker: null, ensureCircle: null };
+    const emit = (position, radius = null) => {
+      callbacks.current.onDraftChange?.({
+        lat: position.lat(),
+        lng: position.lng(),
+        radio: Number.isFinite(radius) && radius > 0 ? Math.round(radius) : null,
+      });
     };
-    circle.addListener("radius_changed", emit);
-    circle.addListener("center_changed", () => { marker.setPosition(circle.getCenter()); emit(); });
-    marker.addListener("dragend", () => circle.setCenter(marker.getPosition()));
-    draftLayer.current = { circle, marker };
+    layer.ensureCircle = (radius) => {
+      if (layer.circle) return layer.circle;
+      layer.circle = new gmaps.Circle({
+        map, center: layer.marker.getPosition(), radius, clickable: true, draggable: true, editable: true,
+        strokeColor: COLORS.selected, strokeOpacity: 0.95, strokeWeight: 2.5, fillColor: COLORS.selected, fillOpacity: 0.2,
+      });
+      layer.circle.addListener("radius_changed", () => emit(layer.circle.getCenter(), layer.circle.getRadius()));
+      layer.circle.addListener("center_changed", () => {
+        const circleCenter = layer.circle.getCenter();
+        layer.marker.setPosition(circleCenter);
+        emit(circleCenter, layer.circle.getRadius());
+      });
+      return layer.circle;
+    };
+    layer.marker = new gmaps.Marker({ map, position: center, draggable: true, icon: dotIcon(gmaps, COLORS.selected), zIndex: 5 });
+    if (d.radio > 0) layer.ensureCircle(d.radio);
+    layer.marker.addListener("dragend", () => {
+      const markerPosition = layer.marker.getPosition();
+      if (layer.circle) layer.circle.setCenter(markerPosition);
+      else emit(markerPosition);
+    });
+    draftLayer.current = layer;
     return () => {
-      circle.setMap(null);
-      marker.setMap(null);
+      layer.circle?.setMap(null);
+      layer.marker.setMap(null);
       draftLayer.current = null;
     };
   }, [maps, draftKey, hasDraftCoords]);
@@ -147,11 +168,19 @@ const CoverageMap = forwardRef(function CoverageMap(
   useEffect(() => {
     const layer = draftLayer.current;
     if (!layer || !draft) return;
-    const center = layer.circle.getCenter();
+    const center = layer.circle?.getCenter() || layer.marker.getPosition();
     if (Number.isFinite(draft.lat) && Number.isFinite(draft.lng) && (Math.abs(center.lat() - draft.lat) > 1e-7 || Math.abs(center.lng() - draft.lng) > 1e-7)) {
-      layer.circle.setCenter({ lat: draft.lat, lng: draft.lng });
+      const nextCenter = { lat: draft.lat, lng: draft.lng };
+      if (layer.circle) layer.circle.setCenter(nextCenter);
+      else layer.marker.setPosition(nextCenter);
     }
-    if (draft.radio > 0 && Math.abs(layer.circle.getRadius() - draft.radio) > 1) layer.circle.setRadius(draft.radio);
+    if (draft.radio > 0) {
+      const circle = layer.circle || layer.ensureCircle(draft.radio);
+      if (Math.abs(circle.getRadius() - draft.radio) > 1) circle.setRadius(draft.radio);
+    } else if (layer.circle) {
+      layer.circle.setMap(null);
+      layer.circle = null;
+    }
   }, [draft?.lat, draft?.lng, draft?.radio]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pin de prueba (arrastrable para afinar la dirección).

@@ -33,7 +33,7 @@ export async function GET(request) {
   let masCercana = null;
   let menor = Infinity;
   for (const s of locations) {
-    if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng) || !Number.isFinite(s.radio)) continue;
+    if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) continue;
     const d = distanciaKm(lat, lng, s.lat, s.lng);
     if (d < menor) {
       menor = d;
@@ -46,8 +46,8 @@ export async function GET(request) {
   }
 
   const distance = Math.round(menor * 100) / 100;
-  const maxRadius = masCercana.radio / 1000;
-  const isInRadius = distance <= maxRadius;
+  const maxRadius = Number.isFinite(masCercana.radio) && masCercana.radio > 0 ? masCercana.radio / 1000 : null;
+  const isInRadius = maxRadius === null || distance <= maxRadius;
   const canShip = !(Number.isFinite(weightKg) && weightKg > maxWeightKg);
 
   const sortedTiers = Array.isArray(shippingTiers)
