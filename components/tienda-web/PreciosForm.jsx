@@ -197,6 +197,24 @@ export default function PreciosForm({ precios, onChange, products, productsState
               </select>
             </div>
           </div>
+          <div className="mt-6 border-t border-border pt-5">
+            <div className="max-w-2xl">
+              <h3 className="text-sm font-semibold">Tratamientos de madera</h3>
+              <p className="mt-1 text-xs leading-5 text-default-500">
+                Porcentajes adicionales que la tienda ofrece al cliente. Se pueden combinar y no se aplican a productos vendidos por m².
+              </p>
+            </div>
+            <div className="mt-4 grid max-w-lg gap-4 sm:grid-cols-2">
+              <label className="space-y-1.5 text-sm font-medium">
+                <span>Cepillado</span>
+                <PctInput ariaLabel="Porcentaje de cepillado" value={raw.tratamientosMadera?.cepilladoPct ?? 6} onChange={(value) => patch({ tratamientosMadera: { ...(raw.tratamientosMadera || {}), cepilladoPct: value } })} />
+              </label>
+              <label className="space-y-1.5 text-sm font-medium">
+                <span>Calibrado</span>
+                <PctInput ariaLabel="Porcentaje de calibrado" value={raw.tratamientosMadera?.calibradoPct ?? 3} onChange={(value) => patch({ tratamientosMadera: { ...(raw.tratamientosMadera || {}), calibradoPct: value } })} />
+              </label>
+            </div>
+          </div>
         </section>
 
         <Card title="Por categoría" tip="Pisan al ajuste general. Si elegís también subcategoría, esa regla gana sobre la de la categoría." action={<Btn size="sm" onClick={addGrupo}>Agregar</Btn>}>

@@ -57,16 +57,16 @@ test("las tarifas se resumen en una frase y se ordenan", () => {
 });
 
 test("el mapa explica la cobertura de una dirección con palabras simples", () => {
-  const near = shipping.computeShipping({ locations: [local], tiers, lat: -34.6, lng: -58.28, weightKg: 1 });
+  const near = shipping.computeShipping({ locations: [local], tiers, lat: -34.6, lng: -58.28, weightKg: 1, distancesByStore: { a: 14 } });
   const ok = ui.coverageMessage(near);
   assert.equal(ok.tone, "ok");
   assert.match(ok.detail, /Central · a 1\d(,\d)? km · envío desde \$20\.000/);
-  const free = ui.coverageMessage(shipping.computeShipping({ locations: [local], tiers, rules: { freeShippingMin: 100 }, lat: -34.6, lng: -58.28, weightKg: 1, subtotal: 500 }));
+  const free = ui.coverageMessage(shipping.computeShipping({ locations: [local], tiers, rules: { freeShippingMin: 100 }, lat: -34.6, lng: -58.28, weightKg: 1, subtotal: 500, distancesByStore: { a: 14 } }));
   assert.match(free.detail, /envío gratis/);
-  const far = ui.coverageMessage(shipping.computeShipping({ locations: [{ ...local, radio: 1000 }], tiers, lat: -34.6, lng: -58.28, weightKg: 1 }));
+  const far = ui.coverageMessage(shipping.computeShipping({ locations: [{ ...local, radio: 1000 }], tiers, lat: -34.6, lng: -58.28, weightKg: 1, distancesByStore: { a: 14 } }));
   assert.equal(far.tone, "bad");
   assert.match(far.title, /Fuera de la zona/);
-  const gap = ui.coverageMessage(shipping.computeShipping({ locations: [local], tiers: [{ km: 5, price: 1 }], lat: -34.6, lng: -58.28, weightKg: 1 }));
+  const gap = ui.coverageMessage(shipping.computeShipping({ locations: [local], tiers: [{ km: 5, price: 1 }], lat: -34.6, lng: -58.28, weightKg: 1, distancesByStore: { a: 14 } }));
   assert.match(gap.title, /Sin tarifa/);
   assert.match(ui.coverageMessage(shipping.computeShipping({ locations: [], tiers, lat: 0, lng: 0, weightKg: 1 })).title, /Agregá una sucursal/);
   assert.equal(ui.coverageMessage(null), null);

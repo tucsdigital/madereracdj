@@ -1,6 +1,7 @@
 import { preflightCorsPublico, jsonPublico } from "@/lib/cors-publico";
 import { obtenerSettingsGeneral } from "@/lib/settings";
 import { computeShipping } from "@/lib/shipping";
+import { getDrivingDistances } from "@/lib/google-routes";
 
 export function OPTIONS(request) {
   return preflightCorsPublico(request);
@@ -24,8 +25,15 @@ export async function GET(request) {
   // Esta ruta es una estimación; el total final lo fija /api/checkout/quote.
   // Si el cliente no informa el peso, se estima sin tope para no bloquear la vista previa.
   const hasWeight = Number.isFinite(weightKg) && weightKg > 0;
+  let distancesByStore;
+  try {
+    distancesByStore = await getDrivingDistances({ locations, lat, lng });
+  } catch (error) {
+    return jsonPublico({ error: error?.message || "No se pudo calcular la distancia por ruta." }, { status: error?.status || 503 }, request);
+  }
   const result = computeShipping({
     locations, tiers: shippingTiers, rules: shippingRules, lat, lng,
+    distancesByStore,
     weightKg: hasWeight ? weightKg : 1,
     subtotal: Number.isFinite(subtotal) ? subtotal : 0,
   });

@@ -14,12 +14,13 @@ const tiers = [{ km: 10, price: 10000 }, { km: 20, price: 20000 }];
 const local = { id: "a", nombre: "A", lat: -34.6, lng: -58.4, radio: 25000 };
 // ~11 km al este de la sucursal
 const point = { lat: -34.6, lng: -58.4 + 0.12 };
+const routeDistances = { a: 12.5 };
 
 test("sin reglas se comporta como antes: tramo por distancia y tope de 100 kg", () => {
-  const result = computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 50 });
+  const result = computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 50, distancesByStore: routeDistances });
   assert.equal(result.status, "ok");
   assert.equal(result.price, 20000);
-  assert.equal(computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 101 }).reason, "peso_excedido");
+  assert.equal(computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 101, distancesByStore: routeDistances }).reason, "peso_excedido");
 });
 
 test("la modalidad por km calcula aunque no haya tramos y conserva la distancia", () => {
@@ -44,6 +45,7 @@ test("el cálculo por km usa las coordenadas de la dirección y conserva el lím
     lat: point.lat,
     lng: point.lng,
     weightKg: 1,
+    distancesByStore: routeDistances,
   });
   assert.equal(result.status, "ok");
   assert.equal(result.price, Math.round(result.distance * 100 * 100) / 100);
@@ -55,6 +57,7 @@ test("el cálculo por km usa las coordenadas de la dirección y conserva el lím
     lat: point.lat,
     lng: point.lng,
     weightKg: 1,
+    distancesByStore: routeDistances,
   });
   assert.equal(outside.reason, "fuera_de_zona");
 });
@@ -117,7 +120,7 @@ test("el peso faltante usa la tarifa base si es opcional y cotiza si se exige", 
 
 test("distancia sin tramo y fuera de radio piden cotización", () => {
   assert.equal(priceForDistance({ distanceKm: 50, tiers, weightKg: 10 }).reason, "sin_tarifa");
-  const far = computeShipping({ locations: [{ ...local, radio: 5000 }], tiers, lat: point.lat, lng: point.lng, weightKg: 10 });
+  const far = computeShipping({ locations: [{ ...local, radio: 5000 }], tiers, lat: point.lat, lng: point.lng, weightKg: 10, distancesByStore: routeDistances });
   assert.equal(far.reason, "fuera_de_zona");
   assert.equal(computeShipping({ locations: [], tiers, lat: 0, lng: 0, weightKg: 1 }).reason, "sin_sucursales");
   assert.equal(computeShipping({ locations: [local], tiers, lat: 999, lng: 0, weightKg: 1 }).status, "invalid");
@@ -126,9 +129,16 @@ test("distancia sin tramo y fuera de radio piden cotización", () => {
 test("elige entre las sucursales que cubren la dirección, no sólo la más cercana", () => {
   const near = { id: "near", nombre: "Cerca", lat: -34.6, lng: -58.45, radio: 1000 };
   const wide = { id: "wide", nombre: "Amplia", lat: -34.6, lng: -58.2, radio: 40000 };
-  const result = computeShipping({ locations: [near, wide], tiers, lat: -34.6, lng: -58.4, weightKg: 10 });
+  const result = computeShipping({ locations: [near, wide], tiers, lat: -34.6, lng: -58.4, weightKg: 10, distancesByStore: { near: 4, wide: 18 } });
   assert.equal(result.store.id, "wide");
   assert.equal(result.inRadius, true);
+});
+
+test("requiere distancias por ruta y nunca sustituye una distancia faltante por la recta", () => {
+  const missing = computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 10 });
+  assert.equal(missing.reason, "distancia_ruta_requerida");
+  const incomplete = computeShipping({ locations: [local], tiers, lat: point.lat, lng: point.lng, weightKg: 10, distancesByStore: {} });
+  assert.equal(incomplete.reason, "distancia_ruta_faltante");
 });
 
 test("la validación rechaza reglas incoherentes y avisa de huecos de cobertura", () => {

@@ -44,7 +44,14 @@ function fixture() {
   const cache = {};
   function load(name) {
     if (name === "@/lib/firebase-admin") return { getAdminDb: () => db };
-    if (name === "@/lib/tienda-precios-server") return { getPublishedPrecios: async () => null, getPublishedStock: async () => globalThis.__stockCfg ?? null };
+    if (name === "@/lib/tienda-precios-server") return {
+      getPublishedPrecios: async () => null,
+      getPublishedStock: async () => globalThis.__stockCfg ?? null,
+      getPublishedWoodTreatments: async () => globalThis.__woodTreatments ?? { cepilladoPct: 6, calibradoPct: 3 },
+    };
+    if (name === "@/lib/google-routes") return {
+      getDrivingDistances: async ({ locations }) => Object.fromEntries(locations.map((location) => [String(location.id), globalThis.__routeDistance ?? 5])),
+    };
     if (name === "@/lib/settings") return { obtenerSettingsGeneral: async () => ({
        locations: [{ id: "local", nombre: "Local", lat: -34, lng: -58, radio: 10000 }],
        shippingTiers: [{ km: 10, price: 500 }], shippingRules: globalThis.__shippingRules || {}, data: { transferenciaDescuentoPct: 10 },

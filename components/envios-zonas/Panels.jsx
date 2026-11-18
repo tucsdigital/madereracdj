@@ -211,7 +211,7 @@ export function ReglasPanel({ rules, issues, onChange }) {
 
 /* ───────────────────────────── Probar ───────────────────────────── */
 
-export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChange, onClearPin }) {
+export function ProbadorPanel({ pin, locations, tiers, rules, probe, distancesByStore, routeLoading = false, routeError = "", onProbeChange, onClearPin }) {
   const weight = toNum(probe.weight);
   const subtotal = toNum(probe.subtotal) || 0;
   const manualDistance = toNum(probe.distance);
@@ -222,8 +222,8 @@ export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChan
   let origin = "";
   if (manualDistance !== null && manualDistance >= 0) {
     result = priceForDistance({ distanceKm: manualDistance, tiers: numTiers, rules, weightKg: weight, subtotal });
-  } else if (pin) {
-    result = computeShipping({ locations: numLocations, tiers: numTiers, rules, lat: pin.lat, lng: pin.lng, weightKg: weight, subtotal });
+  } else if (pin && distancesByStore) {
+    result = computeShipping({ locations: numLocations, tiers: numTiers, rules, lat: pin.lat, lng: pin.lng, weightKg: weight, subtotal, distancesByStore });
     if (result.store) origin = `${result.store.nombre} · a ${kmLabel(result.distance)}`;
   }
   const quote = result ? describeQuote(result, rules) : null;
@@ -246,7 +246,7 @@ export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChan
               <Btn size="sm" variant="ghost" onClick={onClearPin}>Quitar</Btn>
             </div>
           ) : (
-            <p className="text-default-500">Elegí una dirección en el mapa o ingresá la distancia a mano.</p>
+            <p className="text-default-500">Elegí una dirección en el mapa para calcular km por ruta de automóvil o ingresá la distancia a mano.</p>
           )}
         </div>
 
@@ -266,7 +266,7 @@ export function ProbadorPanel({ pin, locations, tiers, rules, probe, onProbeChan
       <div className="rounded-xl border border-border bg-card p-5">
         {!quote ? (
           <div className="flex h-full min-h-[140px] items-center justify-center text-center text-sm text-default-500">
-            El resultado aparece acá.
+            {routeError ? routeError : routeLoading && pin && manualDistance === null ? "Calculando ruta de automóvil con Google Maps…" : "El resultado aparece acá."}
           </div>
         ) : (
           <div className="space-y-4">

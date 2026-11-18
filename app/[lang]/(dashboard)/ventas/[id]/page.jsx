@@ -1675,9 +1675,7 @@ const VentaDetalle = () => {
     console.log("clienteId final:", ventaEdit.clienteId);
     console.log("cliente final:", ventaEdit.cliente);
 
-    const productosArr = esVentaEcommerce
-      ? (Array.isArray(venta.productos) ? venta.productos : venta.items || [])
-      : (ventaEdit.productos || ventaEdit.items || []);
+    const productosArr = ventaEdit.productos || ventaEdit.items || [];
 
     if (!productosArr.length) {
       setErrorForm("Agrega al menos un producto.");
@@ -2009,6 +2007,12 @@ const VentaDetalle = () => {
   };
 
   const paymentSnapshot = buildVentaPaymentSnapshot(venta);
+  const esMercadoPagoAprobado = Boolean(
+    esVentaEcommerce &&
+    String(venta?.formaPago || venta?.pago || "").trim().toLowerCase().replace(/[\s_-]/g, "") === "mercadopago" &&
+    String(venta?.pagoMercadoPago?.status || "").trim().toLowerCase() === "approved" &&
+    /^\d+$/.test(String(venta?.pagoMercadoPago?.paymentId || ""))
+  );
   const hayCambiosVenta = Boolean(
     editando &&
     ventaEdit &&
@@ -2127,7 +2131,10 @@ const VentaDetalle = () => {
     if (phone.length < 11) return "";
     const reference = String(venta?.numeroPedido || venta?.id?.slice(-8) || "");
     const place = [sucursalRetiroNombre, sucursalRetiroDireccion].filter(Boolean).join(" · ");
-    const text = `Hola ${String(venta?.cliente?.nombre || "").trim()}, tu pedido ${reference} está listo para retirar${place ? ` en ${place}` : " en nuestra sucursal"}.`;
+    const pickupDate = String(venta?.fechaEntrega || venta?.deliveryInfo?.fechaEntrega || "").trim();
+    const pickupWindow = String(venta?.rangoHorario || venta?.deliveryInfo?.rangoHorario || "").trim();
+    const schedule = [pickupDate ? `el ${formatFechaLocal(pickupDate)}` : "", pickupWindow ? `en la franja ${pickupWindow}` : ""].filter(Boolean).join(" ");
+    const text = `Hola ${String(venta?.cliente?.nombre || "").trim()}, tu pedido ${reference} está listo para retirar${place ? ` en ${place}` : " en nuestra sucursal"}${schedule ? `. Recordá que el retiro está programado ${schedule}` : ""}.`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   })();
 
@@ -3244,12 +3251,15 @@ const VentaDetalle = () => {
         {editando && ventaEdit && (
           <div className="flex flex-col gap-6 pb-24 pt-2">
             {esVentaEcommerce ? (
-              <section className="space-y-5 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+              <>
+              <section className="space-y-5 border-b border-border/60 pb-6">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pedido de /tienda</p>
                   <h2 className="mt-1 text-lg font-semibold text-foreground">Programación de entrega o retiro</h2>
                   <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                    Los productos, descuentos, forma de pago e importe se conservan según la compra confirmada en la tienda. Desde esta pantalla podés actualizar la fecha y el horario; los cambios se guardan con el botón flotante.
+                    {esMercadoPagoAprobado
+                      ? "El pago de Mercado Pago está aprobado. Los productos, importes y registros de pago quedan bloqueados; podés actualizar la programación de entrega o retiro."
+                      : "Podés editar los productos y registrar pagos en efectivo o transferencia. La fecha y el horario de entrega o retiro también se pueden actualizar."}
                   </p>
                 </div>
                 <DeliveryScheduleInput
@@ -3263,6 +3273,83 @@ const VentaDetalle = () => {
                   onRangoHorarioChange={(value) => setVentaEdit((previous) => ({ ...previous, rangoHorario: value }))}
                 />
               </section>
+              {esMercadoPagoAprobado ? (
+                <section className="rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground" role="status">
+                  Mercado Pago ya confirmó el importe. No se permite cambiar los productos ni los pagos de este pedido.
+                </section>
+              ) : (
+                <div className="space-y-5">
+                  <section className="space-y-4 border-b border-border/60 pb-6">
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">Productos del pedido</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">Los cambios de cantidad y precio actualizan el total ecommerce y se guardan junto con el pedido.</p>
+                    </div>
+                    <FormularioVentaPresupuesto
+                      tipo="venta"
+                      modoEdicionProductos
+                      disabled={loadingPrecios || guardandoCambios}
+                      productosIniciales={ventaEdit.productos || ventaEdit.items || []}
+                      onProductosChange={(productosActualizados) => setVentaEdit((previous) => previous ? { ...previous, productos: productosActualizados, items: productosActualizados } : previous)}
+                    />
+                  </section>
+
+                  {(() => {
+                    const productosPedido = ventaEdit.productos || ventaEdit.items || [];
+                    const importes = calcularImportesEdicionVenta({
+                      esVentaEcommerce: true,
+                      ventaOriginal: venta,
+                      ventaEdit,
+                      totalesProductos: computeTotals(productosPedido),
+                    });
+                    const pagos = Array.isArray(ventaEdit.pagos) ? ventaEdit.pagos : pagosSimples;
+                    const abonado = pagos.reduce((sum, pago) => sum + (Number(pago?.monto) || 0), 0);
+                    const saldo = Math.max(0, Number(importes.total) - abonado);
+                    const monto = Number(ventaEdit.nuevoPagoMonto);
+                    const metodo = String(ventaEdit.nuevoPagoMetodo || "");
+                    const pagoValido = Number.isFinite(monto) && monto > 0 && monto <= saldo && ["efectivo", "transferencia"].includes(metodo);
+                    return (
+                      <section className="space-y-4" aria-labelledby="ecommerce-payment-heading">
+                        <header>
+                          <h2 id="ecommerce-payment-heading" className="text-lg font-semibold text-foreground">Pagos del pedido</h2>
+                          <p className="mt-1 text-sm text-muted-foreground">Registrá pagos recibidos en efectivo o por transferencia. Los cambios se confirman al guardar el pedido.</p>
+                        </header>
+                        <div className="flex flex-wrap gap-x-8 gap-y-2 border-y border-border/50 py-3 text-sm">
+                          <p>Total del pedido <strong className="ml-2 tabular-nums text-foreground">$ {formatearNumeroArgentino(importes.total)}</strong></p>
+                          <p>Abonado <strong className="ml-2 tabular-nums text-success">$ {formatearNumeroArgentino(abonado)}</strong></p>
+                          <p>Saldo <strong className="ml-2 tabular-nums text-warning">$ {formatearNumeroArgentino(saldo)}</strong></p>
+                        </div>
+                        {pagos.length ? (
+                          <ul className="divide-y divide-border/50 text-sm">
+                            {pagos.map((pago, index) => <li key={`${pago?.fechaHora || pago?.fecha || "pago"}-${index}`} className="flex flex-wrap justify-between gap-2 py-2"><span>{capitalizarPrimeraLetra(String(pago?.metodo || "Pago").replaceAll("_", " "))} · {formatFechaHoraLocal(pago?.fechaHora || pago?.fecha)}</span><strong className="tabular-nums">$ {formatearNumeroArgentino(pago?.monto)}</strong></li>)}
+                          </ul>
+                        ) : <p className="text-sm text-muted-foreground">Todavía no hay pagos registrados.</p>}
+                        {saldo > 0 ? (
+                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                            <label className="space-y-1 text-sm font-medium">Monto
+                              <input type="number" min="0.01" max={saldo} step="0.01" value={ventaEdit.nuevoPagoMonto || ""} onChange={(event) => setVentaEdit((previous) => ({ ...previous, nuevoPagoMonto: event.target.value }))} className="h-10 w-full rounded-md border border-border/60 bg-background px-3 tabular-nums" placeholder="$ 0,00" />
+                            </label>
+                            <label className="space-y-1 text-sm font-medium">Medio de pago
+                              <select value={metodo} onChange={(event) => setVentaEdit((previous) => ({ ...previous, nuevoPagoMetodo: event.target.value }))} className="h-10 w-full rounded-md border border-border/60 bg-background px-3">
+                                <option value="">Seleccionar</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option>
+                              </select>
+                            </label>
+                            <Button type="button" disabled={!pagoValido || registrandoPago} className="self-end" onClick={() => {
+                              if (!pagoValido) return;
+                              const nuevoPago = { fecha: fechaLocalActual(), fechaHora: new Date().toISOString(), monto, metodo, usuario: String(user?.email || "Sistema") };
+                              setVentaEdit((previous) => ({ ...previous, pagos: [...(Array.isArray(previous.pagos) ? previous.pagos : pagosSimples), nuevoPago], nuevoPagoMonto: "", nuevoPagoMetodo: "" }));
+                              setPagoExitoso(true);
+                              setTimeout(() => setPagoExitoso(false), 1800);
+                            }}><Plus className="mr-2 h-4 w-4" />Registrar pago</Button>
+                          </div>
+                        ) : <p className="text-sm font-medium text-success">El pedido está completamente pagado.</p>}
+                        {Number(ventaEdit.nuevoPagoMonto) > saldo ? <p className="text-sm text-destructive">El monto no puede superar el saldo pendiente.</p> : null}
+                        {pagoExitoso ? <p role="status" className="text-sm text-success">Pago agregado. Guardá los cambios para confirmarlo.</p> : null}
+                      </section>
+                    );
+                  })()}
+                </div>
+              )}
+              </>
             ) : (
               <>
             <section className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">

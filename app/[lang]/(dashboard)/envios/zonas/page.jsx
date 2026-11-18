@@ -63,6 +63,7 @@ export default function ZonasEnvioPage() {
   const [draft, setDraft] = useState(null);
   const [tab, setTab] = useState("tarifas");
   const [pin, setPin] = useState(null);
+  const [routeProbe, setRouteProbe] = useState({ key: "", distancesByStore: null, loading: false, error: "" });
   const [probe, setProbe] = useState({ weight: "", subtotal: "", distance: "" });
   const [mapsApi, setMapsApi] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -98,6 +99,33 @@ export default function ZonasEnvioPage() {
   const mapLocations = useMemo(() => (config ? numericLocations(config.locations) : []), [config]);
 
   useEffect(() => {
+    if (!pin || !config) {
+      setRouteProbe({ key: "", distancesByStore: null, loading: false, error: "" });
+      return undefined;
+    }
+    let active = true;
+    const key = `${pin.lat}:${pin.lng}:${mapLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`).join("|")}`;
+    setRouteProbe({ key, distancesByStore: null, loading: true, error: "" });
+    (async () => {
+      try {
+        if (!user || typeof user.getIdToken !== "function") throw new Error("Iniciá sesión para calcular la ruta.");
+        const token = await user.getIdToken();
+        const response = await fetch("/api/envios/zonas/route-distance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ lat: pin.lat, lng: pin.lng, locations: mapLocations }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "No pudimos calcular la ruta en automóvil.");
+        if (active) setRouteProbe({ key, distancesByStore: data.distancesByStore || {}, loading: false, error: "" });
+      } catch (error) {
+        if (active) setRouteProbe({ key, distancesByStore: null, loading: false, error: error?.message || "No pudimos calcular la ruta en automóvil." });
+      }
+    })();
+    return () => { active = false; };
+  }, [pin, config, mapLocations, user]);
+
+  useEffect(() => {
     if (!dirty) return undefined;
     const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
@@ -113,10 +141,13 @@ export default function ZonasEnvioPage() {
   // Resultado de la dirección elegida en el mapa, con lo que se ve en pantalla (guardado o no).
   const pinMessage = useMemo(() => {
     if (!pin || !config) return null;
+    const expectedKey = `${pin.lat}:${pin.lng}:${mapLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`).join("|")}`;
+    if (routeProbe.key !== expectedKey || routeProbe.loading) return { tone: "warn", title: "Calculando ruta de automóvil…", detail: "Consultando la distancia real por calles con Google Maps." };
+    if (routeProbe.error) return { tone: "bad", title: "No se pudo calcular la ruta", detail: routeProbe.error };
     return coverageMessage(
-      computeShipping({ locations: mapLocations, tiers: numericTiers(config.tiers), rules: config.rules, lat: pin.lat, lng: pin.lng, weightKg: toNum(probe.weight), subtotal: toNum(probe.subtotal) || 0 })
+      computeShipping({ locations: mapLocations, tiers: numericTiers(config.tiers), rules: config.rules, lat: pin.lat, lng: pin.lng, weightKg: toNum(probe.weight), subtotal: toNum(probe.subtotal) || 0, distancesByStore: routeProbe.distancesByStore })
     );
-  }, [pin, config, mapLocations, probe.weight, probe.subtotal]);
+  }, [pin, config, mapLocations, probe.weight, probe.subtotal, routeProbe]);
 
   const patch = (key, value) => setConfig((prev) => ({ ...prev, [key]: typeof value === "function" ? value(prev[key]) : value }));
 
@@ -346,6 +377,7 @@ export default function ZonasEnvioPage() {
           {tab === "reglas" && <ReglasPanel rules={config.rules} issues={issues} onChange={(changes) => patch("rules", (rules) => ({ ...rules, ...changes }))} />}
           {tab === "probar" && (
             <ProbadorPanel pin={pin} locations={config.locations} tiers={config.tiers} rules={config.rules} probe={probe}
+              distancesByStore={routeProbe.distancesByStore} routeLoading={routeProbe.loading} routeError={routeProbe.error}
               onProbeChange={(changes) => setProbe((p) => ({ ...p, ...changes }))} onClearPin={() => setPin(null)} />
           )}
         </div>

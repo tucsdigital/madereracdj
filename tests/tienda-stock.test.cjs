@@ -111,7 +111,7 @@ test("disponibilidad: reparte entre stock y pedido sin stock respetando el tope"
   const cfg = { activo: true, politica: "bajo_pedido", tope: 10 };
   const products = () => new Map([["t1", { ...tornillo, stock: 3 }], ["m1", madera]]);
   const ok = await assertOrderAvailability(fakeDb(), [{ id: "t1", quantity: 8 }, { id: "m1", quantity: 4 }], products(), { policyFor: policyFor(cfg) });
-  assert.deepEqual([ok.get("t1").sinStock, ok.get("m1").sinStock], [5, 0]);
+  assert.deepEqual([ok.get(0).sinStock, ok.get(1).sinStock], [5, 0]);
   await assert.rejects(() => assertOrderAvailability(fakeDb(), [{ id: "t1", quantity: 14 }], products(), { policyFor: policyFor(cfg) }), /hasta 13 unidades/);
   await assert.rejects(() => assertOrderAvailability(fakeDb(), [{ id: "t1", quantity: 4 }], products(), { policyFor: policyFor({ activo: false }) }), /Stock insuficiente/);
   await assert.rejects(() => assertOrderAvailability(fakeDb(), [{ id: "t1", quantity: 4 }], products()), /Stock insuficiente/);
@@ -122,6 +122,21 @@ test("disponibilidad: los combos consumen primero y no admiten pedido sin stock"
   const products = () => new Map([["c1", combo], ["m1", { ...madera, stock: 5 }]]);
   // El combo usa 2 de madera por unidad: 2 combos consumen 4 y quedan 1 para la línea suelta.
   const ok = await assertOrderAvailability(fakeDb(), [{ id: "c1", quantity: 2 }, { id: "m1", quantity: 3 }], products(), { policyFor: policyFor(cfg) });
-  assert.deepEqual([ok.get("c1").sinStock, ok.get("m1").sinStock], [0, 2]);
+  assert.deepEqual([ok.get(0).sinStock, ok.get(1).sinStock], [0, 2]);
   await assert.rejects(() => assertOrderAvailability(fakeDb(), [{ id: "c1", quantity: 3 }], products(), { policyFor: policyFor(cfg) }), /Stock insuficiente/);
+});
+
+test("disponibilidad: asigna unidades por línea aunque el producto aparezca varias veces", async () => {
+  const cfg = { activo: true, politica: "bajo_pedido", tope: 10 };
+  const lines = [
+    { id: "t1", quantity: 2, cepilladoAplicado: true },
+    { id: "t1", quantity: 4, calibradoAplicado: true },
+  ];
+  const allocation = await assertOrderAvailability(
+    fakeDb(),
+    lines,
+    new Map([["t1", { ...tornillo, stock: 3 }]]),
+    { policyFor: policyFor(cfg) },
+  );
+  assert.deepEqual([allocation.get(0).sinStock, allocation.get(1).sinStock], [0, 3]);
 });
