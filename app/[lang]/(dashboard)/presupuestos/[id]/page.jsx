@@ -2260,6 +2260,9 @@ const PresupuestoDetalle = () => {
                   const formaPagoFinal =
                     ventaCampos.formaPago ||
                     (presupuesto.pagoEnEfectivo ? "efectivo" : (aplicaTransferencia ? "transferencia" : ""));
+                  const tipoEnvio = ventaCampos.tipoEnvio || presupuesto.tipoEnvio;
+                  const usarDireccionAlternativa =
+                    tipoEnvio === "envio_domicilio" && ventaCampos.usarDireccionCliente === false;
 
                   // Crear estructura de venta siguiendo exactamente el formato de ventas/page.jsx
                   const ventaData = {
@@ -2304,12 +2307,17 @@ const PresupuestoDetalle = () => {
                     estadoPago: ventaCampos.estadoPagoConversion || "pagado",
 
                     // Campos de envío
-                    tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
+                    tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
                     costoEnvio: envio,
-                    direccionEnvio: ventaCampos.direccionEnvio,
-                    localidadEnvio: ventaCampos.localidadEnvio,
+                    direccionEnvio: usarDireccionAlternativa ? ventaCampos.direccionEnvio : "",
+                    localidadEnvio: usarDireccionAlternativa ? ventaCampos.localidadEnvio : "",
+                    ...(usarDireccionAlternativa ? {
+                      direccionMapsUrl: ventaCampos.direccionMapsUrl,
+                      direccionLat: ventaCampos.direccionLat,
+                      direccionLng: ventaCampos.direccionLng,
+                    } : {}),
                     usarDireccionCliente:
                       ventaCampos.usarDireccionCliente ?? true,
 
@@ -2446,6 +2454,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: (s) => s.required("La localidad es obligatoria"),
       otherwise: (s) => s.notRequired(),
     }),
+    direccionMapsUrl: yup.string().notRequired(),
+    direccionLat: yup.number().nullable().notRequired(),
+    direccionLng: yup.number().nullable().notRequired(),
   });
 
   // Determinar valores por defecto inteligentes
@@ -2465,6 +2476,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       rangoHorario: "",
       direccionEnvio: "",
       localidadEnvio: "",
+      direccionMapsUrl: "",
+      direccionLat: null,
+      direccionLng: null,
       usarDireccionCliente: true,
     };
 
@@ -2546,36 +2560,58 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 {!usarDireccionCliente && (
                   <>
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
+                      <label htmlFor="conversion-direccion-envio" className="mb-2 block text-sm font-medium text-foreground">
                         Dirección de envío *
                       </label>
-                      <Input
-                        {...register("direccionEnvio")}
+                      <GoogleAddressInput
+                        id="conversion-direccion-envio"
+                        value={watch("direccionEnvio")}
+                        onChange={({ address, locality, lat, lng, mapsUrl }) => {
+                          setValue("direccionEnvio", address, { shouldDirty: true, shouldValidate: true });
+                          if (locality) {
+                            setValue("localidadEnvio", locality, { shouldDirty: true, shouldValidate: true });
+                          }
+                          setValue("direccionMapsUrl", mapsUrl, { shouldDirty: true });
+                          setValue("direccionLat", lat, { shouldDirty: true });
+                          setValue("direccionLng", lng, { shouldDirty: true });
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                            event.preventDefault();
+                          }
+                        }}
                         placeholder="Dirección de envío"
+                        aria-required="true"
+                        aria-invalid={Boolean(errors.direccionEnvio)}
+                        aria-describedby={errors.direccionEnvio ? "conversion-direccion-error" : undefined}
                         className={`w-full bg-background text-foreground ${
                           errors.direccionEnvio ? "border-destructive" : ""
                         }`}
                       />
                       {errors.direccionEnvio && (
-                        <span className="text-xs text-destructive">
+                        <span id="conversion-direccion-error" className="text-xs text-destructive">
                           {errors.direccionEnvio.message}
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
+                      <label htmlFor="conversion-localidad-envio" className="mb-2 block text-sm font-medium text-foreground">
                         Localidad *
                       </label>
                       <Input
+                        id="conversion-localidad-envio"
                         {...register("localidadEnvio")}
                         placeholder="Localidad/Ciudad"
+                        aria-required="true"
+                        aria-invalid={Boolean(errors.localidadEnvio)}
+                        aria-describedby={errors.localidadEnvio ? "conversion-localidad-error" : undefined}
                         className={`w-full bg-background text-foreground ${
                           errors.localidadEnvio ? "border-destructive" : ""
                         }`}
                       />
                       {errors.localidadEnvio && (
-                        <span className="text-xs text-destructive">
+                        <span id="conversion-localidad-error" className="text-xs text-destructive">
                           {errors.localidadEnvio.message}
                         </span>
                       )}

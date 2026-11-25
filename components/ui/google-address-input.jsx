@@ -51,6 +51,7 @@ export default function GoogleAddressInput({
   disabled = false,
   className = "",
   id,
+  ...inputProps
 }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -158,6 +159,7 @@ export default function GoogleAddressInput({
 
   return (
     <Input
+      {...inputProps}
       ref={inputRef}
       id={id}
       value={value || ""}
