@@ -5,6 +5,13 @@ import { Input } from "@/components/ui/input";
 
 let googleMapsPromise = null;
 
+// Google Places agrega sus sugerencias fuera del diálogo, directamente al body.
+export function keepGoogleAddressDialogOpen(event) {
+  if (event.target?.closest?.(".pac-container")) {
+    event.preventDefault();
+  }
+}
+
 function loadGoogleMaps() {
   if (typeof window === "undefined") return Promise.resolve(null);
   if (window.google?.maps?.places) return Promise.resolve(window.google.maps);
@@ -143,8 +150,11 @@ export default function GoogleAddressInput({
       const locality = place?.address_components?.find((component) =>
         component.types?.includes("locality") || component.types?.includes("administrative_area_level_2")
       )?.long_name || "";
+      const province = place?.address_components?.find((component) =>
+        component.types?.includes("administrative_area_level_1")
+      )?.long_name || "";
 
-      onChangeRef.current?.({ address, locality, lat, lng, mapsUrl, place });
+      onChangeRef.current?.({ address, locality, province, lat, lng, mapsUrl, place });
     });
 
     autocompleteRef.current = autocomplete;
@@ -163,7 +173,7 @@ export default function GoogleAddressInput({
       ref={inputRef}
       id={id}
       value={value || ""}
-      onChange={(event) => onChange?.({ address: event.target.value, locality: "", lat: null, lng: null, mapsUrl: "" })}
+      onChange={(event) => onChange?.({ address: event.target.value, locality: "", province: "", lat: null, lng: null, mapsUrl: "" })}
       placeholder={placeholder}
       disabled={disabled}
       className={className}

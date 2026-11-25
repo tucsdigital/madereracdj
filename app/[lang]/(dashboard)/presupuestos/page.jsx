@@ -8,6 +8,7 @@ import { columns } from "../(invoice)/invoice-list/invoice-list-table/components
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import GoogleAddressInput, { keepGoogleAddressDialogOpen } from "@/components/ui/google-address-input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
 import { useForm } from "react-hook-form";
@@ -39,6 +40,19 @@ const productosPorCategoria = {
     { id: 301, nombre: "Tornillos x100", precio: 900, unidad: "caja" },
     { id: 302, nombre: "Cola vinílica 1kg", precio: 1200, unidad: "unidad" },
   ],
+};
+
+const NUEVO_CLIENTE_VACIO = {
+  nombre: "",
+  dni: "",
+  direccion: "",
+  localidad: "",
+  provincia: "",
+  lat: null,
+  lng: null,
+  mapsUrl: "",
+  telefono: "",
+  email: "",
 };
 
 function FormularioPresupuesto({ onClose, onSubmit }) {
@@ -111,7 +125,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   const clienteSeleccionado = clientesState.find(c => c.id === clienteId);
   // Estado para modal de nuevo cliente
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", dni: "", direccion: "", telefono: "", email: "" });
+  const [nuevoCliente, setNuevoCliente] = useState(NUEVO_CLIENTE_VACIO);
 
   // Estado para selección de categoría y productos
   const [categoriaId, setCategoriaId] = useState("");
@@ -176,7 +190,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     const docRef = await addDoc(collection(db, "clientes"), clienteObj);
     setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
     setClienteId(docRef.id);
-    setNuevoCliente({ nombre: "", dni: "", direccion: "", telefono: "", email: "" });
+    setNuevoCliente(NUEVO_CLIENTE_VACIO);
     setOpenNuevoCliente(false);
   };
 
@@ -278,6 +292,11 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
             email: c.email || DEFAULT_CLIENTE_DATA.email,
             telefono: c.telefono || DEFAULT_CLIENTE_DATA.telefono,
             direccion: c.direccion || DEFAULT_CLIENTE_DATA.direccion,
+            localidad: c.localidad || "",
+            provincia: c.provincia || "",
+            lat: c.lat ?? null,
+            lng: c.lng ?? null,
+            mapsUrl: c.mapsUrl || "",
             dni: c.dni || DEFAULT_CLIENTE_DATA.dni,
             cuit: c.cuit || DEFAULT_CLIENTE_DATA.cuit,
           };
@@ -611,7 +630,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
 
       {/* Modal para nuevo cliente */}
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[500px]">
+        <DialogContent className="w-[95vw] max-w-[500px]" onInteractOutside={keepGoogleAddressDialogOpen}>
           <DialogHeader>
             <DialogTitle>Nuevo Cliente</DialogTitle>
           </DialogHeader>
@@ -627,10 +646,19 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
               value={nuevoCliente.dni} 
               onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value.replace(/\D/g, "")})} 
             />
-            <Input 
-              placeholder="Dirección" 
-              value={nuevoCliente.direccion} 
-              onChange={e => setNuevoCliente({...nuevoCliente, direccion: e.target.value})} 
+            <GoogleAddressInput
+              aria-label="Dirección"
+              placeholder="Dirección"
+              value={nuevoCliente.direccion}
+              onChange={({ address, locality, province, lat, lng, mapsUrl }) => setNuevoCliente((prev) => ({
+                ...prev,
+                direccion: address,
+                localidad: locality,
+                provincia: province,
+                lat,
+                lng,
+                mapsUrl,
+              }))}
             />
             <Input 
               placeholder="Teléfono" 

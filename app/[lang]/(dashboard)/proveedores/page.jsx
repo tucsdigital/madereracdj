@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GoogleAddressInput, { keepGoogleAddressDialogOpen } from "@/components/ui/google-address-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -207,7 +208,10 @@ const ProveedoresPage = () => {
 
       {/* Modal alta proveedor */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] border border-border/60 bg-card">
+        <DialogContent
+          className="w-[95vw] max-w-[600px] max-h-[90vh] border border-border/60 bg-card"
+          onInteractOutside={keepGoogleAddressDialogOpen}
+        >
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Agregar Proveedor</DialogTitle>
           </DialogHeader>
@@ -357,13 +361,14 @@ const ProveedoresPage = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Dirección
-                    </label>
-                    <Input 
-                      placeholder="Dirección del proveedor" 
-                      value={form.direccion} 
-                      onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} 
+                     <label htmlFor="nuevo-proveedor-direccion" className="block text-sm font-medium text-foreground mb-1">
+                       Dirección
+                     </label>
+                     <GoogleAddressInput
+                       id="nuevo-proveedor-direccion"
+                       placeholder="Dirección del proveedor"
+                       value={form.direccion}
+                       onChange={({ address }) => setForm((f) => ({ ...f, direccion: address }))}
                     />
                   </div>
                 </div>
@@ -435,7 +440,11 @@ const ProveedoresPage = () => {
 
       {/* Modal detalle proveedor */}
       <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
-        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card">
+        <DialogContent
+          hiddenCloseIcon
+          className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card"
+          onInteractOutside={keepGoogleAddressDialogOpen}
+        >
           <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-border/60 bg-gradient-to-r from-muted/50 to-card">
             <DialogTitle className="text-xl font-bold tracking-tight">Detalle del Proveedor</DialogTitle>
             <DialogClose asChild>
@@ -539,12 +548,12 @@ const ProveedoresPage = () => {
                         </div>
                         <div className="md:col-span-2">
                           <Label htmlFor="direccion">Dirección</Label>
-                          <Input
+                          <GoogleAddressInput
                             id="direccion"
                             placeholder="Dirección completa"
                             className="w-full h-9 rounded-lg"
                             value={editProveedor.direccion || ""}
-                            onChange={(e) => setEditProveedor((p) => ({ ...p, direccion: e.target.value }))}
+                            onChange={({ address }) => setEditProveedor((p) => ({ ...p, direccion: address }))}
                           />
                         </div>
                       </div>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GoogleAddressInput, { keepGoogleAddressDialogOpen } from "@/components/ui/google-address-input";
 import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -597,7 +598,10 @@ const WizardConversion = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[96vw] max-w-3xl max-h-[88vh] overflow-hidden flex flex-col p-0 rounded-2xl">
+      <DialogContent
+        className="w-[96vw] max-w-3xl max-h-[88vh] overflow-hidden flex flex-col p-0 rounded-2xl"
+        onInteractOutside={keepGoogleAddressDialogOpen}
+      >
         <DialogHeader className="border-b pb-4 px-6 pt-6 bg-gradient-to-r from-purple-50 to-indigo-50">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
@@ -956,23 +960,28 @@ const WizardConversion = ({
                 {datos.ubicacionTipo === "nueva" && (
                   <div className="space-y-3 mt-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    <label htmlFor="conversion-obra-direccion" className="text-sm font-medium text-gray-700 mb-1 block">
                       Dirección <span className="text-red-500">*</span>
                     </label>
-                    <Input
+                    <GoogleAddressInput
+                      id="conversion-obra-direccion"
                       value={datos.direccion}
-                      onChange={(e) =>
-                        setDatos({ ...datos, direccion: e.target.value })
-                      }
+                      onChange={({ address, locality, province }) => setDatos((prev) => ({
+                        ...prev,
+                        direccion: address,
+                        localidad: locality || prev.localidad,
+                        provincia: province || prev.provincia,
+                      }))}
                       placeholder="Calle y número"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      <label htmlFor="conversion-obra-localidad" className="text-sm font-medium text-gray-700 mb-1 block">
                         Localidad <span className="text-red-500">*</span>
                       </label>
                       <Input
+                        id="conversion-obra-localidad"
                         value={datos.localidad}
                         onChange={(e) =>
                           setDatos({ ...datos, localidad: e.target.value })
@@ -981,10 +990,11 @@ const WizardConversion = ({
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      <label htmlFor="conversion-obra-provincia" className="text-sm font-medium text-gray-700 mb-1 block">
                         Provincia <span className="text-red-500">*</span>
                       </label>
                       <Input
+                        id="conversion-obra-provincia"
                         value={datos.provincia}
                         onChange={(e) =>
                           setDatos({ ...datos, provincia: e.target.value })

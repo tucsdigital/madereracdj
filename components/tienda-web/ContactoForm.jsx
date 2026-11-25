@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 import { cn } from "@/lib/utils";
 import { Field, inputClass, inputErrorClass } from "./ui";
 
@@ -51,7 +52,14 @@ export default function ContactoForm({ contacto, issues = [], onChange }) {
           </Field>
           <div className="sm:col-span-2">
             <Field label="Dirección" htmlFor="contacto-direccion">
-              <input id="contacto-direccion" className={inputClass} value={contacto.direccion} onChange={(e) => onChange({ direccion: e.target.value })} placeholder="Calle, localidad, provincia" />
+              <GoogleAddressInput
+                id="contacto-direccion"
+                className={inputClass}
+                value={contacto.direccion}
+                onChange={({ address }) => onChange({ direccion: address })}
+                placeholder="Calle, localidad, provincia"
+                removeWrapper
+              />
             </Field>
           </div>
         </div>

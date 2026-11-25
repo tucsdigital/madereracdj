@@ -9,6 +9,7 @@ import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -593,6 +594,7 @@ export default function CrearObraPage() {
         clienteId: finalClienteId,
         cliente: clienteObj,
         ubicacion: ubicacionObra,
+        usarDireccionCliente,
         fechas: {
           inicio: fechaInicio,
           fin: null,
@@ -741,16 +743,25 @@ export default function CrearObraPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600">Dirección</label>
-                  <Input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+                  <label htmlFor="obra-direccion" className="text-sm text-gray-600">Dirección</label>
+                  <GoogleAddressInput
+                    id="obra-direccion"
+                    value={direccion}
+                    onChange={({ address, locality, province }) => {
+                      setDireccion(address);
+                      if (locality) setLocalidad(locality);
+                      if (province) setProvincia(province);
+                    }}
+                    placeholder="Calle y número"
+                  />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Localidad</label>
-                  <Input value={localidad} onChange={(e) => setLocalidad(e.target.value)} />
+                  <label htmlFor="obra-localidad" className="text-sm text-gray-600">Localidad</label>
+                  <Input id="obra-localidad" value={localidad} onChange={(e) => setLocalidad(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Provincia</label>
-                  <Input value={provincia} onChange={(e) => setProvincia(e.target.value)} />
+                  <label htmlFor="obra-provincia" className="text-sm text-gray-600">Provincia</label>
+                  <Input id="obra-provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
